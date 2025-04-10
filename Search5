@@ -1,0 +1,48 @@
+Private Sub Search_Change()
+    Dim ws As Worksheet
+    Dim searchTerm As String
+    Dim lastRow As Long
+    Dim r As Long
+    
+    ' Set the worksheet to "Unit Trays" (or fallback to ActiveSheet if not found)
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets("Unit Trays") ' <-- Your sheet name
+    If ws Is Nothing Then Set ws = ActiveSheet
+    On Error GoTo 0
+    
+    ' Exit if no worksheet is found
+    If ws Is Nothing Then
+        MsgBox "Error: Worksheet 'Unit Trays' not found!", vbCritical
+        Exit Sub
+    End If
+    
+    ' Get search term from B3
+    searchTerm = Trim(ws.Range("B3").Value)
+    
+    ' Unhide all rows first (in case previous search hid some)
+    ws.Rows("7:" & ws.Rows.Count).EntireRow.Hidden = False
+    
+    ' Exit if search term is empty (leave all rows visible)
+    If searchTerm = "" Then Exit Sub
+    
+    ' Find last used row in Column C
+    lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+    If lastRow < 7 Then Exit Sub ' No data to process
+    
+    ' Loop through each row (from 7 to lastRow)
+    For r = 7 To lastRow
+        ' Check if cell in column C contains search term (partial match, case-insensitive)
+        If InStr(1, ws.Cells(r, "C").Value, searchTerm, vbTextCompare) > 0 Then
+            ws.Rows(r).Hidden = False ' Show matching row
+        Else
+            ws.Rows(r).Hidden = True ' Hide non-matching row
+        End If
+    Next r
+    
+    ' Optional: Show message if no matches found
+    If WorksheetFunction.CountIf(ws.Range("C7:C" & lastRow), "*" & searchTerm & "*") = 0 Then
+        MsgBox "No results found for '" & searchTerm & "'", vbInformation
+        ' Unhide all rows if no matches
+        ws.Rows("7:" & lastRow).EntireRow.Hidden = False
+    End If
+End Sub
