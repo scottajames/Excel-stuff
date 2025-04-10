@@ -1,0 +1,47 @@
+Dim ws As Worksheet
+Dim searchTerm As String
+Dim lastRow As Long
+Dim lastCol As Long
+Dim found As Range
+Dim searchRange As Range
+Dim searchResultRow As Long
+Dim resultWs As Worksheet
+Dim i As Long
+
+' Define the worksheet where the data is located
+Set ws = ThisWorkbook.Sheets("All Parts") ' Adjust as needed
+
+' Get the search term from the search box
+searchTerm = ws.Range("A25").Value ' Adjust if the search box is in another cell
+
+' Define the range to search
+lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row ' Find the last row in column A (or adjust for another column)
+lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column ' Find the last column in the first row
+
+' Define the search range (adjust if you want to search specific columns)
+Set searchRange = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
+
+' Clear previous search results
+ws.Range("C3:Z1000").ClearContents ' Adjust the range where the results will be displayed
+
+' Initialize the row for displaying results
+searchResultRow = 3 ' Results start from row 3
+
+' Find the search term in the defined range
+Set found = searchRange.Find(What:=searchTerm, LookIn:=xlValues, LookAt:=xlPart, MatchCase:=False)
+
+' If the search term is found, copy the entire row to the results area
+If Not found Is Nothing Then
+' Loop through all occurrences of the search term
+Do
+' Copy the entire row of the found cell to the result area
+ws.Rows(found.Row).Copy Destination:=ws.Cells(searchResultRow, 4) ' Paste in column C onward
+searchResultRow = searchResultRow + 1 ' Move to the next row for results
+
+' Continue searching for more occurrences
+Set found = searchRange.FindNext(found)
+Loop While Not found Is Nothing And found.Row <> ws.Cells(1, 1).Row ' Stop if it loops back to the start
+Else
+' If no results found, display a message
+ws.Range("C3").Value = "No results found for '" & searchTerm & "'"
+End If
