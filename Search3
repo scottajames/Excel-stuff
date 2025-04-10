@@ -1,0 +1,58 @@
+Private Sub Search_Change()
+    Dim ws As Worksheet
+    Dim searchTerm As String
+    Dim lastRow As Long
+    Dim found As Range
+    Dim firstAddress As String
+    Dim searchResultRow As Long
+    
+    ' Error handling in case worksheet doesn't exist
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets("All Parts")
+    On Error GoTo 0
+    
+    ' Check if worksheet was found
+    If ws Is Nothing Then
+        MsgBox "Worksheet 'All Parts' not found!", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Get the search term from the search box (B3)
+    searchTerm = Trim(ws.Range("B3").Value)
+    
+    ' Exit if search term is empty
+    If searchTerm = "" Then
+        ws.Range("D7:Z1000").ClearContents
+        Exit Sub
+    End If
+    
+    ' Find the last row in column C
+    lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+    If lastRow < 7 Then lastRow = 7 ' Ensure we start at row 7
+    
+    ' Clear previous search results
+    ws.Range("D7:Z1000").ClearContents
+    
+    ' Initialize the row for displaying results
+    searchResultRow = 7
+    
+    ' Find the search term in column C (from C7 to lastRow)
+    Set found = ws.Range("C7:C" & lastRow).Find(What:=searchTerm, _
+                LookIn:=xlValues, LookAt:=xlPart, MatchCase:=False)
+    
+    ' If the search term is found, copy the entire row to the results area
+    If Not found Is Nothing Then
+        firstAddress = found.Address
+        Do
+            ' Copy the entire row to the result area
+            ws.Rows(found.Row).Copy Destination:=ws.Cells(searchResultRow, "D")
+            searchResultRow = searchResultRow + 1
+            
+            ' Continue searching
+            Set found = ws.Range("C7:C" & lastRow).FindNext(found)
+        Loop While Not found Is Nothing And found.Address <> firstAddress
+    Else
+        ' If no results found, display a message
+        ws.Range("D7").Value = "No results found for '" & searchTerm & "'"
+    End If
+End Sub
