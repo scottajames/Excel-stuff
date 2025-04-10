@@ -1,0 +1,54 @@
+'======= SHEET MODULE CODE =======
+'(Right-click "Employee Listing" sheet → View Code → Paste this)
+
+Option Explicit
+
+Private Sub Worksheet_Activate()
+    LoadFilterDropdown
+End Sub
+
+Private Sub ComboBox1_Change()
+    ApplyFilter
+End Sub
+
+Sub LoadFilterDropdown()
+    Dim dict As Object
+    Dim cell As Range
+    Dim lastRow As Long
+    Dim Item As Variant ' <-- THIS FIXES THE ERROR
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+    lastRow = Me.Cells(Me.Rows.Count, "F").End(xlUp).Row
+    
+    'Collect unique values from Column F
+    For Each cell In Me.Range("F7:F" & lastRow)
+        If Not IsEmpty(cell.Value) And Not dict.exists(cell.Value) Then
+            dict.Add cell.Value, 1
+        End If
+    Next cell
+    
+    'Load into combo box
+    With Me.ComboBox1
+        .Clear
+        .AddItem "(Show All)"
+        For Each Item In dict.keys ' <-- NOW THIS WILL WORK
+            .AddItem Item
+        Next Item
+        .ListIndex = 0
+    End With
+End Sub
+
+Sub ApplyFilter()
+    Dim lastRow As Long, r As Long
+    Dim filterValue As String
+    
+    filterValue = Me.ComboBox1.Value
+    lastRow = Me.Cells(Me.Rows.Count, "F").End(xlUp).Row
+    
+    Application.ScreenUpdating = False
+    For r = 7 To lastRow
+        Me.Rows(r).Hidden = (filterValue <> "(Show All)" And _
+                            Me.Cells(r, "F").Value <> filterValue)
+    Next r
+    Application.ScreenUpdating = True
+End Sub
