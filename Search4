@@ -1,0 +1,64 @@
+Private Sub Search_Change()
+    Dim ws As Worksheet
+    Dim searchTerm As String
+    Dim lastRow As Long
+    Dim found As Range
+    Dim firstAddress As String
+    Dim searchResultRow As Long
+    Dim lastCol As Long
+    
+    ' Set the worksheet to "Unit Trays" (or fallback to ActiveSheet if not found)
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets("Unit Trays") ' <-- Updated sheet name
+    If ws Is Nothing Then Set ws = ActiveSheet
+    On Error GoTo 0
+    
+    ' Exit if no worksheet is found
+    If ws Is Nothing Then
+        MsgBox "Error: Worksheet 'Unit Trays' not found!", vbCritical
+        Exit Sub
+    End If
+    
+    ' Get search term from B3
+    searchTerm = Trim(ws.Range("B3").Value)
+    
+    ' Clear previous results (from D7 to Z1000)
+    ws.Range("D7:Z1000").ClearContents
+    
+    ' Exit if search term is empty
+    If searchTerm = "" Then Exit Sub
+    
+    ' Find last used row in Column C (starting from C7)
+    lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+    If lastRow < 7 Then lastRow = 7 ' Ensure we start at row 7
+    
+    ' Search for the term in Column C (C7:C[lastRow])
+    Set found = ws.Range("C7:C" & lastRow).Find( _
+        What:=searchTerm, _
+        LookIn:=xlValues, _
+        LookAt:=xlPart, _
+        MatchCase:=False _
+    )
+    
+    ' If found, copy data to results area (starting at D7)
+    searchResultRow = 7
+    If Not found Is Nothing Then
+        firstAddress = found.Address
+        Do
+            ' Find the last used column in the found row
+            lastCol = ws.Cells(found.Row, ws.Columns.Count).End(xlToLeft).Column
+            
+            ' Copy only from Column C to last column (avoid entire row)
+            ws.Range(ws.Cells(found.Row, "C"), ws.Cells(found.Row, lastCol)).Copy _
+               Destination:=ws.Cells(searchResultRow, "D")
+            
+            searchResultRow = searchResultRow + 1 ' Move to next row
+            
+            ' Find next match
+            Set found = ws.Range("C7:C" & lastRow).FindNext(found)
+        Loop While Not found Is Nothing And found.Address <> firstAddress
+    Else
+        ' No results found
+        ws.Range("D7").Value = "No results for '" & searchTerm & "'"
+    End If
+End Sub
