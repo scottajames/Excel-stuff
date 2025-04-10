@@ -1,0 +1,72 @@
+Private Sub Worksheet_Activate()
+    LoadFilterDropdown
+End Sub
+
+Sub LoadFilterDropdown()
+    Dim ws As Worksheet
+    Dim dict As Object
+    Dim cell As Range
+    Dim lastRow As Long
+    Dim itemList As String
+    
+    ' Set the correct sheet
+    Set ws = ThisWorkbook.Sheets("Employee Listing")
+    
+    ' Initialize dictionary for unique values
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' Find last row in Column F (data starts at row 7)
+    lastRow = ws.Cells(ws.Rows.Count, "F").End(xlUp).Row
+    If lastRow < 7 Then Exit Sub ' No data
+    
+    ' Collect unique values from Column F
+    For Each cell In ws.Range("F7:F" & lastRow)
+        If Not IsEmpty(cell.Value) And Not dict.exists(cell.Value) Then
+            dict.Add cell.Value, 1
+        End If
+    Next cell
+    
+    ' Prepare items for dropdown (add "Show All" first)
+    itemList = "(Show All)"
+    If dict.Count > 0 Then
+        itemList = itemList & "," & Join(dict.keys, ",")
+    End If
+    
+    ' Load items into the combo box
+    With ws.cmbFilter
+        .Clear
+        .List = Split(itemList, ",")
+        .ListIndex = 0 ' Select first item
+    End With
+End Sub
+
+Private Sub cmbFilter_Change()
+    ApplyFilter
+End Sub
+
+Sub ApplyFilter()
+    Dim ws As Worksheet
+    Dim filterValue As String
+    Dim lastRow As Long
+    Dim r As Long
+    
+    Set ws = ThisWorkbook.Sheets("Employee Listing")
+    filterValue = ws.cmbFilter.Value
+    
+    ' Find last row
+    lastRow = ws.Cells(ws.Rows.Count, "F").End(xlUp).Row
+    If lastRow < 7 Then Exit Sub
+    
+    Application.ScreenUpdating = False
+    
+    ' Filter rows
+    For r = 7 To lastRow
+        If filterValue = "(Show All)" Or ws.Cells(r, "F").Value = filterValue Then
+            ws.Rows(r).Hidden = False
+        Else
+            ws.Rows(r).Hidden = True
+        End If
+    Next r
+    
+    Application.ScreenUpdating = True
+End Sub
