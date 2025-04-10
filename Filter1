@@ -1,0 +1,91 @@
+'=============== MAIN SEARCH & FILTER CODE ===============
+Private Sub Worksheet_Activate()
+    UpdateFilterDropdown
+End Sub
+
+Sub UpdateFilterDropdown()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim dict As Object
+    Dim cell As Range
+    Dim uniqueItems() As Variant
+    Dim i As Long
+    
+    Set ws = ActiveSheet
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    'Find last row in column F
+    lastRow = ws.Cells(ws.Rows.Count, "F").End(xlUp).Row
+    
+    'Collect unique values from column F (starting at row 7)
+    For Each cell In ws.Range("F7:F" & lastRow)
+        If Not IsError(cell.Value) And Not IsEmpty(cell.Value) Then
+            dict(cell.Value) = 1
+        End If
+    Next cell
+    
+    'Prepare dropdown in B3
+    With ws.Range("B3").Validation
+        .Delete
+        If dict.Count > 0 Then
+            uniqueItems = dict.keys
+            'Add "All" option first
+            ReDim Preserve uniqueItems(UBound(uniqueItems) + 1)
+            For i = UBound(uniqueItems) To 1 Step -1
+                uniqueItems(i) = uniqueItems(i - 1)
+            Next i
+            uniqueItems(0) = "All"
+            
+            .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Formula1:=Join(uniqueItems, ",")
+            .IgnoreBlank = True
+            .InCellDropdown = True
+        End If
+    End With
+End Sub
+
+Sub ApplyFilter()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim filterValue As String
+    Dim r As Long
+    
+    Set ws = ActiveSheet
+    filterValue = ws.Range("B3").Value
+    
+    'Exit if no selection
+    If filterValue = "" Then Exit Sub
+    
+    lastRow = ws.Cells(ws.Rows.Count, "F").End(xlUp).Row
+    If lastRow < 7 Then Exit Sub
+    
+    Application.ScreenUpdating = False
+    
+    'Unhide all rows first
+    ws.Rows("7:" & lastRow).EntireRow.Hidden = False
+    
+    'Apply filter
+    If filterValue <> "All" Then
+        For r = 7 To lastRow
+            If ws.Cells(r, "F").Value <> filterValue Then
+                ws.Rows(r).Hidden = True
+            End If
+        Next r
+    End If
+    
+    Application.ScreenUpdating = True
+End Sub
+
+'=============== BUTTON CONTROLS ===============
+Sub SearchButton_Click()
+    ApplyFilter
+End Sub
+
+Sub ClearSearch()
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+    
+    With ws
+        .Range("B3").Value = ""
+        .Rows("7:" & .Rows.Count).EntireRow.Hidden = False
+    End With
+End Sub
