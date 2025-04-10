@@ -1,0 +1,78 @@
+'======= SHEET MODULE CODE =======
+'(Right-click "Employee Listing" sheet tab → View Code → Paste this)
+
+Private Sub Worksheet_Activate()
+    LoadFilterDropdown
+End Sub
+
+' Triggered when combo box selection changes
+Private Sub cmbFilter_Change()
+    ApplyFilter
+End Sub
+
+' Populates the dropdown with unique values from Column F
+Sub LoadFilterDropdown()
+    Dim ws As Worksheet
+    Dim dict As Object
+    Dim cell As Range
+    Dim lastRow As Long
+    
+    Set ws = Me ' Reference current sheet
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' Find last row in Column F (data starts at row 7)
+    lastRow = ws.Cells(ws.Rows.Count, "F").End(xlUp).Row
+    If lastRow < 7 Then Exit Sub ' No data
+    
+    ' Collect unique values
+    For Each cell In ws.Range("F7:F" & lastRow)
+        If Not IsEmpty(cell.Value) And Not dict.exists(cell.Value) Then
+            dict.Add cell.Value, 1
+        End If
+    Next cell
+    
+    ' Load into combo box
+    With Me.cmbFilter.Object
+        .Clear
+        .AddItem "(Show All)" ' Default option
+        For Each Item In dict.keys
+            .AddItem Item
+        Next Item
+        .ListIndex = 0 ' Select first item
+    End With
+End Sub
+
+' Filters rows based on selection
+Sub ApplyFilter()
+    Dim filterValue As String
+    Dim lastRow As Long
+    Dim r As Long
+    
+    ' Get selected value
+    filterValue = Me.cmbFilter.Object.Value
+    
+    ' Find last row
+    lastRow = Me.Cells(Me.Rows.Count, "F").End(xlUp).Row
+    If lastRow < 7 Then Exit Sub
+    
+    Application.ScreenUpdating = False
+    
+    ' Show/hide rows
+    For r = 7 To lastRow
+        If filterValue = "(Show All)" Or Me.Cells(r, "F").Value = filterValue Then
+            Me.Rows(r).Hidden = False
+        Else
+            Me.Rows(r).Hidden = True
+        End If
+    Next r
+    
+    Application.ScreenUpdating = True
+End Sub
+
+' Optional: Clear filter button
+Sub ClearFilter()
+    With Me
+        .cmbFilter.Object.Value = "(Show All)"
+        .Rows("7:" & .Rows.Count).Hidden = False
+    End With
+End Sub
