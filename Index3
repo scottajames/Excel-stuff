@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONNECT User Access Portal</title>
+    <style>
+        :root {
+            --primary: #005f87;
+            --secondary: #e1f5fe;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --danger: #f44336;
+            --info: #2196f3;
+            --light: #f8f9fa;
+            --dark: #212121;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px 5px 0 0;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .card-header {
+            padding: 12px 15px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .card-body {
+            padding: 15px;
+            min-height: 100px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: var(--info);
+            color: white;
+        }
+        
+        .quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-link {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .quick-link:hover {
+            background-color: #fdd835;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            border-radius: 5px;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-title {
+            margin: 0;
+            color: var(--primary);
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #777;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: var(--secondary);
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        .resource-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .resource-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CONNECT User Access Portal</h1>
+        </header>
+        
+        <div class="dashboard">
+            <!-- Ticket Categories -->
+            <div class="card" onclick="openModal('live-tickets')">
+                <div class="card-header" style="background-color: var(--success);">LIVE TICKETS</div>
+                <div class="card-body">
+                    <p>Current active tickets requiring attention</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('iam-issues')">
+                <div class="card-header" style="background-color: var(--danger);">IAM ISSUES</div>
+                <div class="card-body">
+                    <p>Identity and access management problems</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('access-requests')">
+                <div class="card-header" style="background-color: var(--info);">ACCESS REQUESTS</div>
+                <div class="card-body">
+                    <p>New and in-progress access requests</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('temp-access')">
+                <div class="card-header" style="background-color: var(--warning);">TEMP ACCESS</div>
+                <div class="card-body">
+                    <p>Temporary access requests and approvals</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('tray-requests')">
+                <div class="card-header" style="background-color: var(--primary);">TRAY REQUESTS</div>
+                <div class="card-body">
+                    <p>New and in-progress tray requests</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('other-requests')">
+                <div class="card-header" style="background-color: var(--dark); color: white;">OTHER REQUESTS</div>
+                <div class="card-body">
+                    <p>Data config and special requests</p>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Quick Links</h2>
+        <div class="quick-links">
+            <a href="http://mds.foundation.met.police.uk/webCenter-MPS-roledomain/login.do?restart=true" target="_blank" class="quick-link">Web Center</a>
+            <a href="#" target="_blank" class="quick-link">DUT in use check</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:o:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B0cfba0d0-fad1-4602-9c70-9446d6b83c13%7D&action=edit&wd=target(Officer%20Mobile%20Phones.one%7C73b663e8-e4a2-407d-a9d7-91a7cdcc8875%2FOfficer%20Mobile%20Phones%7Cf450d814-8337-45ac-9d3d-f9131801ef08%2F)&wdorigin=NavigationUrl" target="_blank" class="quick-link">One Note</a>
+            <a href="https://metropolitanpolice-my.sharepoint.com/:x:/r/personal/thomas_hartnoll_met_police_uk/_layouts/15/Doc.aspx?sourcedoc=%7B8C2156F0-D3A9-41ED-B46B-4E9D81DA195C%7D&file=Acronym%20look%20up.xlsx&action=default&mobileredirect=true" target="_blank" class="quick-link">Acronym look up</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:w:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7BED35CCFE-3C35-4EC2-B990-A843E3F724C7%7D&file=RBAC%20Overview%20and%20Detail%20v2.2.docx&action=default&mobileredirect=true" target="_blank" class="quick-link">RBAC</a>
+            <a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" target="_blank" class="quick-link">User Access Guide</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B287AAED2-474A-4CE2-811B-86C17F3736D9%7D&file=Check%20future%20postings%20updated.xlsx&action=default&mobileredirect=true" target="_blank" class="quick-link">Check future postings</a>
+        </div>
+    </div>
+    
+    <!-- Modal Templates -->
+    <div id="live-tickets-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">LIVE TICKETS</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="live-tickets-step1" class="step active">
+                <p>You will only look here if there are currently no tickets. This shows all tickets for every CONNECT team.</p>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="nextStep('live-tickets-step2')">Check for Tickets</button>
+                    <button class="btn btn-danger" onclick="closeModal()">Cancel</button>
+                </div>
+            </div>
+            <div id="live-tickets-step2" class="step">
+                <p>Are there any tickets you can help with?</p>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="nextStep('live-tickets-result1')">Yes</button>
+                    <button class="btn btn-danger" onclick="nextStep('live-tickets-result2')">No</button>
+                </div>
+            </div>
+            <div id="live-tickets-result1" class="step">
+                <p>Proceed with helping on the tickets you've identified.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="live-tickets-result2" class="step">
+                <p>No actionable tickets found. You can check back later.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="iam-issues-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">IAM ISSUES</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="iam-issues-step1" class="step active">
+                <p>What type of IAM issue are you dealing with?</p>
+                <div class="btn-group">
+                    <button class="btn" onclick="nextStep('iam-issues-step2')">Identity not known</button>
+                    <button class="btn" onclick="nextStep('iam-issues-step3')">Account archived</button>
+                    <button class="btn" onclick="nextStep('iam-issues-step4')">Authentication failure</button>
+                </div>
+            </div>
+            <div id="iam-issues-step2" class="step">
+                <p>Tell the user: Please speak to your <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx?csf=1&web=1&e=VTx1rF" class="resource-link">BCU/OCU CONNECT User Access SPOC</a>.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="iam-issues-step3" class="step">
+                <p>Tell the user: Please <a href="https://metropolitanpolice.sharepoint.com/sites/theconnecthub/SitePages/How-To-Check-Your-PSOP-Details.aspx?csf=1&web=1&e=8vjuIB&CID=f452715b-f963-4316-b705-fc77e627b9e2" class="resource-link">check your PSOP details</a>, if incorrect contact your LRPM.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="iam-issues-step4" class="step">
+                <p>Tell the user: Please raise a My IT Service Desk Fault.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Additional modals would follow the same pattern -->
+    
+    <script>
+        let currentModal = null;
+        
+        function openModal(modalId) {
+            currentModal = document.getElementById(`${modalId}-modal`);
+            currentModal.style.display = 'flex';
+            // Reset to first step when opening
+            const steps = currentModal.querySelectorAll('.step');
+            steps.forEach(step => {
+                step.classList.remove('active');
+                if (step.id === `${modalId}-step1`) {
+                    step.classList.add('active');
+                }
+            });
+        }
+        
+        function closeModal() {
+            if (currentModal) {
+                currentModal.style.display = 'none';
+                currentModal = null;
+            }
+        }
+        
+        function nextStep(stepId) {
+            const currentStep = event.target.closest('.step');
+            currentStep.classList.remove('active');
+            document.getElementById(stepId).classList.add('active');
+        }
+        
+        // Close modal when clicking outside content
+        window.onclick = function(event) {
+            if (event.target.className === 'modal') {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
