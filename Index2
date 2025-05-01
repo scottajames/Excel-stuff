@@ -1,0 +1,230 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<style>
+    body {
+        position: relative;
+        left: 10vw;
+        width: 80vw;
+        height: 100vh;
+        overflow: hidden;
+    }
+    * {
+        font-family: sans-serif;
+        font-size: 1vw;
+        padding: 0px;
+        margin: auto;
+        font-weight: bold;
+    }
+    
+    .button {
+        border-radius: 10px solid;
+        width: 9vw;
+        height: 9vw;
+        margin: 1vw;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    
+    .content {
+        display: none;
+        margin: 1vw;
+        padding: 1vw;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: 70vw;
+    }
+    
+    .decision-point {
+        margin: 1vw 0;
+        padding: 1vw;
+        background-color: #f5f5f5;
+        border-radius: 5px;
+    }
+    
+    .action-buttons {
+        margin: 1vw 0;
+    }
+    
+    .action-btn {
+        padding: 0.5vw 1vw;
+        margin: 0 0.5vw;
+        border-radius: 5px;
+        cursor: pointer;
+        border: none;
+    }
+    
+    .yes-btn {
+        background-color: #4CAF50;
+        color: white;
+    }
+    
+    .no-btn {
+        background-color: #f44336;
+        color: white;
+    }
+    
+    .back-btn {
+        background-color: #2196F3;
+        color: white;
+    }
+    
+    .nav-links {
+        position: relative;
+        left: -5vw;
+        background-color: yellow;
+        color: black;
+        text-decoration: none;
+        margin: 0.5vw;
+        padding: 0.5vw;
+        display: inline-block;
+    }
+</style>
+</head>
+<body>
+
+<div id="main-buttons">
+    <!-- First Row -->
+    <button onclick="showContent('button1-content')" class="button" style="background-color: green;">CONNECT USER ACCESS TICKETS - LIVE</button>
+    <button onclick="showContent('button2-content')" class="button" style="background-color: white;">IAM Failure</button>
+    <button onclick="showContent('button3-content')" class="button" style="background-color: orange;">LIVE INCIDENTS</button>
+    <button onclick="showContent('button4-content')" class="button" style="background-color: red;">On hold</button>
+    
+    <!-- Second Row -->
+    <button onclick="showContent('button5-content')" class="button" style="background-color: blue;">Access - O</button>
+    <button onclick="showContent('button6-content')" class="button" style="background-color: blue;">ACCESS - IP</button>
+    <button onclick="showContent('button7-content')" class="button" style="background-color: blue;">OH/PEN</button>
+    <button onclick="showContent('button8-content')" class="button" style="background-color: white;">Approvals</button>
+    
+    <!-- Third Row -->
+    <button onclick="showContent('button9-content')" class="button" style="background-color: white;">TEMP ACCESS NEW</button>
+    <button onclick="showContent('button10-content')" class="button" style="background-color: white;">TEMP ACCESS(IP)</button>
+    <button onclick="showContent('button11-content')" class="button" style="background-color: black; color: blue;">Other - O</button>
+    <button onclick="showContent('button12-content')" class="button" style="background-color: white;">Not yet approved</button>
+    
+    <!-- Fourth Row -->
+    <button onclick="showContent('button13-content')" class="button" style="background-color: blue;">Tray - O</button>
+    <button onclick="showContent('button14-content')" class="button" style="background-color: blue;">Tray - IP</button>
+    <button onclick="showContent('button15-content')" class="button" style="background-color: black; color: blue;">Other - IP</button>
+    <button onclick="showContent('button16-content')" class="button" style="background-color: white;">Acting Ranks</button>
+</div>
+
+<!-- Content Sections -->
+<div id="button1-content" class="content">
+    <div class="decision-point">
+        <p>You will only look inside of here if there are currently no tickets. This is where all tickets for every CONNECT team are shown, so there may not be any tickets you can answer.</p>
+        <div class="action-buttons">
+            <button class="action-btn yes-btn" onclick="nextStep('button1-step2')">Yes, I want to check</button>
+            <button class="action-btn no-btn" onclick="hideAllContent()">No, go back</button>
+        </div>
+    </div>
+    <div id="button1-step2" class="decision-point" style="display:none;">
+        <p>Are there any tickets you can help with?</p>
+        <div class="action-buttons">
+            <button class="action-btn yes-btn" onclick="showResult('button1-result1')">Yes</button>
+            <button class="action-btn no-btn" onclick="showResult('button1-result2')">No</button>
+        </div>
+    </div>
+    <div id="button1-result1" class="decision-point" style="display:none;">
+        <p>Proceed with helping on the tickets you've identified.</p>
+    </div>
+    <div id="button1-result2" class="decision-point" style="display:none;">
+        <p>No actionable tickets found. You can check back later.</p>
+    </div>
+    <button class="action-btn back-btn" onclick="hideAllContent()">Go Back to Main Menu</button>
+</div>
+
+<div id="button2-content" class="content">
+    <div class="decision-point">
+        <p>Your identity is not known to the application; please contact your HR department or IAM Administrator</p>
+        <p>If a ticket is made with this error, what should you do?</p>
+        <div class="action-buttons">
+            <button class="action-btn yes-btn" onclick="nextStep('button2-step2')">User included picture/reference</button>
+            <button class="action-btn no-btn" onclick="nextStep('button2-step3')">Different IAM error</button>
+        </div>
+    </div>
+    <div id="button2-step2" class="decision-point" style="display:none;">
+        <p>Tell them: Please speak to your <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx?csf=1&web=1&e=VTx1rF" class="nav-links">BCU/OCU CONNECT User Access SPOC.</a></p>
+    </div>
+    <div id="button2-step3" class="decision-point" style="display:none;">
+        <p>Is the error "User account archived"?</p>
+        <div class="action-buttons">
+            <button class="action-btn yes-btn" onclick="nextStep('button2-step4')">Yes</button>
+            <button class="action-btn no-btn" onclick="nextStep('button2-step5')">No</button>
+        </div>
+    </div>
+    <div id="button2-step4" class="decision-point" style="display:none;">
+        <p>Tell them: Please <a href="https://metropolitanpolice.sharepoint.com/sites/theconnecthub/SitePages/How-To-Check-Your-PSOP-Details.aspx?csf=1&web=1&e=8vjuIB&CID=f452715b-f963-4316-b705-fc77e627b9e2" class="nav-links">check your PSOP details</a>, if incorrect contact your LRPM.</p>
+    </div>
+    <div id="button2-step5" class="decision-point" style="display:none;">
+        <p>Is the error "Error Number: 17296606 - Failure to authenticate user with IAM"?</p>
+        <div class="action-buttons">
+            <button class="action-btn yes-btn" onclick="nextStep('button2-step6')">Yes</button>
+            <button class="action-btn no-btn" onclick="nextStep('button2-step7')">No</button>
+        </div>
+    </div>
+    <div id="button2-step6" class="decision-point" style="display:none;">
+        <p>Tell them: Please raise a My IT Service Desk Fault.</p>
+    </div>
+    <div id="button2-step7" class="decision-point" style="display:none;">
+        <p>This IAM error is not recognized. Please escalate to a supervisor.</p>
+    </div>
+    <button class="action-btn back-btn" onclick="hideAllContent()">Go Back to Main Menu</button>
+</div>
+
+<!-- Continue with similar structure for other buttons... -->
+
+<div id="five">
+    <a href="http://mds.foundation.met.police.uk/webCenter-MPS-roledomain/login.do?restart=true" target="_blank" class="nav-links">Web Center</a>
+    <a href="" target="_blank" class="nav-links">DUT in use check</a>
+    <a href="https://metropolitanpolice.sharepoint.com/:o:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B0cfba0d0-fad1-4602-9c70-9446d6b83c13%7D&action=edit&wd=target(Officer%20Mobile%20Phones.one%7C73b663e8-e4a2-407d-a9d7-91a7cdcc8875%2FOfficer%20Mobile%20Phones%7Cf450d814-8337-45ac-9d3d-f9131801ef08%2F)&wdorigin=NavigationUrl" target="_blank" class="nav-links">One Note</a>
+    <a href="https://metropolitanpolice-my.sharepoint.com/:x:/r/personal/thomas_hartnoll_met_police_uk/_layouts/15/Doc.aspx?sourcedoc=%7B8C2156F0-D3A9-41ED-B46B-4E9D81DA195C%7D&file=Acronym%20look%20up.xlsx&action=default&mobileredirect=true" target="_blank" class="nav-links">Acronym look up</a>
+    <a href="https://metropolitanpolice.sharepoint.com/:w:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7BED35CCFE-3C35-4EC2-B990-A843E3F724C7%7D&file=RBAC%20Overview%20and%20Detail%20v2.2.docx&action=default&mobileredirect=true" target="_blank" class="nav-links">RBAC</a>
+    <a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" target="_blank" class="nav-links">User Access Guide</a>
+    <a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B287AAED2-474A-4CE2-811B-86C17F3736D9%7D&file=Check%20future%20postings%20updated.xlsx&action=default&mobileredirect=true" target="_blank" class="nav-links">Check future postings</a>
+</div>
+
+<script>
+    // Hide all content divs
+    function hideAllContent() {
+        const contents = document.querySelectorAll('.content');
+        contents.forEach(content => {
+            content.style.display = 'none';
+        });
+        document.getElementById('main-buttons').style.display = 'block';
+    }
+    
+    // Show specific content and hide main buttons
+    function showContent(contentId) {
+        hideAllContent();
+        document.getElementById('main-buttons').style.display = 'none';
+        document.getElementById(contentId).style.display = 'block';
+        
+        // Reset all steps within this content
+        const steps = document.querySelectorAll(`#${contentId} .decision-point`);
+        steps.forEach(step => {
+            if (step.id !== `${contentId}-step1`) {
+                step.style.display = 'none';
+            }
+        });
+    }
+    
+    // Move to next step in decision tree
+    function nextStep(stepId) {
+        const currentStep = event.target.closest('.decision-point');
+        currentStep.style.display = 'none';
+        document.getElementById(stepId).style.display = 'block';
+    }
+    
+    // Show final result
+    function showResult(resultId) {
+        const currentStep = event.target.closest('.decision-point');
+        currentStep.style.display = 'none';
+        document.getElementById(resultId).style.display = 'block';
+    }
+    
+    // Hide all content when page loads
+    document.addEventListener('DOMContentLoaded', hideAllContent);
+</script>
+</body>
+</html>
