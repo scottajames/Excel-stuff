@@ -1,435 +1,437 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONNECT User Access Portal</title>
+    <style>
+        :root {
+            --dark: #005f87;
+            --green: #4caf50;
+            --orange: #ff9800;
+            --red: #f44336;
+            --blue: #2196f3;
+            --black: #212121;
+        }
+        
+    body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background-color: var(--dark);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px 5px 0 0;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .card-header {
+            padding: 12px 15px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .card-body {
+            padding: 15px;
+            min-height: 100px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: var(--info);
+            color: white;
+        }
+        
+        .quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-link {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .quick-link:hover {
+            background-color: #fdd835;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            border-radius: 5px;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-title {
+            margin: 0;
+            color: var(--primary);
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #777;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: var(--secondary);
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        .resource-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .resource-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
 <body>
-<style>
-	body {
-	position: relative;
-	left: 10vw;
-	width: 80vw;
-	height: 100vh;
-	overflow: hidden;
-	}
-	* {
-	font-family: sans-serif;
-	font-size: 1vw;
-	padding: 0px;
-	margin: auto;
-	font-weight:bold;}
+    <div class="container">
+        <header>
+            <h1>CONNECT User Access Ticket Helper</h1>
+        </header>
+        
+        <div class="dashboard">
+            <!-- Ticket Categories -->
+            <div class="card" onclick="openModal('live-tickets')">
+                <div class="card-header" style="background-color: var(--green);">LIVE TICKETS</div>
+                <div class="card-body">
+                    <p>Current active tickets current at CST or not current assigned to us.</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('iam-issues')">
+                <div class="card-header" style="background-color: var(--black);">IAM ISSUES</div>
+                <div class="card-body">
+                    <p>User Access Error Messages.</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('live-incidents')">
+                <div class="card-header" style="background-color: var(--orange);">LIVE INCIDENTS</div>
+                <div class="card-body">
+                    <p>These are our main tickets, if a user has an issue getting into CONNECT the ticket will be here.</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('on-hold')">
+                <div class="card-header" style="background-color: var(--red);">On Hold</div>
+                <div class="card-body">
+                    <p>Current LIVE INCIDENTS or TEMP ACCESS tickets on hold.</p>
+                </div>
+            </div>
 	
-	#button1, #button2, #button3, #button4, #button5, #button6, #button7, #button8, #button9, #button10, #button11, #button12, #button13, #button14, #button15, #button16
-	{border-radius: 10px solid;
-	width: 9vw;
-	height: 9vw;
-	margin: 1vw;
-	border-radius: 10px;
-	cursor:pointer;}
+<br>
+            
+            <div class="card" onclick="openModal('access-o')">
+                <div class="card-header" style="background-color: var(--dark);">Access - O</div>
+                <div class="card-body">
+                    <p>Permanent Access requests by the SPOC, some security roles need approval from BCU/OCU.</p>
+                </div>
+            </div>
 
-	a {
-	position: relative;
-	left: -5vw;
-	background-color: yellow;
-	color: black;
-	text-decoration: none;
-	margin: 0.5vw;}
-</style>
-	<div id="one">
-		<button onclick="button1()" id="button1" style="background-color: green;">CONNECT USER ACCESS TICKETS - LIVE </button>
-			<div id="button1-TA1" style="display: none">You will only look inside of here if there are currently no tickets, this is where all tickets for every CONNECT team so there may not be any tickets in here that you can answer or they are going to be assigned to us via CST, but if you want to go in and see if you can find any tickets you can help with then you can have a look inside.</div>
+	    <div class="card" onclick="openModal('access-ip')">
+                <div class="card-header" style="background-color: var(--dark);">Access - IP</div>
+                <div class="card-body">
+                    <p>Permanent Access Requests tickets changed to In Progress.</p>
+                </div>
+            </div>
+
+	    <div class="card" onclick="openModal('ohpen')">
+                <div class="card-header" style="background-color: var(--dark);">OH/PEN</div>
+                <div class="card-body">
+                    <p>Any ticket that are on hold/pending.</p>
+                </div>
+            </div>	
 	
-		<button onclick="button2()" id="button2" style="background-color: white;">IAM Failure</button>
-			<div id="button1-TA1" style="display: none">Your identify is not known to the application; please contact your HR deparmenet or IAM Adminstrator</div>
-			<div id="button1-TA1" style="display: none">If a ticket is made and they include a picture or reference this error what you need to do is tell them;<br><br>Please speak to your <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx?csf=1&web=1&e=VTx1rF">BCU/OCU CONNECT User Access SPOC.</a></div>
-			<div id="button1-TA1" style="display: none">User account archived.</div>
-			<div id="button1-TA1" style="display: none">If a ticket is made and they inlude a picture or reference this error what you need to do is tell them;<br><br>Please <a href="https://metropolitanpolice.sharepoint.com/sites/theconnecthub/SitePages/How-To-Check-Your-PSOP-Details.aspx?csf=1&web=1&e=8vjuIB&CID=f452715b-f963-4316-b705-fc77e627b9e2">check your PSOP details</a>, if incorrect contact your LRPM.</div>
-			<div id="button1-TA1" style="display: none">Error Number: 17296606 - Failture to authenticate user with IAM</div>
-			<div id="button1-TA1" style="display: none">If a ticket is made and they include and picture of reference this error what you need to do is tell them;<br><br>Please raise a My IT Service Desk Fault.</div>
 
-		<button onclick="button3()" id="button3" style="background-color: orange;">LIVE INCIDENTS</button>
-			<div id="button1-TA1" style="display: none">PMP Related</div>
-			<div id="button1-TA1" style="display: none">Access Intel</div>
-			<div id="button1-TA1" style="display: none">CONNECT not updating role</div>
-			<div id="button1-TA1" style="display: none">No Access</div>
-			<div id="button1-TA1" style="display: none">Incorrect rank</div>
-			<div id="button1-TA1" style="display: none">Incorrect team</div>
+            <div class="card" onclick="openModal('approvals')">
+                <div class="card-header" style="background-color: var(--black); color: white;">Approvals</div>
+                <div class="card-body">
+                    <p>No Longer in use should never be above 0.</p>
+                </div>
+            </div>
 
+<br>
 
-		<button onclick="button4()" id="button4" style="background-color: red;">On hold</button>
-			<div id="button1-TA1" style="display: none">This is for tickets that are currently assigned to someone on our team and have been put on hold for a number of reasons, you can go inside and check if you'd like to see why. (e.g. monitoring)</div>
-	</div>
-
-	<div id="two">
-		<button onclick="button5()" id="button5" style="background-color: blue;">Access - O</button>
-		<div id="button1-TA1" style="display: none">This will be permanent access requests by the SPOC and is currently Open as in not assigned to anyone or In Progress<br><br>The First thing you have to check is that the person who created the ticket was the SPOC<br><br>The Second thing you have to check is that they have permission to gain the security roles if it is needed e.g. INTEL would need approval from David Summers<br><br>The Third thing if all the others are correct is to then make the mapping for the security role you can use <a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B2A32385E-3019-41C8-B3DF-11204169E1ED%7D&file=New%20%26%20Existing%20Mapping%20Helper.xlsm&action=default&mobileredirect=true">this guide</a> that'll help you create it.</div>
-
-
-		<button onclick="button6()" id="button6" style="background-color: blue;">ACCESS - IP</button>
-		<div id="button1-TA1" style="display: none">This is for when approvals are In Progress <br><br>If you click on Access - O you will see the steps you have to do before moving to this box.</div>
-
-		<button onclick="button7()" id="button7" style="background-color: blue;">OH/PEN</button>
-		<div id="button1-TA1" style="display: none">This is for what is On Hold or Pending from the Access tickets<br><br>this will mostly be for larger projects where we're waiting on the SPOCs to give us TCRs or for them to get approval to put through onto CONNECT.</div>
-
-		<button onclick="button8()" id="button8" style="background-color: white;">Approvals</button>
-			<div id="button1-TA1" style="display: none">This is an old box that was used, it is no longer in service, what it was used for was to show users who have made tickets that was approved by their line managers.</div>
-	</div>
-
-
-	<div id="three">	
-		<button onclick="button9()" id="button9" style="background-color: white;">TEMP ACCESS NEW</button>
-			<div id="button1-TA1" style="display: none">The first thing you have to check is if the user currently has 2 or more months of the security role they're requesting on web center<br><br>The second step you need to check if they have been approved by someone at the relevant role they're requesting you can check <a href=">here</a> if they require specific permission.<br><br>If they haven't had permission from someone relevant to that security role you can email the SPOC of that security role directly asking if they will allow the user access.<br><br>If they have been given approval from someone who can grant them access to what they're requesting you can go ahead and give them the security role in Web Center and tell them<br><br>You have been given (security role) for 3 months (or however long they have requested) as requested and approved starting (current date) ending (end date).
-		
-		<button onclick="button10()" id="button10" style="background-color: white;">TEMP ACCESS(IP)</button>
-			<div id="button1-TA1" style="display: none">These are for In Progress tickets these could be because they're not as simple to answer as in we are waiting for approval for the user to get the security role they are requesting or simply because someone has assigned it to themselves and don't want anyone else to waste their time doing the same ticket.</div>
-		
-		<button onclick="button11()" id="button11" style="background-color: black; color: blue;">Other - O</button>
-			<div id="button1-TA1" style="display: none">These are for the Data Config Team requests, dealt with by the Data Config Team (Pete Wilson)</div>
-		
-		<button onclick="button12()" id="button12" style="background-color: white;">Not yet approved</button>
-			<div id="button1-TA1" style="display: none">This is an old box that was used, it is no longer in service, what it was used for was to show users who have made tickets that has not yet been approved by anyone.</div>
-	</div>
-
-	<div id="four">
-		<button onclick="button13()" id="button13" style="background-color: blue;">Tray - O</button>
-			<div id="button1-TA1" style="display :none">These are new tray requests from the SPOC<br><br>The first thing you need to check is if the ticket was opened by the SPOC<br><br>The Second thing you need to check is if they have let you know the Default Unit Tray name and the Ranks or Grades and the Lowest PSOP ORG level entry.<br><br>if so you can go to <a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B2A32385E-3019-41C8-B3DF-11204169E1ED%7D&file=New%20%26%20Existing%20Mapping%20Helper.xlsm&action=default&mobileredirect=true">here</a> and complete the TCR request</div>			
-
-		<button onclick="button14()" id="button14" style="background-color: blue;">Tray - IP</button>
-			<div id="button1-TA1" style="display: none">These are for the In Progress for tray creation as requested by the SPOCs
-
-		<button onclick="button15()" id="button15" style="background-color: black; color: blue;">Other - IP</button>
-			<div id="button1-TA1" style="display: none">These are for the current In Progress Data Config Team requests (Pete Wilson)</div>
-
-		<button onclick="button16()" id="button16" style="background-color: white;">Acting Ranks</button>
-			<div id="button1-TA1" style="display: none">These are tickets that "that robot" will answer so you can ignore these UNLESS the number never goes down or you get an email saying "the robot" is down.</div>
-	</div>
+            <div class="card" onclick="openModal('temp-access-new')">
+                <div class="card-header" style="background-color: var(--black); color: white;">TEMP ACCESS NEW</div>
+                <div class="card-body">
+                    <p>Temporary access requests, may not be approved by the correct OCU/BCU check the approver.</p>
+                </div>
+            </div>
 	
-	<div id="five">
-		<a href="http://mds.foundation.met.police.uk/webCenter-MPS-roledomain/login.do?restart=true" target="_blank" style="background-color: yellow;">Web Center</a>
-		<a href="" target="_blank" style="background-color: yellow;">DUT in use check</a>
-		<a href="https://metropolitanpolice.sharepoint.com/:o:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B0cfba0d0-fad1-4602-9c70-9446d6b83c13%7D&action=edit&wd=target(Officer%20Mobile%20Phones.one%7C73b663e8-e4a2-407d-a9d7-91a7cdcc8875%2FOfficer%20Mobile%20Phones%7Cf450d814-8337-45ac-9d3d-f9131801ef08%2F)&wdorigin=NavigationUrl" target="_blank" style="background-color: yellow;">One Note</a>
-		<a href="https://metropolitanpolice-my.sharepoint.com/:x:/r/personal/thomas_hartnoll_met_police_uk/_layouts/15/Doc.aspx?sourcedoc=%7B8C2156F0-D3A9-41ED-B46B-4E9D81DA195C%7D&file=Acronym%20look%20up.xlsx&action=default&mobileredirect=true" target="_blank" style="background-color: yellow;">Acronym look up</a>
-		<a href="https://metropolitanpolice.sharepoint.com/:w:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7BED35CCFE-3C35-4EC2-B990-A843E3F724C7%7D&file=RBAC%20Overview%20and%20Detail%20v2.2.docx&action=default&mobileredirect=true" target="_blank" style="background-color: yellow;">RBAC</a>
-		<a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" target="_blank" style="background-color: yellow;">User Access Guide</a>
-		<a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B287AAED2-474A-4CE2-811B-86C17F3736D9%7D&file=Check%20future%20postings%20updated.xlsx&action=default&mobileredirect=true" target="_blank" style="background-color: yellow;">Check future postings</a>
-	</div>
-
-<script>
-	function button1() {
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-		document.getElemenyById("button5").style.display = "none";
-
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button2() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-		document.getElemenyById("button5").style.display = "none";
-
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button3() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-		document.getElemenyById("button5").style.display = "none";
-
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button4() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button5").style.display = "none";
-
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button5() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button6() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button7() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button8() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button9").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button9() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button10() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button11() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button12() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button13").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button13() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button14() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-
-		document.getElemenyById("button13").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button15() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-
-		document.getElemenyById("button13").style.display = "none";
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button16").style.display = "none";}
-
-	function button16() {
-		document.getElemenyById("button1").style.display = "none";
-		document.getElemenyById("button2").style.display = "none";
-		document.getElemenyById("button3").style.display = "none";
-		document.getElemenyById("button4").style.display = "none";
-
-		document.getElemenyById("button5").style.display = "none";
-		document.getElemenyById("button6").style.display = "none";
-		document.getElemenyById("button7").style.display = "none";
-		document.getElemenyById("button8").style.display = "none";
-
-		document.getElemenyById("button9").style.display = "none";
-		document.getElemenyById("button10").style.display = "none";
-		document.getElemenyById("button11").style.display = "none";
-		document.getElemenyById("button12").style.display = "none";
-
-		document.getElemenyById("button13").style.display = "none";
-		document.getElemenyById("button14").style.display = "none";
-		document.getElemenyById("button15").style.display = "none";}
-</script>
+            <div class="card" onclick="openModal('temp-access-ip')">
+                <div class="card-header" style="background-color: var(--black); color: white;">TEMP ACCESS (IP)</div>
+                <div class="card-body">
+                    <p>Temporary Access Tasks changed to In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('other-o')">
+                <div class="card-header" style="background-color: grey; color: black;">Other - O</div>
+                <div class="card-body">
+                    <p>Data Config Team Tickets, delt by the data config team (pete wilson).</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('not-yet-approved')">
+                <div class="card-header" style="background-color: var(--black); color: white;">Not yet approved</div>
+                <div class="card-body">
+                    <p>No Longer Used should never be above 0.</p>
+                </div>
+            </div>
+
+<br>
+
+            <div class="card" onclick="openModal('tray-o')">
+                <div class="card-header" style="background-color: var(--blue); color: white;">Tray - O</div>
+                <div class="card-body">
+                    <p>New Tray Requests tickets by SPOCs.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('tray-ip')">
+                <div class="card-header" style="background-color: var(--blue); color: white;">Tray - IP</div>
+                <div class="card-body">
+                    <p>New Trays Request tickets In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('other-ip')">
+                <div class="card-header" style="background-color: grey; color: black;">Other - IP</div>
+                <div class="card-body">
+                    <p>Data Config tickets changed to In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('acting-ranks')">
+                <div class="card-header" style="background-color: var(--black); color: white;">Acting Ranks</div>
+                <div class="card-body">
+                    <p>Temporary Acting rank requests only need to go in here if "the robot" is broken.</p>
+                </div>
+            </div>
+
+        </div>
+        
+        <h2>Quick Links</h2>
+        <div class="quick-links">
+            <a href="http://mds.foundation.met.police.uk/webCenter-MPS-roledomain/login.do?restart=true" target="_blank" class="quick-link">Web Center</a>
+            <a href="#" target="_blank" class="quick-link">DUT in use check</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:o:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B0cfba0d0-fad1-4602-9c70-9446d6b83c13%7D&action=edit&wd=target(Officer%20Mobile%20Phones.one%7C73b663e8-e4a2-407d-a9d7-91a7cdcc8875%2FOfficer%20Mobile%20Phones%7Cf450d814-8337-45ac-9d3d-f9131801ef08%2F)&wdorigin=NavigationUrl" target="_blank" class="quick-link">One Note</a>
+            <a href="https://metropolitanpolice-my.sharepoint.com/:x:/r/personal/thomas_hartnoll_met_police_uk/_layouts/15/Doc.aspx?sourcedoc=%7B8C2156F0-D3A9-41ED-B46B-4E9D81DA195C%7D&file=Acronym%20look%20up.xlsx&action=default&mobileredirect=true" target="_blank" class="quick-link">Acronym look up</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:w:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7BED35CCFE-3C35-4EC2-B990-A843E3F724C7%7D&file=RBAC%20Overview%20and%20Detail%20v2.2.docx&action=default&mobileredirect=true" target="_blank" class="quick-link">RBAC</a>
+            <a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" target="_blank" class="quick-link">User Access Guide</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B287AAED2-474A-4CE2-811B-86C17F3736D9%7D&file=Check%20future%20postings%20updated.xlsx&action=default&mobileredirect=true" target="_blank" class="quick-link">Check future postings</a>
+        </div>
+    </div>
+    
+    <!-- Modal Templates -->
+    <div id="live-tickets-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">LIVE TICKETS</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="live-tickets-step1" class="step active">
+                <p>You will only look here if there are currently no tickets. This shows all tickets for every CONNECT team.</p>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="nextStep('live-tickets-step2')">Check for Tickets</button>
+                    <button class="btn btn-danger" onclick="closeModal()">Cancel</button>
+                </div>
+            </div>
+            <div id="live-tickets-step2" class="step">
+                <p>Are there any tickets you can help with?</p>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="nextStep('live-tickets-result1')">Yes</button>
+                    <button class="btn btn-danger" onclick="nextStep('live-tickets-result2')">No</button>
+                </div>
+            </div>
+            <div id="live-tickets-result1" class="step">
+                <p>Proceed with helping on the tickets you've identified.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="live-tickets-result2" class="step">
+                <p>No actionable tickets found. You can check back later.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="iam-issues-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">IAM ISSUES</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="iam-issues-step1" class="step active">
+                <p>What type of IAM issue are you dealing with?</p>
+                <div class="btn-group">
+                    <button class="btn" onclick="nextStep('iam-issues-step2')">Identity not known</button>
+                    <button class="btn" onclick="nextStep('iam-issues-step3')">Account archived</button>
+                    <button class="btn" onclick="nextStep('iam-issues-step4')">Authentication failure</button>
+                </div>
+            </div>
+            <div id="iam-issues-step2" class="step">
+                <p>Tell the user: Please speak to your <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx?csf=1&web=1&e=VTx1rF" target="_blank" class="resource-link">BCU/OCU CONNECT User Access SPOC</a>.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="iam-issues-step3" class="step">
+                <p>Tell the user: Please <a href="https://metropolitanpolice.sharepoint.com/sites/theconnecthub/SitePages/How-To-Check-Your-PSOP-Details.aspx?csf=1&web=1&e=8vjuIB&CID=f452715b-f963-4316-b705-fc77e627b9e2" target="_blank" class="resource-link">check your PSOP details</a>, if incorrect contact your LRPM.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="iam-issues-step4" class="step">
+                <p>Tell the user: Please raise a My IT Service Desk Fault.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Additional modals would follow the same pattern -->
+    
+    <script>
+        let currentModal = null;
+        
+        function openModal(modalId) {
+            currentModal = document.getElementById(`${modalId}-modal`);
+            currentModal.style.display = 'flex';
+            // Reset to first step when opening
+            const steps = currentModal.querySelectorAll('.step');
+            steps.forEach(step => {
+                step.classList.remove('active');
+                if (step.id === `${modalId}-step1`) {
+                    step.classList.add('active');
+                }
+            });
+        }
+        
+        function closeModal() {
+            if (currentModal) {
+                currentModal.style.display = 'none';
+                currentModal = null;
+            }
+        }
+        
+        function nextStep(stepId) {
+            const currentStep = event.target.closest('.step');
+            currentStep.classList.remove('active');
+            document.getElementById(stepId).classList.add('active');
+        }
+        
+        // Close modal when clicking outside content
+        window.onclick = function(event) {
+            if (event.target.className === 'modal') {
+                closeModal();
+            }
+        }
+    </script>
 </body>
-<html>
+</html>
