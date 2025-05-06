@@ -1,0 +1,92 @@
+<div id="live-incidents-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">LIVE INCIDENTS</h2>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="live-incidents-step1" class="step active">
+            <div class="incident-buttons">
+                <button class="btn btn-incident" onclick="nextStep('live-incidents-step2')">Incident 1</button>
+                <button class="btn btn-incident" onclick="nextStep('live-incidents-step3')">Incident 2</button>
+                <button class="btn btn-incident" onclick="nextStep('live-incidents-step4')">Incident 3</button>
+                <button class="btn btn-incident" onclick="nextStep('live-incidents-step5')">Incident 4</button>
+                <button class="btn btn-incident" onclick="nextStep('live-incidents-step6')">Incident 5</button>
+                <button class="btn btn-incident" onclick="nextStep('live-incidents-step7')">Incident 6</button>
+            </div>
+        </div>
+        
+        <!-- Incident 1 Text Area -->
+        <div id="live-incidents-step2" class="step">
+            <textarea class="incident-textarea" placeholder="Enter details for Incident 1..."></textarea>
+            <button class="btn btn-info" onclick="closeModal()">Save & Close</button>
+        </div>
+        
+        <!-- Incident 2 Text Area -->
+        <div id="live-incidents-step3" class="step">
+            <textarea class="incident-textarea" placeholder="Enter details for Incident 2..."></textarea>
+            <button class="btn btn-info" onclick="closeModal()">Save & Close</button>
+        </div>
+        
+        <!-- Incident 3 Text Area -->
+        <div id="live-incidents-step4" class="step">
+            <textarea class="incident-textarea" placeholder="Enter details for Incident 3..."></textarea>
+            <button class="btn btn-info" onclick="closeModal()">Save & Close</button>
+        </div>
+        
+        <!-- Incident 4 Text Area -->
+        <div id="live-incidents-step5" class="step">
+            <textarea class="incident-textarea" placeholder="Enter details for Incident 4..."></textarea>
+            <button class="btn btn-info" onclick="closeModal()">Save & Close</button>
+        </div>
+        
+        <!-- Incident 5 Text Area -->
+        <div id="live-incidents-step6" class="step">
+            <textarea class="incident-textarea" placeholder="Enter details for Incident 5..."></textarea>
+            <button class="btn btn-info" onclick="closeModal()">Save & Close</button>
+        </div>
+        
+        <!-- Incident 6 Text Area -->
+        <div id="live-incidents-step7" class="step">
+            <textarea class="incident-textarea" placeholder="Enter details for Incident 6..."></textarea>
+            <button class="btn btn-info" onclick="closeModal()">Save & Close</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+.incident-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.btn-incident {
+    background-color: #ff6b6b;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-incident:hover {
+    background-color: #ff5252;
+}
+
+.incident-textarea {
+    width: 100%;
+    height: 200px;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
