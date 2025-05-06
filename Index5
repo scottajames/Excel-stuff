@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONNECT User Access Portal</title>
+    <style>
+        :root {
+            --dark: #005f87;
+            --green: #4caf50;
+            --orange: #ff9800;
+            --red: #f44336;
+            --blue: #2196f3;
+            --black: #212121;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        header {
+            background-color: var(--dark);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px 5px 0 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1, h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .card-header {
+            padding: 12px 15px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .card-body {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .btn-success {
+            background-color: var(--green);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--red);
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: var(--blue);
+            color: white;
+        }
+        
+        .btn-iam {
+            background-color: var(--green);
+            color: white;
+        }
+        
+        .quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        .quick-link {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            text-align: center;
+        }
+        
+        .quick-link:hover {
+            background-color: #fdd835;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            border-radius: 5px;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            text-align: center;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+        }
+        
+        .modal-title {
+            margin: 0;
+            color: var(--dark);
+            text-align: center;
+            width: 100%;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #777;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            display: none;
+            text-align: center;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        .resource-link {
+            color: var(--dark);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .resource-link:hover {
+            text-decoration: underline;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        th {
+            background-color: var(--dark);
+            color: white;
+            text-align: center;
+        }
+        
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 20px;
+            text-align: left;
+            display: inline-block;
+        }
+        
+        li {
+            margin-bottom: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CONNECT User Access Ticket Helper</h1>
+        </header>
+        
+        <div class="dashboard">
+            <!-- Row 1 -->
+            <div class="card" onclick="openModal('live-tickets')">
+                <div class="card-header" style="background-color: var(--green);">LIVE TICKETS</div>
+                <div class="card-body">
+                    <p>Current active tickets current at CST or not current assigned to us.</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('iam-issues')">
+                <div class="card-header" style="background-color: var(--black);">IAM ISSUES</div>
+                <div class="card-body">
+                    <p>User Access Error Messages.</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('live-incidents')">
+                <div class="card-header" style="background-color: var(--orange);">LIVE INCIDENTS</div>
+                <div class="card-body">
+                    <p>These are our main tickets, if a user has an issue getting into CONNECT the ticket will be here.</p>
+                </div>
+            </div>
+            
+            <div class="card" onclick="openModal('on-hold')">
+                <div class="card-header" style="background-color: var(--red);">On Hold</div>
+                <div class="card-body">
+                    <p>Current LIVE INCIDENTS or TEMP ACCESS tickets on hold.</p>
+                </div>
+            </div>
+            
+            <!-- Row 2 -->
+            <div class="card" onclick="openModal('access-o')">
+                <div class="card-header" style="background-color: var(--dark);">Access - O</div>
+                <div class="card-body">
+                    <p>Permanent Access requests by the SPOC, some security roles need approval from BCU/OCU.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('access-ip')">
+                <div class="card-header" style="background-color: var(--dark);">Access - IP</div>
+                <div class="card-body">
+                    <p>Permanent Access Requests tickets changed to In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('ohpen')">
+                <div class="card-header" style="background-color: var(--dark);">OH/PEN</div>
+                <div class="card-body">
+                    <p>Any ticket that are on hold/pending.</p>
+                </div>
+            </div>  
+
+            <div class="card" onclick="openModal('approvals')">
+                <div class="card-header" style="background-color: var(--black); color: white;">Approvals</div>
+                <div class="card-body">
+                    <p>No Longer in use should never be above 0.</p>
+                </div>
+            </div>
+
+            <!-- Row 3 -->
+            <div class="card" onclick="openModal('temp-access-new')">
+                <div class="card-header" style="background-color: var(--black); color: white;">TEMP ACCESS NEW</div>
+                <div class="card-body">
+                    <p>Temporary access requests, may not be approved by the correct OCU/BCU check the approver.</p>
+                </div>
+            </div>
+    
+            <div class="card" onclick="openModal('temp-access-ip')">
+                <div class="card-header" style="background-color: var(--black); color: white;">TEMP ACCESS (IP)</div>
+                <div class="card-body">
+                    <p>Temporary Access Tasks changed to In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('other-o')">
+                <div class="card-header" style="background-color: grey; color: black;">Other - O</div>
+                <div class="card-body">
+                    <p>Data Config Team Tickets, delt by the data config team (pete wilson).</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('not-yet-approved')">
+                <div class="card-header" style="background-color: var(--black); color: white;">Not yet approved</div>
+                <div class="card-body">
+                    <p>No Longer Used should never be above 0.</p>
+                </div>
+            </div>
+
+            <!-- Row 4 -->
+            <div class="card" onclick="openModal('tray-o')">
+                <div class="card-header" style="background-color: var(--blue); color: white;">Tray - O</div>
+                <div class="card-body">
+                    <p>New Tray Requests tickets by SPOCs.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('tray-ip')">
+                <div class="card-header" style="background-color: var(--blue); color: white;">Tray - IP</div>
+                <div class="card-body">
+                    <p>New Trays Request tickets In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('other-ip')">
+                <div class="card-header" style="background-color: grey; color: black;">Other - IP</div>
+                <div class="card-body">
+                    <p>Data Config tickets changed to In Progress.</p>
+                </div>
+            </div>
+
+            <div class="card" onclick="openModal('acting-ranks')">
+                <div class="card-header" style="background-color: var(--black); color: white;">Acting Ranks</div>
+                <div class="card-body">
+                    <p>Temporary Acting rank requests only need to go in here if "the robot" is broken.</p>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Quick Links</h2>
+        <div class="quick-links">
+            <a href="http://mds.foundation.met.police.uk/webCenter-MPS-roledomain/login.do?restart=true" target="_blank" class="quick-link">Web Center</a>
+            <a href="#" target="_blank" class="quick-link">DUT in use check</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:o:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B0cfba0d0-fad1-4602-9c70-9446d6b83c13%7D&action=edit&wd=target(Officer%20Mobile%20Phones.one%7C73b663e8-e4a2-407d-a9d7-91a7cdcc8875%2FOfficer%20Mobile%20Phones%7Cf450d814-8337-45ac-9d3d-f9131801ef08%2F)&wdorigin=NavigationUrl" target="_blank" class="quick-link">One Note</a>
+            <a href="https://metropolitanpolice-my.sharepoint.com/:x:/r/personal/thomas_hartnoll_met_police_uk/_layouts/15/Doc.aspx?sourcedoc=%7B8C2156F0-D3A9-41ED-B46B-4E9D81DA195C%7D&file=Acronym%20look%20up.xlsx&action=default&mobileredirect=true" target="_blank" class="quick-link">Acronym look up</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:w:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7BED35CCFE-3C35-4EC2-B990-A843E3F724C7%7D&file=RBAC%20Overview%20and%20Detail%20v2.2.docx&action=default&mobileredirect=true" target="_blank" class="quick-link">RBAC</a>
+            <a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" target="_blank" class="quick-link">User Access Guide</a>
+            <a href="https://metropolitanpolice.sharepoint.com/:x:/r/teams/ConnectUserAccessTeamMPS/_layouts/15/Doc.aspx?sourcedoc=%7B287AAED2-474A-4CE2-811B-86C17F3736D9%7D&file=Check%20future%20postings%20updated.xlsx&action=default&mobileredirect=true" target="_blank" class="quick-link">Check future postings</a>
+        </div>
+    </div>
+    
+    <!-- Modal Templates -->
+    <div id="live-tickets-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">LIVE TICKETS</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="live-tickets-step1" class="step active">
+                <p>Here are tickets that are open for all the CONNECT team and may or may not have been assigned to us yet.</p>
+                <p>If you think you can help with a ticket here, you can - we would mostly look at tickets for:</p>
+                <ul>
+                    <li>Level 4</li>
+                    <li>Worktrays</li>
+                    <li>Security Roles</li>
+                </ul>
+                <p>But mostly these will be tickets not for our team.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="iam-issues-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">IAM ISSUES</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="iam-issues-step1" class="step active">
+                <p>What type of IAM issue are you dealing with?</p>
+                <div class="btn-group">
+                    <button class="btn btn-iam" onclick="nextStep('iam-issues-step2')">Identity not known</button>
+                    <button class="btn btn-iam" onclick="nextStep('iam-issues-step3')">Account archived</button>
+                    <button class="btn btn-iam" onclick="nextStep('iam-issues-step4')">Authentication failure</button>
+                </div>
+            </div>
+            <div id="iam-issues-step2" class="step">
+                <p>Tell the user: Please speak to your <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx?csf=1&web=1&e=VTx1rF" target="_blank" class="resource-link">BCU/OCU CONNECT User Access SPOC</a>.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="iam-issues-step3" class="step">
+                <p>Tell the user: Please <a href="https://metropolitanpolice.sharepoint.com/sites/theconnecthub/SitePages/How-To-Check-Your-PSOP-Details.aspx?csf=1&web=1&e=8vjuIB&CID=f452715b-f963-4316-b705-fc77e627b9e2" target="_blank" class="resource-link">check your PSOP details</a>, if incorrect contact your LRPM.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="iam-issues-step4" class="step">
+                <p>Tell the user: Please raise a My IT Service Desk Fault.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="live-incidents-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">LIVE INCIDENTS</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="live-incidents-step1" class="step active">
+                <p>These are our main tickets for users having issues accessing CONNECT.</p>
+                <p>Check each ticket carefully to determine the appropriate action.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="on-hold-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">On Hold</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="on-hold-step1" class="step active">
+                <p>Current LIVE INCIDENTS or TEMP ACCESS tickets on hold.</p>
+                <p>Check the ticket notes to understand why it's on hold.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="access-o-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Access - O</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="access-o-step1" class="step active">
+                <p><strong>Is the SPOC raising the request?</strong></p>
+                <p>Check: <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx" target="_blank" class="resource-link">BCU/OCU SPOC Contacts</a></p>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="nextStep('access-o-step2')">Yes</button>
+                    <button class="btn btn-danger" onclick="nextStep('access-o-step3')">No</button>
+                </div>
+            </div>
+            <div id="access-o-step3" class="step">
+                <p><strong>Only a SPOC can request permanent security roles.</strong></p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+            <div id="access-o-step2" class="step">
+                <p><strong>Delete the current Code, Meaning, Description, PSOP Organisation and PSOP Grade</strong></p>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Lookup type</th>
+                                <th>Code</th>
+                                <th>Meaning</th>
+                                <th>Description</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Enabled</th>
+                                <th>Context Value</th>
+                                <th>PSOP Organisation</th>
+                                <th>PSOP Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>XXC_MPS_CONNECT_RANK_ORG</td>
+                                <td>1234</td>
+                                <td>1234</td>
+                                <td>SECURITY ROLE</td>
+                                <td></td>
+                                <td></td>
+                                <td>Y</td>
+                                <td>XXC_CONNECT_ORG_AND_GRADE</td>
+                                <td>RECORD LOWEST AVAILABLE PSOP ORG LEVEL ENTRY</td>
+                                <td>RANK or GRADE</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p style="margin-top: 20px;">Please remap description from the SECURITY ROLE in DESCRIPTION above to the one below:</p>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Lookup type</th>
+                                <th>Code</th>
+                                <th>Meaning</th>
+                                <th>Description</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Enabled</th>
+                                <th>Context Value</th>
+                                <th>PSOP Organisation</th>
+                                <th>PSOP Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>XXC_MPS_CONNECT_RANK_ORG</td>
+                                <td>1234</td>
+                                <td>1234</td>
+                                <td>SECURITY ROLE</td>
+                                <td></td>
+                                <td></td>
+                                <td>Y</td>
+                                <td>XXC_CONNECT_ORG_AND_GRADE</td>
+                                <td>RECORD LOWEST AVAILABLE PSOP ORG LEVEL ENTRY</td>
+                                <td>RANK or GRADE</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="access-ip-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Access - IP</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="access-ip-step1" class="step active">
+                <p>These are Permanent Access Request tickets changed to In Progress.</p>
+                <p>They are normally assigned to someone on our team.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="ohpen-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">OH/PEN</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="ohpen-step1" class="step active">
+                <p>These are either:</p>
+                <ul>
+                    <li>Permanent Access Requests <strong>OR</strong></li>
+                    <li>Worktray creation tickets</li>
+                </ul>
+                <p>They are put On Hold/Pending because:</p>
+                <ul>
+                    <li>We require more information from the SPOC <strong>OR</strong></li>
+                    <li>They're waiting on funding confirmation</li>
+                </ul>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="approvals-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Approvals</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="approvals-step1" class="step active">
+                <p><strong>If this is above 0 consult the team.</strong></p>
+                <p>This category should never have any tickets. If there are tickets here, something is wrong with the system.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="temp-access-new-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">TEMP ACCESS NEW</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="temp-access-new-step1" class="step active">
+                <p>These are temporary access requests you need to check:</p>
+                <ol>
+                    <li>
+                        <strong>Approval from correct OCU/BCU</strong> - 
+                        You can check these on the <a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" 
+                        target="_blank" class="resource-link">User Access Guide</a>
+                    </li>
+                    <li>
+                        <strong>If they don't have approval</strong> - 
+                        You can go directly to that area's <a href="https://metropolitanpolice.sharepoint.com/:u:/r/sites/theconnecthub/SitePages/BCU-OCU-SPOC-Contacts.aspx" 
+                        target="_blank" class="resource-link">SPOC</a> and ask for permission via email
+                    </li>
+                </ol>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="nextStep('temp-access-new-step2')">Approved</button>
+                    <button class="btn btn-danger" onclick="nextStep('temp-access-new-step3')">Not Approved</button>
+                </div>
+            </div>
+            <div id="temp-access-new-step2" class="step">
+                <p>Tell the user:</p>
+                <p><em>"You have [Security roles] as requested and approved starting [current date] and ending [relevant date]."</em></p>
+                <p>Then process the ticket accordingly.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+            <div id="temp-access-new-step3" class="step">
+                <p>Tell the user:</p>
+                <p><em>"Your request has not been approved by a member of the relevant OCU/BCU."</em></p>
+                <p>You can then close the ticket after informing the user.</p>
+                <button class="btn btn-info" onclick="closeModal()">Finish</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="temp-access-ip-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">TEMP ACCESS (IP)</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="temp-access-ip-step1" class="step active">
+                <p>These are temporary access request tickets that are In Progress either because:</p>
+                <ul>
+                    <li>We are having to email a SPOC for permission for the user to gain the temporary permission they want</li>
+                    <li>It is not as simple as giving them the temporary access for any other reason</li>
+                </ul>
+                <p>Check the ticket notes for specific details about why it's in progress.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="other-o-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Other - O</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="other-o-step1" class="step active">
+                <p>Data Config Team Tickets.</p>
+                <p>Dealt by the data config team (Pete Wilson).</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="not-yet-approved-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Not Yet Approved</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="not-yet-approved-step1" class="step active">
+                <p><strong>If this is above 0 consult the team.</strong></p>
+                <p>This category should never have any tickets. If there are tickets here, something is wrong with the system.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tray-o-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Tray - O</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="tray-o-step1" class="step active">
+                <p>Here is where tickets will be to create new worktrays.</p>
+                <p>You will have meetings with project leaders and their team before they make a ticket asking to create a worktray. These meetings will:</p>
+                <ul>
+                    <li>Give you an idea of what they want/need</li>
+                    <li>Include them providing a TCR (Technical Change Request)</li>
+                </ul>
+                <p>You will need to:</p>
+                <ol>
+                    <li>Review the TCR to ensure it's correct</li>
+                    <li>Potentially alter the TCR if needed</li>
+                    <li>Sometimes create the TCR yourself</li>
+                </ol>
+                <p>If you'd like to look more into TCRs, you can go to the <a href="https://metropolitanpolice.sharepoint.com/teams/ConnectUserAccessTeamMPS/Shared%20Documents/Forms/AllItems.aspx?id=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT%2FCONNECT%20User%20Access%20Team%20Guide%2Epdf&parent=%2Fteams%2FConnectUserAccessTeamMPS%2FShared%20Documents%2F04%20CONNECT%20UA%20SUPPORT%20DOCUMENT" target="_blank" class="resource-link">User Access Guide</a>.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tray-ip-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Tray - IP</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="tray-ip-step1" class="step active">
+                <p>These are worktray creation tickets that are In Progress.</p>
+                <p>They represent ongoing worktray creation requests that are currently being processed by the team.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="other-ip-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Other - IP</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="other-ip-step1" class="step active">
+                <p>Data Config Team Tickets that are currently in progress.</p>
+                <p>These tickets are being handled by the Data Config Team (Pete Wilson).</p>
+                <p>Only assist if specifically asked by the Data Config Team.</p>
+                <button class="btn btn-info" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="acting-ranks-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Acting Ranks</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="acting-ranks-step1" class="step active">
+                <p><strong>If there are tickets here:</strong></p>
+                <p>It means "the robot" is broken (you may have an email that confirms this).</
