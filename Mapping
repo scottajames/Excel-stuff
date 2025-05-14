@@ -1,0 +1,65 @@
+Private Sub CommandButton1_Click()
+    Dim ws As Worksheet
+    Dim lastRow As Long, lastCol As Long
+    Dim sourceCols As Variant, destCols As Variant
+    Dim i As Long
+    Dim headerTexts As Variant
+    Dim rng As Range
+    
+    Set ws = ActiveSheet
+    
+    ' Clear any existing data in columns A-I (except what we're keeping)
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Define which source columns move to which destination columns
+    ' Format: SourceColumnNumber (1-based index)
+    sourceCols = Array(3, 6, 9) ' Original columns C, F, I
+    destCols = Array("C", "F", "I") ' Where to put them
+    
+    ' Define headers/text for columns A, B, D, E, G, H
+    headerTexts = Array("Project", "Date", "Category", "Status", "Notes", "Approver")
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
+    ' First move the columns we want to keep
+    For i = LBound(sourceCols) To UBound(sourceCols)
+        If sourceCols(i) > 0 Then
+            ' Check if source column exists and has data
+            lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+            If sourceCols(i) <= lastCol Then
+                ' Check if destination column is empty
+                Set rng = ws.Columns(destCols(i))
+                If Application.CountA(rng) > 0 Then
+                    rng.Clear
+                End If
+                ws.Columns(sourceCols(i)).Cut
+                ws.Columns(destCols(i)).Insert Shift:=xlToRight
+            End If
+        End If
+    Next i
+    
+    ' Now set the text for our standard columns
+    ws.Range("A1").Value = headerTexts(0) ' Project
+    ws.Range("B1").Value = headerTexts(1) ' Date
+    ws.Range("D1").Value = headerTexts(2) ' Category
+    ws.Range("E1").Value = headerTexts(3) ' Status
+    ws.Range("G1").Value = headerTexts(4) ' Notes
+    ws.Range("H1").Value = headerTexts(5) ' Approver
+    
+    ' Format all headers
+    With ws.Range("A1:I1")
+        .Font.Bold = True
+        .Interior.Color = RGB(200, 200, 200) ' Light gray background
+    End With
+    
+    ' Autofit all columns
+    ws.Columns("A:I").AutoFit
+    
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    
+    MsgBox "Data reorganized successfully!" & vbCrLf & _
+           "• Columns C, F, I contain your original data" & vbCrLf & _
+           "• Other columns now have standard headers", vbInformation
+End Sub
