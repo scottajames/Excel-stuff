@@ -1,0 +1,65 @@
+Private Sub CommandButton1_Click()
+    Dim ws As Worksheet
+    Dim sourceCols As Variant, destCols As Variant
+    Dim headerTexts As Variant
+    Dim i As Long, lastCol As Long
+    Dim tempRng As Range
+    
+    On Error GoTo ErrorHandler
+    
+    Set ws = ActiveSheet
+    
+    ' Define source columns (1-based index) and destination columns
+    sourceCols = Array(3, 6, 9)  ' Columns to keep (original C, F, I)
+    destCols = Array(3, 6, 9)     ' Where to put them (C=3, F=6, I=9)
+    
+    ' Define headers for columns A, B, D, E, G, H
+    headerTexts = Array("Project", "Date", "Category", "Status", "Notes", "Approver")
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    Application.EnableEvents = False
+    
+    ' Get last column with data
+    lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    
+    ' Process columns to keep
+    For i = LBound(sourceCols) To UBound(sourceCols)
+        If sourceCols(i) <= lastCol Then
+            ' Copy instead of Cut to avoid errors
+            Set tempRng = ws.Columns(sourceCols(i))
+            tempRng.Copy Destination:=ws.Columns(destCols(i))
+            tempRng.Clear
+        End If
+    Next i
+    
+    ' Add headers to specified columns
+    ws.Range("A1").Value = headerTexts(0)  ' Project
+    ws.Range("B1").Value = headerTexts(1)  ' Date
+    ws.Range("D1").Value = headerTexts(2)  ' Category
+    ws.Range("E1").Value = headerTexts(3)  ' Status
+    ws.Range("G1").Value = headerTexts(4)  ' Notes
+    ws.Range("H1").Value = headerTexts(5)  ' Approver
+    
+    ' Format headers
+    With ws.Range("A1:I1")
+        .Font.Bold = True
+        .Interior.Color = RGB(200, 200, 200)
+    End With
+    
+    ' Autofit columns
+    ws.Columns("A:I").AutoFit
+    
+    MsgBox "Data reorganization completed successfully!", vbInformation
+    
+Cleanup:
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+    Application.EnableEvents = True
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+           "Failed while processing column " & i, vbCritical, "Error"
+    Resume Cleanup
+End Sub
