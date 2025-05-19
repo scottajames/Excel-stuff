@@ -1,0 +1,40 @@
+Sub ImportColumnsWithConditions()
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim sourceCol As String
+    
+    Set ws1 = ThisWorkbook.Sheets("Sheet1")
+    Set ws2 = ThisWorkbook.Sheets("Sheet2")
+    
+    ' Find last row with data in Sheet1 column A (adjust as needed)
+    lastRow = ws1.Cells(ws1.Rows.Count, "A").End(xlUp).Row
+    
+    ' Clear previous data in target columns (D, E, J)
+    ws1.Range("D2:D" & lastRow).ClearContents
+    ws1.Range("E2:E" & lastRow).ClearContents
+    ws1.Range("J2:J" & lastRow).ClearContents
+    
+    ' Import columns Q and I directly
+    For i = 2 To lastRow
+        ' Column D in Sheet1 gets Q from Sheet2
+        ws1.Cells(i, 4).Value = ws2.Cells(i, 17).Value
+        
+        ' Column E in Sheet1 gets I from Sheet2
+        ws1.Cells(i, 5).Value = ws2.Cells(i, 9).Value
+        
+        ' Column J in Sheet1 gets H if not empty, else G, else F, else E, else D from Sheet2
+        If ws2.Cells(i, 8).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 8).Value
+        ElseIf ws2.Cells(i, 7).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 7).Value
+        ElseIf ws2.Cells(i, 6).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 6).Value
+        ElseIf ws2.Cells(i, 5).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 5).Value
+        Else
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 4).Value
+        End If
+    Next i
+    
+    MsgBox "Data imported successfully!", vbInformation
+End Sub
