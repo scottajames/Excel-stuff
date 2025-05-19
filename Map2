@@ -1,0 +1,50 @@
+Sub ImportColumnsWithConditions()
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    
+    Set ws1 = ThisWorkbook.Sheets("Sheet1")
+    Set ws2 = ThisWorkbook.Sheets("Sheet2")
+    
+    ' Find last row with data in Sheet2 (starting from row 2)
+    lastRow = ws2.Cells(ws2.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 2 Then lastRow = 2 ' Ensure we at least process row 2
+    
+    ' Clear previous data in target columns (D, E, J) starting from row 2
+    ws1.Range("D2:D" & lastRow).ClearContents
+    ws1.Range("E2:E" & lastRow).ClearContents
+    ws1.Range("J2:J" & lastRow).ClearContents
+    
+    ' Import data starting from row 2
+    For i = 2 To lastRow
+        ' Column D in Sheet1: R→S→T→U→V from Sheet2
+        If ws2.Cells(i, 18).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 18).Value
+        ElseIf ws2.Cells(i, 19).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 19).Value
+        ElseIf ws2.Cells(i, 20).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 20).Value
+        ElseIf ws2.Cells(i, 21).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 21).Value
+        ElseIf ws2.Cells(i, 22).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 22).Value
+        End If
+        
+        ' Column E in Sheet1 gets I from Sheet2 (unchanged)
+        ws1.Cells(i, 5).Value = ws2.Cells(i, 9).Value
+        
+        ' Column J in Sheet1: H→G→F→E→D from Sheet2
+        If ws2.Cells(i, 8).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 8).Value
+        ElseIf ws2.Cells(i, 7).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 7).Value
+        ElseIf ws2.Cells(i, 6).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 6).Value
+        ElseIf ws2.Cells(i, 5).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 5).Value
+        Else
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 4).Value
+        End If
+    Next i
+    
+    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows.", vbInformation
+End Sub
