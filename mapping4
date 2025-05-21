@@ -1,0 +1,297 @@
+     Sub Constable()
+       ' This macro will change the text in cell A1 of Sheet2.
+       ' You can modify the sheet name and cell address to suit your needs.
+
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E2").Value = "Constable"
+       Sheets("Mapping").Range("E3").Value = "Constable - PEQF"
+       Sheets("Mapping").Range("E4").Value = "New Constable"
+       Sheets("Mapping").Range("E5").Value = "Detective Constable"
+       Sheets("Mapping").Range("E6").Value = "Detective Constable - PEQF"
+       Sheets("Mapping").Range("E7").Value = "New Detective Constable" ' Update the cell with new text
+
+        Sheets("Mapping").Range("A2").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A3").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A4").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A5").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A6").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A7").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H2").Value = "Y"
+        Sheets("Mapping").Range("H3").Value = "Y"
+        Sheets("Mapping").Range("H4").Value = "Y"
+        Sheets("Mapping").Range("H5").Value = "Y"
+        Sheets("Mapping").Range("H6").Value = "Y"
+        Sheets("Mapping").Range("H7").Value = "Y"
+        
+        Sheets("Mapping").Range("I2").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I3").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I4").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I5").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I6").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I7").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+        ' Add constable texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+        
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+     End Sub
+
+    Sub Serg()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E8").Value = "Sergeant"
+       Sheets("Mapping").Range("E9").Value = "Detective Sergeant"
+       
+        Sheets("Mapping").Range("A8").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A9").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H8").Value = "Y"
+        Sheets("Mapping").Range("H9").Value = "Y"
+        
+        Sheets("Mapping").Range("I8").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I9").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+        ' Add sergeant texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+        
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub Insp()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E10").Value = "Inspector"
+       Sheets("Mapping").Range("E11").Value = "Detective Inspector"
+       
+        Sheets("Mapping").Range("A10").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Sheets("Mapping").Range("A11").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H10").Value = "Y"
+        Sheets("Mapping").Range("H11").Value = "Y"
+        
+        Sheets("Mapping").Range("I10").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        Sheets("Mapping").Range("I11").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+        ' Add inspectors texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+
+    Sub SpecialConst()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E12").Value = "Special Constable"
+       
+       Sheets("Mapping").Range("A12").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H12").Value = "Y"
+        
+        Sheets("Mapping").Range("I12").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+       ' Add special constable texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub SpecialSerg()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E13").Value = "Special Sergeant"
+       
+       Sheets("Mapping").Range("A13").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H13").Value = "Y"
+        
+        Sheets("Mapping").Range("I13").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+       ' Add special sergeant texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub SpecialInsp()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E14").Value = "Special Inspector"
+       
+       Sheets("Mapping").Range("A14").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H14").Value = "Y"
+        
+        Sheets("Mapping").Range("I14").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+       ' Add special inspector texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub BandE()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E15").Value = "Band E"
+       
+       Sheets("Mapping").Range("A15").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H15").Value = "Y"
+        
+        Sheets("Mapping").Range("I15").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+       ' Add band E texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub BandD()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E16").Value = "Band D"
+       
+       Sheets("Mapping").Range("A16").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H16").Value = "Y"
+        
+        Sheets("Mapping").Range("I16").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+       ' Add band D texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub BandC()
+       Sheets("Mapping").Select ' Select Sheet2
+       Sheets("Mapping").Range("E17").Value = "Band C"
+       
+       Sheets("Mapping").Range("A17").Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        
+        Sheets("Mapping").Range("H17").Value = "Y"
+        
+        Sheets("Mapping").Range("I17").Value = "XXC_CONNECT_ORG_AND_GRADE"
+        
+        ' Add XXC_MPS_CONNECT_DEFAULTUNIT, Y, XXC_CONNECT_ORG_AND_GRADE whenever A has text in it
+       ' Add Band C texts into E as many times as BCU buttons are pressed e.g. CE once CE&SW twice and so on.. put them in closest empty box not overwriting other text
+       ' Optionally, you can also select Sheet1 after updating Sheet2
+       Sheets("Questionaire").Select
+    End Sub
+    
+    Sub CentralNorth()
+        Sheets("Mapping").Range("D2").Value = "BCU CN "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU CE before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub NorthArea()
+        Sheets("Mapping").Range("D3").Value = "BCU NA "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU NA before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub CentralSouth()
+        Sheets("Mapping").Range("D4").Value = "BCU AS "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU AS before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub CentralWest()
+        Sheets("Mapping").Range("D5").Value = "BCU AW "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU AW before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub CentralEast()
+        Sheets("Mapping").Range("D6").Value = "BCU CE "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU CE before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub EastArea()
+        Sheets("Mapping").Range("D7").Value = "BCU EA "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU EA before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub NorthEast()
+        Sheets("Mapping").Range("D8").Value = "BCU NE "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU NE before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub NorthWest()
+        Sheets("Mapping").Range("D9").Value = "BCU NW "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU NW before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub SouthEast()
+        Sheets("Mapping").Range("D10").Value = "BCU SE "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU SE before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    Sub SouthArea()
+        Sheets("Mapping").Range("D11").Value = "BCU SN "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU SN before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    Sub SouthWest()
+        Sheets("Mapping").Range("D12").Value = "BCU SW "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU SW before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    Sub WestArea()
+        Sheets("Mapping").Range("D13").Value = "BCU WA "
+        
+        ' repeat every row from Constable until next constable or until text stops in Column A
+        ' repeat every row from Constable until next sergeant or until text stops in column A add BCU WA before text that is input in Q9
+        ' if sergeant or Detective sergeant button was pressed put SGT after text input from Q9
+        ' if Inspector or detective inspector button was pressed put INSP after text input from Q9
+        
+    End Sub
+    
+    ' get text from Q7 and input it to
