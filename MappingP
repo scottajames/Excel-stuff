@@ -1,0 +1,41 @@
+'=== CUSTOMIZE THESE VALUES ===
+' Button A: Text for each row (Column A)
+Const BUTTON_A_TEXT As String = "A,B,C,D"  ' Comma-separated
+' Button B: Text for each row (Column B)
+Const BUTTON_B_TEXT As String = "X,Y,Z"     ' Comma-separated
+' Text for C/F/G when B has data
+Const TEXT_C As String = "Custom C"
+Const TEXT_F As String = "Custom F"
+Const TEXT_G As String = "Custom G"
+'==============================
+
+' Button A - Adds 4 rows to Column A
+Sub ButtonA_Click()
+    AddMultiData Split(BUTTON_A_TEXT, ","), "A"
+End Sub
+
+' Button B - Adds 3 rows to Column B
+Sub ButtonB_Click()
+    AddMultiData Split(BUTTON_B_TEXT, ","), "B"
+End Sub
+
+' Main subroutine to add multi-row data
+Sub AddMultiData(textArray() As String, targetCol As String)
+    Dim ws As Worksheet
+    Dim nextRow As Long, i As Long
+    
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    nextRow = ws.Cells(ws.Rows.Count, targetCol).End(xlUp).Row + 1
+    
+    ' Add text to each row
+    For i = LBound(textArray) To UBound(textArray)
+        ws.Cells(nextRow + i, targetCol).Value = Trim(textArray(i))
+        
+        ' Auto-fill C/F/G if Column B gets data
+        If targetCol = "B" Then
+            ws.Cells(nextRow + i, "C").Value = TEXT_C
+            ws.Cells(nextRow + i, "F").Value = TEXT_F
+            ws.Cells(nextRow + i, "G").Value = TEXT_G
+        End If
+    Next i
+End Sub
