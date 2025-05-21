@@ -1,0 +1,31 @@
+Sub PrependToColumnF()
+    Dim ws As Worksheet
+    Dim rng As Range
+    Dim cell As Range
+    Dim customText As String
+    
+    ' Set your worksheet
+    Set ws = ActiveSheet 'or use Sheets("Sheet2")
+    
+    ' Get custom text from an input box
+    customText = InputBox("Enter text to prepend to column F:", "Add Prefix Text")
+    If customText = "" Then Exit Sub 'user cancelled
+    
+    ' Set the range in column F (adjust as needed)
+    Set rng = ws.Range("F1:F" & ws.Cells(ws.Rows.Count, "F").End(xlUp).Row)
+    
+    ' Disable screen updating for speed
+    Application.ScreenUpdating = False
+    
+    ' Add custom text before existing text
+    For Each cell In rng
+        If cell.Value <> "" Then
+            cell.Value = customText & cell.Value
+        End If
+    Next cell
+    
+    ' Re-enable screen updating
+    Application.ScreenUpdating = True
+    
+    MsgBox "Text added to " & rng.Count & " cells in column F!", vbInformation
+End Sub
