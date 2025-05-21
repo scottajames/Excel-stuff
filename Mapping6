@@ -1,0 +1,167 @@
+' Constants for column positions
+Const COL_BCU As Integer = 4 ' Column D
+Const COL_GRADE As Integer = 5 ' Column E
+Const COL_DEFAULT_UNIT As Integer = 1 ' Column A
+Const COL_FLAG As Integer = 8 ' Column H
+Const COL_ORG_GRADE As Integer = 9 ' Column I
+
+Sub AddGradeData(gradeText As String, Optional count As Integer = 1)
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim startRow As Long
+    
+    Set ws = Sheets("Mapping")
+    
+    ' Find the last used row in column A
+    lastRow = ws.Cells(ws.Rows.count, COL_DEFAULT_UNIT).End(xlUp).Row
+    
+    ' Find the first empty row after last used row
+    startRow = lastRow + 1
+    
+    ' Add the grade data for the specified count
+    For i = 0 To count - 1
+        If startRow + i > ws.Rows.count Then Exit For ' Prevent overflow
+        
+        ' Set the values for each required column
+        ws.Cells(startRow + i, COL_DEFAULT_UNIT).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        ws.Cells(startRow + i, COL_GRADE).Value = gradeText
+        ws.Cells(startRow + i, COL_FLAG).Value = "Y"
+        ws.Cells(startRow + i, COL_ORG_GRADE).Value = "XXC_CONNECT_ORG_AND_GRADE"
+    Next i
+    
+    ' Return to Questionaire sheet
+    Sheets("Questionaire").Select
+End Sub
+
+Sub Constable()
+    ' Add all constable variations
+    AddGradeData "Constable"
+    AddGradeData "Constable - PEQF"
+    AddGradeData "New Constable"
+    AddGradeData "Detective Constable"
+    AddGradeData "Detective Constable - PEQF"
+    AddGradeData "New Detective Constable"
+End Sub
+
+Sub Serg()
+    AddGradeData "Sergeant"
+    AddGradeData "Detective Sergeant"
+End Sub
+
+Sub Insp()
+    AddGradeData "Inspector"
+    AddGradeData "Detective Inspector"
+End Sub
+
+Sub SpecialConst()
+    AddGradeData "Special Constable"
+End Sub
+
+Sub SpecialSerg()
+    AddGradeData "Special Sergeant"
+End Sub
+
+Sub SpecialInsp()
+    AddGradeData "Special Inspector"
+End Sub
+
+Sub BandE()
+    AddGradeData "Band E"
+End Sub
+
+Sub BandD()
+    AddGradeData "Band D"
+End Sub
+
+Sub BandC()
+    AddGradeData "Band C"
+End Sub
+
+Sub AddBCUPrefix(bcuPrefix As String)
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim q7Text As String
+    Dim suffix As String
+    Dim gradeText As String
+    
+    Set ws = Sheets("Mapping")
+    
+    ' Get text from Q7 on Questionaire sheet
+    q7Text = Sheets("Questionaire").Range("Q7").Value
+    
+    ' Find last row with data in column A
+    lastRow = ws.Cells(ws.Rows.count, COL_DEFAULT_UNIT).End(xlUp).Row
+    
+    ' Process each row from row 2 to lastRow
+    For i = 2 To lastRow
+        If ws.Cells(i, COL_DEFAULT_UNIT).Value = "XXC_MPS_CONNECT_DEFAULTUNIT" Then
+            ' Determine suffix based on grade text
+            gradeText = ws.Cells(i, COL_GRADE).Value
+            
+            If InStr(1, gradeText, "Sergeant", vbTextCompare) > 0 Then
+                suffix = " SGT"
+            ElseIf InStr(1, gradeText, "Inspector", vbTextCompare) > 0 Then
+                suffix = " INSP"
+            Else
+                suffix = ""
+            End If
+            
+            ' Set the BCU prefix with Q7 text and appropriate suffix
+            ws.Cells(i, COL_BCU).Value = bcuPrefix & q7Text & suffix
+        End If
+    Next i
+    
+    ' Return to Questionaire sheet
+    Sheets("Questionaire").Select
+End Sub
+
+' BCU Subs - these now call the common AddBCUPrefix function
+Sub CentralNorth()
+    AddBCUPrefix "BCU CN "
+End Sub
+
+Sub NorthArea()
+    AddBCUPrefix "BCU NA "
+End Sub
+
+Sub CentralSouth()
+    AddBCUPrefix "BCU AS "
+End Sub
+
+Sub CentralWest()
+    AddBCUPrefix "BCU AW "
+End Sub
+
+Sub CentralEast()
+    AddBCUPrefix "BCU CE "
+End Sub
+
+Sub EastArea()
+    AddBCUPrefix "BCU EA "
+End Sub
+
+Sub NorthEast()
+    AddBCUPrefix "BCU NE "
+End Sub
+
+Sub NorthWest()
+    AddBCUPrefix "BCU NW "
+End Sub
+
+Sub SouthEast()
+    AddBCUPrefix "BCU SE "
+End Sub
+
+Sub SouthArea()
+    AddBCUPrefix "BCU SN "
+End Sub
+
+Sub SouthWest()
+    AddBCUPrefix "BCU SW "
+End Sub
+
+Sub WestArea()
+    AddBCUPrefix "BCU WA "
+End Sub
