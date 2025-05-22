@@ -1,0 +1,292 @@
+Sheet1 name, Tray Mapping																			
+Row 1 headers,																			
+Lookup Type	Code	Meaning	Description	PSOP Grade	From	To	Enabled	Context Value	PSOP Organisation										
+																			
+Column A have XXC_MPS_CONNECT_DEFAULTUNIT as long as text in same row column E																			
+same with H having 'Y' and I having 'XXC_CONNECT_ORG_AND_GRADE																			
+Description = Worktray																			
+PSOP Organisation = Lowest level																			
+																			
+Sheet2 name, Units																			
+Row 1 headers,																			
+code	type	description	organisationalParentUnitCode	geographicalParentUnitCode	address1	address2	address3	address4	address5	address6	address7	postcode	areaCode	telephoneNumber	openingHours	emailAddress	spocName	partnerCode	summary
+Code = BCU relevant location																			
+BCU CN		BCU CN 			Kentish Town Police Station	10-12A Holmes Road	Kentish Town	LONDON				NW5 3AE	HQ	020 7230 1212				POLICE	BCU CN (DUT)
+BCU CN SGT		BCU CN  - Sgt			Kentish Town Police Station	10-12A Holmes Road	Kentish Town	LONDON				NW5 3AE	HQ	020 7230 1212				POLICE	BCU CN SGT (DUT)
+BCU CN INSP		BCU CN  - Insp			Kentish Town Police Station	10-12A Holmes Road	Kentish Town	LONDON				NW5 3AE	HQ	020 7230 1212				POLICE	BCU CN INSP (DUT)
+BCU CN PMPOT		BCU CN PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU CN PMPOT
+																			
+BCU NA		BCU NA 			Edmonton Police Station	462 Fore Street	Edmonton	LONDON				N9 0PW	HQ	020 7230 1212				POLICE	BCU NA (DUT)
+BCU NA SGT		BCU NA  - Sgt			Edmonton Police Station	462 Fore Street	Edmonton	LONDON				N9 0PW	HQ	020 7230 1212				POLICE	BCU NA SGT (DUT)
+BCU NA INSP		BCU NA  - Insp			Edmonton Police Station	462 Fore Street	Edmonton	LONDON				N9 0PW	HQ	020 7230 1212				POLICE	BCU NA INSP (DUT)
+BCU NA PMPOT		BCU NA PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU NA PMPOT
+																			
+BCU NE		BCU NE 			Forest Gate Police Station	350-360 Romford Road	Forest Gate	LONDON				E7 8BS	HQ	020 7230 1212				POLICE	BCU NE (DUT)
+BCU NE SGT		BCU NE  - Sgt			Forest Gate Police Station	350-360 Romford Road	Forest Gate	LONDON				E7 8BS	HQ	020 7230 1212				POLICE	BCU NE SGT (DUT)
+BCU NE INSP		BCU NE  - Insp			Forest Gate Police Station	350-360 Romford Road	Forest Gate	LONDON				E7 8BS	HQ	020 7230 1212				POLICE	BCU NE INSP (DUT)
+BCU NE PMPOT		BCU NE PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU NE PMPOT
+																			
+BCU CE		BCU CE 			Bethnal Green Police Station	12 Victoria Park Square	Bethnal Green	LONDON				E2 9NZ	HQ	020 7230 1212				POLICE	BCU CE (DUT)
+BCU CE SGT		BCU CE  - Sgt			Bethnal Green Police Station	12 Victoria Park Square	Bethnal Green	LONDON				E2 9NZ	HQ	020 7230 1212				POLICE	BCU CE SGT (DUT)
+BCU CE INSP		BCU CE  - Insp			Bethnal Green Police Station	13 Victoria Park Square	Bethnal Green	LONDON				E2 9NZ	HQ	020 7230 1212				POLICE	BCU CE INSP (DUT)
+BCU CE PMPOT		BCU CE PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU CE PMPOT
+																			
+BCU EA		BCU EA 			Ilford Police Station	270-294 High Road	Ilford	LONDON				IG1 1GT	HQ	020 7230 1212				POLICE	BCU EA (DUT)
+BCU EA SGT		BCU EA  - Sgt			Ilford Police Station	270-294 High Road	Ilford	LONDON				IG1 1GT	HQ	020 7230 1212				POLICE	BCU EA SGT (DUT)
+BCU EA INSP		BCU EA  - Insp			Ilford Police Station	270-294 High Road	Ilford	LONDON				IG1 1GT	HQ	020 7230 1212				POLICE	BCU EA INSP (DUT)
+BCU EA PMPOT		BCU EA PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU EA PMPOT
+																			
+BCU SE		BCU SE 			Lewisham Police Station	43 Lewisham High Street	Lewisham	LONDON				SE13 5JZ	HQ	020 7230 1212				POLICE	BCU SE (DUT)
+BCU SE SGT		BCU SE  - Sgt			Lewisham Police Station	43 Lewisham High Street	Lewisham	LONDON				SE13 5JZ	HQ	020 7230 1212				POLICE	BCU SE SGT (DUT)
+BCU SE INSP		BCU SE  - Insp			Lewisham Police Station	44 Lewisham High Street	Lewisham	LONDON				SE13 5JZ	HQ	020 7230 1212					BCU SE INSP (DUT)
+BCU SE PMPOT		BCU SE PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU SE PMPOT
+																			
+BCU AS		BCU AS 			Brixton Police Station	367 Brixton Road	Brixton	LONDON				SW9 7DD	HQ	020 7230 1212				POLICE	BCU AS (DUT)
+BCU AS SGT		BCU AS  - Sgt			Brixton Police Station	367 Brixton Road	Brixton	LONDON				SW9 7DD	HQ	020 7230 1212				POLICE	BCU AS SGT (DUT)
+BCU AS INSP		BCU AS  - Insp			Brixton Police Station	368 Brixton Road	Brixton	LONDON				SW9 7DD	HQ	020 7230 1212					BCU AS INSP (DUT)
+BCU AS PMPOT		BCU AS PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU AS PMPOT
+																			
+BCU SN		BCU SN 			Croydon Police Station	71 Park Lane	Croydon	LONDON				CR91BP	HQ	020 7230 1212				POLICE	BCU SN (DUT)
+BCU SN SGT		BCU SN  - Sgt			Croydon Police Station	71 Park Lane	Croydon	LONDON				CR91BP	HQ	020 7230 1212				POLICE	BCU SN SGT (DUT)
+BCU SN INSP		BCU SN  - Insp			Croydon Police Station	71 Park Lane	Croydon	LONDON				CR91BP	HQ	020 7230 1212					BCU SN INSP (DUT)
+BCU SN PMPOT		BCU SN PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU SN PMPOT
+																			
+BCU SW		BCU SW 			Kingston Police Station	5-7 High Street	Kingston	LONDON				KT1 1LB	HQ	020 7230 1212				POLICE	BCU SW (DUT)
+BCU SW SGT		BCU SW  - Sgt			Kingston Police Station	5-7 High Street	Kingston	LONDON				KT1 1LB	HQ	020 7230 1212				POLICE	BCU SW SGT (DUT)
+BCU SW INSP		BCU SW  - Insp			Kingston Police Station	5-7 High Street	Kingston	LONDON				KT1 1LB	HQ	020 7230 1212					BCU SW INSP (DUT)
+BCU SW PMPOT		BCU SW PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU SW PMPOT
+																			
+BCU AW		BCU AW 			Charing Cross Police Station	Agar Street	Charing Cross	LONDON				WC2N 4DH	HQ	020 7230 1212				POLICE	BCU AW (DUT)
+BCU AW SGT		BCU AW  - Sgt			Charing Cross Police Station	Agar Street	Charing Cross	LONDON				WC2N 4DH	HQ	020 7230 1212				POLICE	BCU AW SGT (DUT)
+BCU AW INSP		BCU AW  - Insp			Charing Cross Police Station	Agar Street	Charing Cross	LONDON				WC2N 4DH	HQ	020 7230 1212					BCU AW INSP (DUT)
+BCU AW PMPOT		BCU AW PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU AW PMPOT
+																			
+BCU WA		BCU WA 			Acton Police Station	250 High Street	Acton	LONDON				W3 9BH	HQ	020 7230 1212				POLICE	BCU WA (DUT)
+BCU WA SGT		BCU WA  - Sgt			Acton Police Station	250 High Street	Acton	LONDON				W3 9BH	HQ	020 7230 1212				POLICE	BCU WA SGT (DUT)
+BCU WA INSP		BCU WA  - Insp			Acton Police Station	250 High Street	Acton	LONDON				W3 9BH	HQ	020 7230 1212					BCU WA INSP (DUT)
+BCU WA PMPOT		BCU WA PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU WA PMPOT
+																			
+BCU NW		BCU NW 			Wembley Police Station	603 Harrow Road	Wembley	LONDON				HA0 2HH	HQ	020 7230 1212				POLICE	BCU NW (DUT)
+BCU NW SGT		BCU NW  - Sgt			Wembley Police Station	603 Harrow Road	Wembley	LONDON				HA0 2HH	HQ	020 7230 1212				POLICE	BCU NW SGT (DUT)
+BCU NW INSP		BCU NW  - Insp			Wembley Police Station	603 Harrow Road	Wembley	LONDON				HA0 2HH	HQ	020 7230 1212					BCU NW INSP (DUT)
+BCU NW PMPOT		BCU NW PMPOT			Metropolitan Police HQ	New Scotland Yard	Victoria Embankment	LONDON				SW1A 2JL	HQ	020 7230 1212				POLICE	BCU NW PMPOT
+																			
+Sheet3 name Unit Relation																			
+Row 1 headers,																			
+id	datafileRecordId	fromUnitCode	relationship	toUnitCode	summary														
+		BCU CN	PARENT	BCU CN SGT															
+		BCU CN	CRIME_REVIEW_UNIT	BCU CN SGT															
+		BCU CN	CRIME_REVIEW_INSPECTOR	BCU CN INSP															
+		BCU CN	SUPERVISORY UNIT	BCU CN SGT															
+		BCU CN	MISPER PROCESS FOUND REPORT RECIPIENT	CN MISSING PERSON CLOSURE															
+		BCU CN	MISPER_REVIEW_UNIT	CN MISSING PERSON REVIEW															
+		BCU CN	PMP_REVIEW	BCU CN															
+		BCU CN SGT	PARENT	BCU CN SGT															
+		BCU CN SGT	CRIME_REVIEW_UNIT	BCU CN SGT															
+		BCU CN SGT	CRIME_REVIEW_INSPECTOR	BCU CN INSP															
+		BCU CN SGT	SUPERVISORY UNIT	BCU CN INSP															
+		BCU CN SGT	MISPER PROCESS FOUND REPORT RECIPIENT	CN MISSING PERSON CLOSURE															
+		BCU CN SGT	MISPER_REVIEW_UNIT	CN MISSING PERSON REVIEW															
+		BCU CN SGT	PMP_REVIEW	BCU CN SGT															
+		BCU CN INSP	PARENT	BCU CN INSP															
+		BCU CN INSP	CRIME_REVIEW_UNIT	BCU CN INSP															
+		BCU CN INSP	CRIME_REVIEW_INSPECTOR	BCU CN INSP															
+		BCU CN INSP	SUPERVISORY UNIT	BCU CN INSP															
+		BCU CN INSP	MISPER PROCESS FOUND REPORT RECIPIENT	CN MISSING PERSON CLOSURE															
+		BCU CN INSP	MISPER_REVIEW_UNIT	CN MISSING PERSON REVIEW															
+		BCU CN INSP	PMP_REVIEW	BCU CN INSP															
+		BCU CN PMPOT	PARENT	BCU CN PMPOT															
+work flow e.g. BCU CN work going to BCN CN SGT due to parent																			
+BCU CN INSP parent = itself as no one higher (sometimes sgt is name)																			
+																			
+Sheet4 name, Unit Function																			
+Row 1 headers																			
+datafilerecordid	unitCodeID	unitFunction																	
+	BCU CN	ALL UNITS																	
+	BCU CN SGT	ALL UNITS																	
+	BCU CN INSP	ALL UNITS																	
+	BCU NA	ALL UNITS																	
+	BCU NA SGT	ALL UNITS																	
+	BCU NA INSP	ALL UNITS																	
+	BCU NE	ALL UNITS																	
+	BCU NE SGT	ALL UNITS																	
+	BCU NE INSP	ALL UNITS																	
+	BCU CE	ALL UNITS																	
+	BCU CE SGT	ALL UNITS																	
+	BCU CE INSP	ALL UNITS																	
+	BCU EA	ALL UNITS																	
+	BCU EA SGT	ALL UNITS																	
+	BCU EA INSP	ALL UNITS																	
+	BCU SE	ALL UNITS																	
+	BCU SE SGT	ALL UNITS																	
+	BCU SE INSP	ALL UNITS																	
+	BCU AS	ALL UNITS																	
+	BCU AS SGT	ALL UNITS																	
+	BCU AS INSP	ALL UNITS																	
+	BCU SN	ALL UNITS																	
+	BCU SN SGT	ALL UNITS																	
+	BCU SN INSP	ALL UNITS																	
+	BCU SW	ALL UNITS																	
+	BCU SW SGT	ALL UNITS																	
+	BCU SW INSP	ALL UNITS																	
+	BCU AW	ALL UNITS																	
+	BCU AW SGT	ALL UNITS																	
+	BCU AW INSP	ALL UNITS																	
+	BCU WA	ALL UNITS																	
+	BCU WA SGT	ALL UNITS																	
+	BCU WA INSP	ALL UNITS																	
+	BCU NW	ALL UNITS																	
+	BCU NW SGT	ALL UNITS																	
+	BCU NW INSP	ALL UNITS																	
+																			
+Sheet 5 name, Role Unit																			
+Row 1 Headers,																			
+unit	roleCode	summary																	
+BCU CN	MET CONNECT USER																		
+BCU CN SGT	MET CONNECT USER																		
+BCU CN INSP	MET CONNECT USER																		
+BCU NA	MET CONNECT USER																		
+BCU NA SGT	MET CONNECT USER																		
+BCU NA INSP	MET CONNECT USER																		
+BCU NE	MET CONNECT USER																		
+BCU NE SGT	MET CONNECT USER																		
+BCU NE INSP	MET CONNECT USER																		
+BCU CE	MET CONNECT USER																		
+BCU CE SGT	MET CONNECT USER																		
+BCU CE INSP	MET CONNECT USER																		
+BCU EA	MET CONNECT USER																		
+BCU EA SGT	MET CONNECT USER																		
+BCU EA INSP	MET CONNECT USER																		
+BCU SE	MET CONNECT USER																		
+BCU SE SGT	MET CONNECT USER																		
+BCU SE INSP	MET CONNECT USER																		
+BCU AS	MET CONNECT USER																		
+BCU AS SGT	MET CONNECT USER																		
+BCU AS INSP	MET CONNECT USER																		
+BCU SN	MET CONNECT USER																		
+BCU SN SGT	MET CONNECT USER																		
+BCU SN INSP	MET CONNECT USER																		
+BCU SW	MET CONNECT USER																		
+BCU SW SGT	MET CONNECT USER																		
+BCU SW INSP	MET CONNECT USER																		
+BCU AW	MET CONNECT USER																		
+BCU AW SGT	MET CONNECT USER																		
+BCU AW INSP	MET CONNECT USER																		
+BCU WA	MET CONNECT USER																		
+BCU WA SGT	MET CONNECT USER																		
+BCU WA INSP	MET CONNECT USER																		
+BCU NW	MET CONNECT USER																		
+BCU NW SGT	MET CONNECT USER																		
+BCU NW INSP	MET CONNECT USER																		
+																			
+Sheet6 name, Unit force Hierarchy,																			
+Row 1 names,																			
+forceCode	bcuCode	districtCode	wardCode	unitCode	summary														
+01	CENTRAL NORTH			BCU CN															
+01	CENTRAL NORTH			BCU CN SGT															
+01	CENTRAL NORTH			BCU CN INSP															
+01	CENTRAL NORTH			BCU CN PMPOT	PMP TEAM CONFIGURATION														
+01	NORTH AREA			BCU NA															
+01	NORTH AREA	 		BCU NA SGT															
+01	NORTH AREA			BCU NA INSP															
+01	NORTH AREA			BCU NA PMPOT	PMP TEAM CONFIGURATION														
+01	NORTH EAST			BCU NE															
+01	NORTH EAST			BCU NE SGT															
+01	NORTH EAST			BCU NE INSP															
+01	NORTH EAST			BCU NE PMPOT	PMP TEAM CONFIGURATION														
+01	CENTRAL EAST			BCU CE															
+01	CENTRAL EAST			BCU CE SGT															
+01	CENTRAL EAST			BCU CE INSP															
+01	CENTRAL EAST			BCU CE PMPOT	PMP TEAM CONFIGURATION														
+01	EAST AREA			BCU EA															
+01	EAST AREA			BCU EA SGT															
+01	EAST AREA			BCU EA INSP															
+01	EAST AREA			BCU EA PMPOT	PMP TEAM CONFIGURATION														
+01	SOUTH EAST			BCU SE															
+01	SOUTH EAST			BCU SE SGT															
+01	SOUTH EAST			BCU SE INSP															
+01	SOUTH EAST			BCU SE PMPOT	PMP TEAM CONFIGURATION														
+01	CENTRAL SOUTH			BCU AS															
+01	CENTRAL SOUTH			BCU AS SGT															
+01	CENTRAL SOUTH			BCU AS INSP															
+01	CENTRAL SOUTH			BCU AS PMPOT	PMP TEAM CONFIGURATION														
+01	SOUTH AREA			BCU SN															
+01	SOUTH AREA			BCU SN SGT															
+01	SOUTH AREA			BCU SN INSP															
+01	SOUTH AREA			BCU SN PMPOT	PMP TEAM CONFIGURATION														
+01	SOUTH WEST			BCU SW															
+01	SOUTH WEST			BCU SW SGT															
+01	SOUTH WEST			BCU SW INSP															
+01	SOUTH WEST			BCU SW PMPOT	PMP TEAM CONFIGURATION														
+01	CENTRAL WEST			BCU AW															
+01	CENTRAL WEST			BCU AW SGT															
+01	CENTRAL WEST			BCU AW INSP															
+01	CENTRAL WEST			BCU AW PMPOT	PMP TEAM CONFIGURATION														
+01	WEST AREA			BCU WA															
+01	WEST AREA			BCU WA SGT															
+01	WEST AREA			BCU WA INSP															
+01	WEST AREA			BCU WA PMPOT	PMP TEAM CONFIGURATION														
+01	NORTH WEST			BCU NW															
+01	NORTH WEST			BCU NW SGT															
+01	NORTH WEST			BCU NW INSP															
+01	NORTH WEST			BCU NW PMPOT	PMP TEAM CONFIGURATION														
+																			
+Sheet 7 name, Force Unit																			
+Row 1 headers,																			
+unit	pncForceId	Summary																	
+BCU CN	01																		
+BCU CN SGT	01																		
+BCU CN INSP	01																		
+BCU NA	01																		
+BCU NA SGT	01																		
+BCU NA INSP	01																		
+BCU NE	01																		
+BCU NE SGT	01																		
+BCU NE INSP	01																		
+BCU CE	01																		
+BCU CE SGT	01																		
+BCU CE INSP	01																		
+BCU EA	01																		
+BCU EA SGT	01																		
+BCU EA INSP	01																		
+BCU SE	01																		
+BCU SE SGT	01																		
+BCU SE INSP	01																		
+BCU AS	01																		
+BCU AS SGT	01																		
+BCU AS INSP	01																		
+BCU SN	01																		
+BCU SN SGT	01																		
+BCU SN INSP	01																		
+BCU SW	01																		
+BCU SW SGT	01																		
+BCU SW INSP	01																		
+BCU AW	01																		
+BCU AW SGT	01																		
+BCU AW INSP	01																		
+BCU WA	01																		
+BCU WA SGT	01																		
+BCU WA INSP	01																		
+BCU NW	01																		
+BCU NW SGT	01																		
+BCU NW INSP	01																		
+																			
+Sheet 8 name, Team																			
+Row 1 headers,																			
+datafileRecordId	name	description	endDate	partnerTeamType	teamUnitCode	summary													
+left empty																			
+																			
+Sheet 9 name, TeamRoleUnit																			
+row 1 headers,																			
+teamIdDatafileRecordid	rolecode	unitcode	summary																
+left empty																			
+																			
+																			
+Make user friendly dashboard																			
+Make everything 1 sheet after and make sheet1 now a questoinaire sheet																			
+Allow user to press buttons to automate process.																			
+buttons create relevant information e.g.																			
+user needs Constables create Constable mapping and if no other self escelate																			
+User only wants BCU CE create only BCU CE relevant information																			
+																			
+simplified button names in case editing is needed later by someone else																			
