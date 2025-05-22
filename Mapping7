@@ -1,0 +1,324 @@
+Option Explicit
+'=== MAIN MODULE ===
+' Author: [Your Name]
+' Version: 1.2
+' Last Updated: [Date]
+' Description: Automated work tray mapping system for hierarchical organizations
+
+' **************************************************************
+' MAIN WORKFLOW GENERATOR - RUN THIS PROCEDURE
+' **************************************************************
+Public Sub GenerateWorkTrays()
+    On Error GoTo ErrorHandler
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    ' ----------------------------
+    ' STEP 1: VALIDATE ENVIRONMENT
+    ' ----------------------------
+    If Not SheetExists("MappingOutput") Then
+        If Not CreateOutputSheet() Then
+            MsgBox "Failed to create output sheet", vbExclamation
+            Exit Sub
+        End If
+    End If
+    
+    ' --------------------------
+    ' STEP 2: GET USER INPUTS
+    ' --------------------------
+    Dim userResponses As Collection
+    Set userResponses = GetValidatedResponses()
+    If userResponses Is Nothing Then Exit Sub
+    
+    ' --------------------------
+    ' STEP 3: BUILD WORKFLOW
+    ' --------------------------
+    Dim workflow As Object
+    Set workflow = CreateWorkflow(userResponses)
+    If workflow Is Nothing Or workflow.Count = 0 Then
+        MsgBox "No valid workflow could be created", vbExclamation
+        Exit Sub
+    End If
+    
+    ' --------------------------
+    ' STEP 4: GENERATE OUTPUT
+    ' --------------------------
+    ClearOutput
+    ApplyWorkflow workflow
+    ApplyBCUMapping userResponses("OrgUnit"), userResponses("TeamName")
+    SetAccessLevels
+    FormatOutput
+    CreateBackup
+    
+    ' --------------------------
+    ' STEP 5: FINALIZE
+    ' --------------------------
+    MsgBox "Work tray mapping successfully generated!" & vbCrLf & _
+           "See 'MappingOutput' sheet for results.", vbInformation
+    
+Cleanup:
+    Set workflow = Nothing
+    Set userResponses = Nothing
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "Error in GenerateWorkTrays:" & vbCrLf & _
+           "Line " & Erl & ": " & Err.Description, vbCritical
+    LogError "GenerateWorkTrays", Err.Number, Err.Description
+    Resume Cleanup
+End Sub
+
+' **************************************************************
+' SUPPORTING FUNCTIONS
+' **************************************************************
+
+' === INPUT VALIDATION ===
+Private Function GetValidatedResponses() As Collection
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Questionnaire")
+    Dim responses As New Collection
+    
+    ' Validate BCU selection
+    If ws.Range("Q3").Value = "" Then
+        MsgBox "Please select a BCU from the dropdown list", vbExclamation
+        Exit Function
+    End If
+    
+    ' Validate Work Level (4-8)
+    If Not IsNumeric(ws.Range("Q5").Value) Then
+        MsgBox "Work level must be a number between 4-8", vbExclamation
+        Exit Function
+    End If
+    Dim workLevel As Integer
+    workLevel = CInt(ws.Range("Q5").Value)
+    If workLevel < 4 Or workLevel > 8 Then
+        MsgBox "Work level must be between 4-8", vbExclamation
+        Exit Function
+    End If
+    
+    ' Validate Team Name
+    Dim teamName As String
+    teamName = CleanInput(ws.Range("Q7").Value)
+    If Len(teamName) < 2 Then
+        MsgBox "Team name must be at least 2 characters", vbExclamation
+        Exit Function
+    End If
+    
+    ' Store validated responses
+    With responses
+        .Add ws.Range("Q3").Value, "OrgUnit"
+        .Add workLevel, "WorkLevel"
+        .Add teamName, "TeamName"
+        .Add (ws.Range("Q9").Value = "Yes"), "HasConstables"
+        .Add (ws.Range("Q11").Value = "Yes"), "HasSergeants"
+        .Add (ws.Range("Q13").Value = "Yes"), "HasInspectors"
+    End With
+    
+    Set GetValidatedResponses = responses
+End Function
+
+' === WORKFLOW CONSTRUCTION ===
+Private Function CreateWorkflow(responses As Collection) As Object
+    Dim workflow As Object
+    Set workflow = CreateObject("Scripting.Dictionary")
+    Dim level As Integer: level = 1
+    
+    ' Add Base Work Level
+    workflow.Add level, Array( _
+        "WorkLevel-" & responses("WorkLevel"), _
+        responses("WorkLevel"), _
+        "GENERAL_WORKTRAY", _
+        "SECURITY_GROUP_" & responses("WorkLevel"), _
+        "STANDARD" _
+    )
+    level = level + 1
+    
+    ' Add Constables if selected
+    If responses("HasConstables") Then
+        workflow.Add level, Array( _
+            "Constable", _
+            responses("WorkLevel") - 1, _
+            "CONSTABLE_TRAY", _
+            "SECURITY_CONSTABLE", _
+            "RESTRICTED" _
+        )
+        level = level + 1
+    End If
+    
+    ' Add Sergeants if selected
+    If responses("HasSergeants") Then
+        workflow.Add level, Array( _
+            "Sergeant", _
+            responses("WorkLevel") - 2, _
+            "SERGEANT_TRAY", _
+            "SECURITY_SERGEANT", _
+            "ELEVATED" _
+        )
+        level = level + 1
+    End If
+    
+    ' Add Inspectors if selected
+    If responses("HasInspectors") Then
+        workflow.Add level, Array( _
+            "Inspector", _
+            responses("WorkLevel") - 3, _
+            "INSPECTOR_TRAY", _
+            "SECURITY_INSPECTOR", _
+            "ADMIN" _
+        )
+    End If
+    
+    Set CreateWorkflow = workflow
+End Function
+
+' === OUTPUT GENERATION ===
+Private Sub ApplyWorkflow(workflow As Object)
+    Dim ws As Worksheet, i As Long, row As Long
+    Set ws = Sheets("MappingOutput")
+    row = 2 ' Start below headers
+    
+    For i = 1 To workflow.Count
+        With ws.Cells(row, 1)
+            .Value = workflow(i)(0) ' Role/Type
+            .Offset(0, 2).Value = workflow(i)(1) ' Level
+            .Offset(0, 4).Value = workflow(i)(2) ' Work Tray
+            .Offset(0, 3).Value = workflow(i)(3) ' Security Group
+            .Offset(0, 5).Value = workflow(i)(4) ' Access Level
+            
+            ' Build approval path
+            If i > 1 Then
+                .Offset(0, 6).Value = workflow(i - 1)(0) & " → " & workflow(i)(0)
+            End If
+            
+            ' Set notifications
+            .Offset(0, 7).Value = IIf(workflow(i)(0) Like "Constable*", "DAILY_SUMMARY", "REALTIME")
+        End With
+        row = row + 1
+    Next i
+End Sub
+
+Private Sub ApplyBCUMapping(bcu As String, teamName As String)
+    Dim ws As Worksheet, lastRow As Long, i As Long
+    Set ws = Sheets("MappingOutput")
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 2 To lastRow
+        With ws.Cells(i, 2)
+            Select Case ws.Cells(i, 1).Value
+                Case Like "WorkLevel*"
+                    .Value = bcu & "_BASE"
+                Case "Constable"
+                    .Value = bcu & "_CON_" & teamName
+                Case "Sergeant"
+                    .Value = bcu & "_SGT_" & teamName
+                Case "Inspector"
+                    .Value = bcu & "_INSP_" & teamName
+            End Select
+        End With
+    Next i
+End Sub
+
+' **************************************************************
+' UTILITY FUNCTIONS
+' **************************************************************
+
+Private Function SheetExists(sheetName As String) As Boolean
+    On Error Resume Next
+    SheetExists = Not ThisWorkbook.Sheets(sheetName) Is Nothing
+    On Error GoTo 0
+End Function
+
+Private Function CreateOutputSheet() As Boolean
+    On Error Resume Next
+    With ThisWorkbook
+        .Sheets.Add(After:=.Sheets(.Sheets.Count)).Name = "MappingOutput"
+        CreateOutputSheet = True
+    End With
+    On Error GoTo 0
+End Function
+
+Private Sub ClearOutput()
+    With Sheets("MappingOutput")
+        .Cells.ClearContents
+        .Range("A1:I1").Value = Array( _
+            "Permission Level", "BCU", "Role", _
+            "Security Group", "Work Tray", "Access Level", _
+            "Approval Path", "Notifications", "Special Flags")
+    End With
+End Sub
+
+Private Sub SetAccessLevels()
+    ' Already handled in ApplyWorkflow
+End Sub
+
+Private Sub FormatOutput()
+    With Sheets("MappingOutput")
+        .Columns.AutoFit
+        With .Range("A1:I1")
+            .Font.Bold = True
+            .Interior.Color = RGB(200, 200, 200)
+        End With
+        .ListObjects.Add(xlSrcRange, .Range("A1").CurrentRegion, , xlYes).Name = "OutputTable"
+    End With
+End Sub
+
+Private Sub CreateBackup()
+    Dim backupPath As String
+    backupPath = ThisWorkbook.Path & "\Backups\"
+    
+    On Error Resume Next
+    MkDir backupPath ' Will fail if exists, which is fine
+    On Error GoTo 0
+    
+    Sheets("MappingOutput").Copy
+    ActiveWorkbook.SaveAs backupPath & "WorkTrayMapping_" & Format(Now(), "yyyymmdd_hhmmss")
+    ActiveWorkbook.Close False
+End Sub
+
+Private Function CleanInput(inputText As String) As String
+    CleanInput = Replace(Trim(inputText), " ", "_")
+End Function
+
+Private Sub LogError(procedureName As String, errNumber As Long, errDesc As String)
+    On Error Resume Next ' Prevent error if logging fails
+    Dim ws As Worksheet
+    If Not SheetExists("ErrorLog") Then
+        Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        ws.Name = "ErrorLog"
+        ws.Range("A1:C1").Value = Array("Timestamp", "Procedure", "Error Details")
+    Else
+        Set ws = ThisWorkbook.Sheets("ErrorLog")
+    End If
+    
+    With ws.Cells(ws.Rows.Count, 1).End(xlUp).Offset(1, 0)
+        .Value = Now
+        .Offset(0, 1).Value = procedureName
+        .Offset(0, 2).Value = "Error " & errNumber & ": " & errDesc
+    End With
+End Sub
+
+' **************************************************************
+' USER-FRIENDLY HELPERS
+' **************************************************************
+Public Sub ResetQuestionnaire()
+    With Sheets("Questionnaire")
+        .Range("Q3").Value = "" ' BCU
+        .Range("Q5").Value = "" ' Work Level
+        .Range("Q7").Value = "" ' Team Name
+        .Range("Q9").Value = "No" ' Constables
+        .Range("Q11").Value = "No" ' Sergeants
+        .Range("Q13").Value = "No" ' Inspectors
+    End With
+    MsgBox "Questionnaire has been reset", vbInformation
+End Sub
+
+Public Sub ExplainWorkLevels()
+    MsgBox "Work Level Guide:" & vbCrLf & vbCrLf & _
+           "4 = Junior Staff" & vbCrLf & _
+           "5 = Standard Worker" & vbCrLf & _
+           "6 = Senior Worker" & vbCrLf & _
+           "7 = Junior Management" & vbCrLf & _
+           "8 = Senior Management", vbInformation, "Work Level Reference"
+End Sub
