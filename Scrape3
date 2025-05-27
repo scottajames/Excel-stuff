@@ -1,0 +1,62 @@
+Sub ScrapeWithoutInspect()
+    Dim IE As Object
+    Dim HTMLDoc As Object
+    Dim Buttons As Object, Button As Object
+    Dim DataRows As Object, RowElement As Object
+    Dim OutputRow As Long
+    Dim URL As String
+    Dim PageCount As Integer
+    
+    URL = "https://example.com" ' Replace with your URL
+    
+    ' Initialize Internet Explorer
+    Set IE = CreateObject("InternetExplorer.Application")
+    IE.Visible = True ' Make visible to debug
+    IE.Navigate URL
+    
+    ' Wait for page to load
+    Do While IE.Busy Or IE.ReadyState <> 4
+        Application.Wait Now + TimeValue("00:00:01")
+    Loop
+    
+    OutputRow = 1
+    PageCount = 1
+    
+    Do While PageCount <= 2 ' Scrape 2 pages (adjust as needed)
+        ' Extract data (generic approach)
+        Set HTMLDoc = IE.Document
+        Set DataRows = HTMLDoc.getElementsByTagName("tr") ' Assume data is in <tr> tags
+        
+        For Each RowElement In DataRows
+            Cells(OutputRow, 1).Value = RowElement.innerText
+            OutputRow = OutputRow + 1
+        Next RowElement
+        
+        ' Attempt to find the "Next Page" button by text
+        Set Buttons = HTMLDoc.getElementsByTagName("button")
+        For Each Button In Buttons
+            If InStr(Button.innerText, "Next") > 0 Or InStr(Button.innerText, "Page") > 0 Then
+                Button.Click
+                PageCount = PageCount + 1
+                
+                ' Wait for new data to load
+                Do While IE.Busy Or IE.ReadyState <> 4
+                    Application.Wait Now + TimeValue("00:00:03")
+                Loop
+                Application.Wait Now + TimeValue("00:00:02") ' Extra delay
+                Exit For
+            End If
+        Next Button
+        
+        ' Fallback: If no button found, exit
+        If PageCount = 1 Then
+            MsgBox "Next button not found."
+            Exit Do
+        End If
+    Loop
+    
+    ' Cleanup
+    IE.Quit
+    Set IE = Nothing
+    MsgBox "Scraping complete."
+End Sub
