@@ -1,0 +1,28 @@
+Sub ScrapeData()
+    Dim URL As String
+    Dim Request As XMLHTTP60
+    Dim HTMLDoc As HTMLDocument
+    Dim Elements As IHTMLElementCollection
+    Dim Element As IHTMLElement
+    Dim Row As Integer
+
+    URL = "https://example.com" ' Replace with your URL
+    Set Request = New XMLHTTP60
+    Request.Open "GET", URL, False
+    Request.send
+
+    If Request.Status = 200 Then
+        Set HTMLDoc = New HTMLDocument
+        HTMLDoc.body.innerHTML = Request.responseText
+        
+        ' Example: Extract all <td> elements from a table
+        Set Elements = HTMLDoc.getElementsByTagName("td")
+        Row = 1
+        For Each Element In Elements
+            Cells(Row, 1).Value = Element.innerText
+            Row = Row + 1
+        Next Element
+    Else
+        MsgBox "Error: " & Request.Status
+    End If
+End Sub
