@@ -1,0 +1,43 @@
+Sub ListMatchesAndNonMatches()
+    Dim ws1 As Worksheet, ws2 As Worksheet, ws3 As Worksheet
+    Dim dictMatches As Object, dictNonMatches As Object
+    Dim cell As Range
+    
+    Set ws1 = ThisWorkbook.Sheets("Worksheet1")
+    Set ws2 = ThisWorkbook.Sheets("Worksheet2")
+    Set ws3 = ThisWorkbook.Sheets("Worksheet3")
+    Set dictMatches = CreateObject("Scripting.Dictionary")
+    Set dictNonMatches = CreateObject("Scripting.Dictionary")
+    
+    ' Track values in Worksheet2
+    For Each cell In ws2.Range("A:A")
+        If cell.Value <> "" Then
+            dictMatches(cell.Value) = 1
+        End If
+    Next cell
+    
+    ' Check Worksheet3 and update dictionaries
+    For Each cell In ws3.Range("A:A")
+        If cell.Value <> "" Then
+            If dictMatches.Exists(cell.Value) Then
+                dictMatches(cell.Value) = dictMatches(cell.Value) + 1
+            Else
+                dictNonMatches(cell.Value) = 1
+            End If
+        End If
+    Next cell
+    
+    ' Write matches to Column A
+    ws1.Range("A:A").Clear
+    For Each Key In dictMatches.Keys
+        If dictMatches(Key) >= 2 Then
+            ws1.Cells(ws1.Rows.Count, 1).End(xlUp).Offset(1).Value = Key
+        End If
+    Next Key
+    
+    ' Write non-matches to Column B
+    ws1.Range("B:B").Clear
+    For Each Key In dictNonMatches.Keys
+        ws1.Cells(ws1.Rows.Count, 2).End(xlUp).Offset(1).Value = Key
+    Next Key
+End Sub
