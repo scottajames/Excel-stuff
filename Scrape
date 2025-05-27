@@ -2,9 +2,11 @@ Sub ScrapeData()
     Dim URL As String
     Dim Request As XMLHTTP60
     Dim HTMLDoc As HTMLDocument
-    Dim Elements As IHTMLElementCollection
+    Dim Elements As IHTMLElementCollection 
     Dim Element As IHTMLElement
     Dim Row As Integer
+
+<a href='javascript:apex.navigation.redirect(apex.server.pluginUrl("UkVHSU9OIFRZUEV-fjI1NTg4NzExNDU4NjA2MzA3\u002FEmha1N2d8vQ9Fnnp_45DKoJiURmbxvF0Xj_VaieSb647kaCFbvGFXWeKEAUcUhZP9ozDI-h0-7s4AjD9GUwcHA",{"p_widget_action":"FLOW_EXCEL_OUTPUT_R25588711458606307_en","pageItems":"#P1_SR_APP2_SEARCH,#P1_SR_APP2_STATUS,#P1_SR_APP2_ID"}), true);'>Download</a>
 
     URL = "https://example.com" ' Replace with your URL
     Set Request = New XMLHTTP60
@@ -25,4 +27,8 @@ Sub ScrapeData()
     Else
         MsgBox "Error: " & Request.Status
     End If
+
+
+
+
 End Sub
