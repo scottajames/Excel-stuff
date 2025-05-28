@@ -1,0 +1,88 @@
+Sub DownloadFileFromWeb()
+    Dim WinHttpReq As Object
+    Dim FileUrl As String
+    Dim SavePath As String
+    Dim FileStream As Object
+    Dim FSO As Object
+    Dim FolderPath As String
+    Dim Attempt As Integer
+    Dim MaxAttempts As Integer
+    Dim RetryDelay As Integer
+    
+    ' Configuration settings
+    FileUrl = "https://example.com/path/to/your/file.zip"
+    SavePath = "C:\Your\Download\Folder\file.zip"
+    MaxAttempts = 3             ' Number of retry attempts
+    RetryDelay = 5000           ' Delay between retries in milliseconds (5 seconds)
+    
+    On Error GoTo ErrorHandler
+    
+    ' Create filesystem object
+    Set FSO = CreateObject("Scripting.FileSystemObject")
+    FolderPath = FSO.GetParentFolderName(SavePath)
+    
+    ' Validate/create folder
+    If Not FSO.FolderExists(FolderPath) Then
+        If MsgBox("Folder doesn't exist. Create it?", vbYesNo + vbQuestion) = vbYes Then
+            FSO.CreateFolder FolderPath
+        Else
+            MsgBox "Download aborted", vbExclamation
+            Exit Sub
+        End If
+    End If
+
+    ' Initialize HTTP object
+    Set WinHttpReq = CreateObject("WinHttp.WinHttpRequest.5.1")
+    
+    ' EXTENDED TIMEOUT SETTINGS (5 minutes each)
+    WinHttpReq.SetTimeouts 300000, 300000, 300000, 300000
+    
+    ' Retry loop
+    For Attempt = 1 To MaxAttempts
+        On Error Resume Next
+        WinHttpReq.Open "GET", FileUrl, False
+        WinHttpReq.Send
+        On Error GoTo ErrorHandler
+        
+        ' Exit loop if successful
+        If WinHttpReq.Status = 200 Then Exit For
+        
+        ' Delay before retry (except on last attempt)
+        If Attempt < MaxAttempts Then
+            Application.Wait Now + TimeValue("0:00:" & RetryDelay / 1000)
+        End If
+    Next Attempt
+
+    ' Verify final success
+    If WinHttpReq.Status = 200 Then
+        Set FileStream = CreateObject("ADODB.Stream")
+        FileStream.Type = 1
+        FileStream.Open
+        FileStream.Write WinHttpReq.ResponseBody
+        FileStream.SaveToFile SavePath, 2
+        FileStream.Close
+        MsgBox "File downloaded successfully to: " & SavePath, vbInformation
+    Else
+        Select Case WinHttpReq.Status
+            Case 0: MsgBox "Network timeout after " & MaxAttempts & " attempts", vbCritical
+            Case 404: MsgBox "File not found (404 Error)", vbCritical
+            Case Else: MsgBox "Download failed." & vbCrLf & _
+                              "HTTP Status: " & WinHttpReq.Status & vbCrLf & _
+                              WinHttpReq.StatusText, vbCritical
+        End Select
+    End If
+
+    Exit Sub
+    
+ErrorHandler:
+    If Err.Number = -2147012894 Then
+        If Attempt < MaxAttempts Then
+            Resume Next  ' Continue to next retry
+        Else
+            MsgBox "Network timeout after " & MaxAttempts & " attempts", vbCritical
+        End If
+    Else
+        MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+               "Operation aborted", vbCritical
+    End If
+End Sub
