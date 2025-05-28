@@ -1,0 +1,61 @@
+Sub DownloadFileFromWeb()
+    Dim WinHttpReq As Object
+    Dim FileUrl As String
+    Dim SavePath As String
+    Dim FileStream As Object
+    Dim FSO As Object
+    Dim FolderPath As String
+    
+    On Error GoTo ErrorHandler
+    
+    ' Configure URL and save location
+    FileUrl = "https://example.com/path/to/your/file.zip" ' Replace with your file URL
+    SavePath = "C:\Your\Download\Folder\file.zip"        ' Replace with your local path
+    
+    ' Create filesystem object
+    Set FSO = CreateObject("Scripting.FileSystemObject")
+    FolderPath = FSO.GetParentFolderName(SavePath)
+    
+    ' Validate target folder
+    If Not FSO.FolderExists(FolderPath) Then
+        If MsgBox("Folder doesn't exist. Create it?", vbYesNo + vbQuestion) = vbYes Then
+            FSO.CreateFolder FolderPath
+        Else
+            MsgBox "Download aborted", vbExclamation
+            Exit Sub
+        End If
+    End If
+
+    ' Create HTTP request object
+    Set WinHttpReq = CreateObject("WinHttp.WinHttpRequest.5.1")
+    
+    ' Configure timeouts (ms)
+    WinHttpReq.SetTimeouts 60000, 60000, 60000, 60000 ' Connect, Send, Receive, Total
+    
+    ' Send HTTP GET request
+    WinHttpReq.Open "GET", FileUrl, False
+    WinHttpReq.Send
+    
+    ' Check if download succeeded
+    If WinHttpReq.Status = 200 Then
+        ' Create binary stream
+        Set FileStream = CreateObject("ADODB.Stream")
+        FileStream.Type = 1 ' Binary
+        FileStream.Open
+        FileStream.Write WinHttpReq.ResponseBody
+        FileStream.SaveToFile SavePath, 2 ' 2 = Overwrite existing
+        FileStream.Close
+        
+        MsgBox "File downloaded successfully to: " & SavePath, vbInformation
+    Else
+        MsgBox "Download failed." & vbCrLf & _
+               "HTTP Status: " & WinHttpReq.Status & vbCrLf & _
+               "Server Response: " & WinHttpReq.StatusText, vbCritical
+    End If
+
+    Exit Sub
+    
+ErrorHandler:
+    MsgBox "Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+           "Operation could not be completed", vbCritical
+End Sub
