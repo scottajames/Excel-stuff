@@ -1,0 +1,75 @@
+Sub DownloadFileFromJavaScriptButton()
+    Dim IE As Object
+    Dim HTMLDoc As Object
+    Dim DownloadLink As Object
+    Dim URL As String
+    Dim DownloadURL As String
+    Dim xhr As Object
+    Dim Response As Object
+    
+    URL = "https://example.com" ' Replace with your webpage URL
+    
+    ' Initialize Internet Explorer
+    Set IE = CreateObject("InternetExplorer.Application")
+    IE.Visible = True ' Set to False once tested
+    IE.Navigate URL
+    
+    ' Wait for the page to load
+    Do While IE.Busy Or IE.ReadyState <> 4
+        Application.Wait Now + TimeValue("00:00:02")
+    Loop
+    
+    Set HTMLDoc = IE.Document
+    
+    ' Find the "Download" link by text
+    For Each link In HTMLDoc.getElementsByTagName("a")
+        If Trim(link.innerText) = "Download" Then
+            Set DownloadLink = link
+            Exit For
+        End If
+    Next link
+    
+    If Not DownloadLink Is Nothing Then
+        ' Extract the JavaScript URL from the href attribute
+        Dim jsCode As String
+        jsCode = DownloadLink.getAttribute("href")
+        
+        ' Extract the encoded URL parameter (after "pluginUrl(")
+        Dim encodedParam As String
+        encodedParam = Split(Split(jsCode, "pluginUrl(""")(1), """")(0)
+        
+        ' Decode the URL-safe Base64 string (replace "_" and "-")
+        encodedParam = Replace(Replace(encodedParam, "_", "/"), "-", "+")
+        Dim decodedParam As String
+        decodedParam = StrConv(CreateObject("ScriptControl").Eval( _
+            "decodeURIComponent(escape(atob('" & encodedParam & "')))"), vbUnicode)
+        
+        ' Construct the full download URL
+        DownloadURL = "https://your-apex-server.com" & decodedParam ' Replace with your server domain
+        DownloadURL = DownloadURL & "&p_widget_action=FLOW_EXCEL_OUTPUT_R25588711458606307_en"
+        
+        ' Use XMLHTTP to download the file
+        Set xhr = CreateObject("MSXML2.XMLHTTP.6.0")
+        xhr.Open "GET", DownloadURL, False
+        xhr.send
+        
+        If xhr.Status = 200 Then
+            ' Save the response as an Excel file
+            Set Response = CreateObject("ADODB.Stream")
+            Response.Open
+            Response.Type = 1
+            Response.Write xhr.responseBody
+            Response.SaveToFile "C:\Downloads\Report.xlsx", 2 ' Change path/filename
+            Response.Close
+            MsgBox "File downloaded!"
+        Else
+            MsgBox "Error: " & xhr.Status
+        End If
+    Else
+        MsgBox "Download link not found."
+    End If
+    
+    ' Cleanup
+    IE.Quit
+    Set IE = Nothing
+End Sub
