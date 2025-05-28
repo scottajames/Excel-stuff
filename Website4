@@ -1,0 +1,31 @@
+Sub DownloadFileFromWeb()
+    Dim WinHttpReq As Object
+    Dim FileUrl As String
+    Dim SavePath As String
+    Dim FileStream As Object
+
+    ' Configure URL and save location
+    FileUrl = "https://example.com/path/to/your/file.zip" ' Replace with your file URL
+    SavePath = "C:\Your\Download\Folder\file.zip"        ' Replace with your local path
+
+    ' Create HTTP request object
+    Set WinHttpReq = CreateObject("WinHttp.WinHttpRequest.5.1")
+    
+    ' Send HTTP GET request
+    WinHttpReq.Open "GET", FileUrl, False
+    WinHttpReq.Send
+    
+    ' Check if download succeeded
+    If WinHttpReq.Status = 200 Then
+        ' Create binary stream to save the file
+        Set FileStream = CreateObject("ADODB.Stream")
+        FileStream.Type = 1 ' Binary
+        FileStream.Open
+        FileStream.Write WinHttpReq.ResponseBody
+        FileStream.SaveToFile SavePath, 2 ' 2 = Overwrite existing
+        FileStream.Close
+        MsgBox "File downloaded successfully to: " & SavePath
+    Else
+        MsgBox "Download failed. HTTP Status: " & WinHttpReq.Status & " " & WinHttpReq.StatusText
+    End If
+End Sub
