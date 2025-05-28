@@ -1,0 +1,80 @@
+Public ie As Object
+
+Sub StartDownload()
+    Set ie = CreateObject("InternetExplorer.Application")
+    ie.Visible = True
+    ie.navigate "https://www.example.com"
+    
+    ' Wait for page load with timeout
+    Dim waitTime As Date
+    waitTime = Now + TimeValue("00:00:10")
+    Do While ie.Busy Or ie.readyState < 4
+        If Now > waitTime Then Exit Do
+        DoEvents
+    Loop
+    
+    Application.OnTime Now + TimeValue("00:00:03"), "ClickButton"
+End Sub
+
+Sub ClickButton()
+    ' Validate IE instance exists
+    If ie Is Nothing Then
+        MsgBox "Browser instance not found", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Validate document is loaded
+    On Error Resume Next
+    Dim doc As Object
+    Set doc = ie.document
+    If Err.Number <> 0 Or doc Is Nothing Then
+        MsgBox "Document not loaded", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Try different methods to find element
+    Dim element As Object
+    Set element = Nothing
+    
+    ' Method 1: getElementById
+    If element Is Nothing Then
+        Set element = doc.getElementById("downloadButton")
+    End If
+    
+    ' Method 2: querySelector
+    If element Is Nothing Then
+        Set element = doc.querySelector("[id*='download'],[class*='download']")
+    End If
+    
+    ' Method 3: getElementsByTagName
+    If element Is Nothing Then
+        Dim buttons As Object
+        Set buttons = doc.getElementsByTagName("button")
+        If buttons.Length > 0 Then
+            ' Try to find button with download text
+            Dim i As Long
+            For i = 0 To buttons.Length - 1
+                If InStr(1, buttons(i).innerText, "Download", vbTextCompare) > 0 Then
+                    Set element = buttons(i)
+                    Exit For
+                End If
+            Next i
+        End If
+    End If
+    
+    ' Execute click if element found
+    If Not element Is Nothing Then
+        element.Click
+        Application.OnTime Now + TimeValue("00:00:05"), "CloseIE"
+    Else
+        MsgBox "Download element not found", vbExclamation
+    End If
+End Sub
+
+Sub CloseIE()
+    If Not ie Is Nothing Then
+        ie.Quit
+        Set ie = Nothing
+    End If
+End Sub
