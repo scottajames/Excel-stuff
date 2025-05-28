@@ -1,0 +1,41 @@
+Public ie As Object
+
+Sub StartDownload()
+    Set ie = CreateObject("InternetExplorer.Application")
+    ie.Visible = True
+    ie.navigate "https://www.example.com"
+    
+    ' Wait for page load
+    Do While ie.Busy Or ie.readyState < 4
+        DoEvents
+        Application.Wait Now + TimeValue("00:00:01")
+    Loop
+    
+    Application.OnTime Now + TimeValue("00:00:03"), "ClickButton"
+End Sub
+
+Sub ClickButton()
+    ' Validate browser state
+    If ie Is Nothing Then Exit Sub
+    If ie.readyState <> 4 Or ie.Busy Then Exit Sub
+    
+    Dim element As Object
+    Set element = Nothing
+    
+    ' Try 3 fallback selection methods
+    Set element = ie.document.getElementById("downloadButton")
+    If element Is Nothing Then Set element = ie.document.querySelector("button.download-class")
+    If element Is Nothing Then Set element = ie.document.getElementsByName("downloadBtn")(0)
+    
+    If Not element Is Nothing Then
+        element.Click
+        Application.OnTime Now + TimeValue("00:00:05"), "CloseIE"
+    Else
+        MsgBox "Download button not found!", vbExclamation
+    End If
+End Sub
+
+Sub CloseIE()
+    ie.Quit
+    Set ie = Nothing
+End Sub
