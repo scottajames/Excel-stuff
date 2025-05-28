@@ -1,0 +1,31 @@
+Sub DownloadFileFromWeb()
+    Dim WinHttpReq As Object
+    Dim FileUrl As String
+    Dim SavePath As String
+    Dim FileStream As Object
+
+    ' Configure URL and save location
+    FileUrl = "javascript:apex.navigation.redirect(apex.server.pluginUrl("UkVHSU9OIFRZUEV-fjI1NTg4NzExNDU4NjA2MzA3\u002FwW4zMu5ddXVqQV24y_3GcdTp8705b3Xz4zU4uG-7Z0URR7HAqDqOe-zPPjMuHLyTVhToTCAkwj5sMUD7xaR7yg",{"p_widget_action":"FLOW_EXCEL_OUTPUT_R25588711458606307_en","pageItems":"#P1_SR_APP2_SEARCH,#P1_SR_APP2_STATUS,#P1_SR_APP2_ID%22}),%20true);" ' Replace with your file URL
+    SavePath = "S:\FP\DOI\117_PROGRAMME_MGT\101_PROGRAMMES\Total_Technology\Core_Policing\New Core Policing Programme\MiPS\BA Work\Roles\HR Interface and Security Roles\Secure Data Sources\2024 Access Tracker\UA Tools Data Source"        ' Replace with your local path
+
+    ' Create HTTP request object
+    Set WinHttpReq = CreateObject("WinHttp.WinHttpRequest.5.1")
+    
+    ' Send HTTP GET request
+    WinHttpReq.Open "GET", FileUrl, False
+    WinHttpReq.Send
+    
+    ' Check if download succeeded
+    If WinHttpReq.Status = 200 Then
+        ' Create binary stream to save the file
+        Set FileStream = CreateObject("ADODB.Stream")
+        FileStream.Type = 1 ' Binary
+        FileStream.Open
+        FileStream.Write WinHttpReq.ResponseBody
+        FileStream.SaveToFile SavePath, 2 ' 2 = Overwrite existing
+        FileStream.Close
+        MsgBox "File downloaded successfully to: " & SavePath
+    Else
+        MsgBox "Download failed. HTTP Status: " & WinHttpReq.Status & " " & WinHttpReq.StatusText
+    End If
+End Sub
