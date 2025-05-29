@@ -1,0 +1,65 @@
+let
+    // Load Unit and UnitRelation tables
+    Units = Excel.CurrentWorkbook(){[Name="Units"]}[Content],
+    UnitRelations = Excel.CurrentWorkbook(){[Name="UnitRelations"]}[Content],
+    
+    // Clean data types
+    UnitsClean = Table.TransformColumnTypes(Units, {{"Code", type text}, {"Description", type text}, {"Summary", type text}}),
+    RelationsClean = Table.TransformColumnTypes(UnitRelations, {{"fromUnitCode", type text}, {"toUnitCode", type text}, {"relationship", type text}}),
+    
+    // Find root nodes (worktrays not used as 'fromUnitCode')
+    AllFromUnits = List.Distinct(RelationsClean[fromUnitCode]),
+    Roots = Table.SelectRows(UnitsClean, each not List.Contains(AllFromUnits, [Code]))[Code],
+    
+    // Recursive hierarchy builder with cycle prevention
+    GetSubtree = (currentCode as text, currentPath as text) as table =>
+        let
+            newPath = if currentPath = "" then currentCode else currentPath & "→" & currentCode,
+            splitPath = Text.Split(newPath, "→"),
+            currentDepth = List.Count(splitPath),
+            countCurrent = List.Count(List.Select(splitPath, each _ = currentCode)),
+            result = if countCurrent > 1 then 
+                #table({"Code", "Description", "Summary", "HierarchyPath", "Depth"}, {})
+            else
+                let
+                    // Get current worktray details
+                    currentRecord = if Table.IsEmpty(Table.SelectRows(UnitsClean, each [Code] = currentCode)) then
+                        #table({"Code", "Description", "Summary"}, {{currentCode, "MISSING", "MISSING"}})
+                    else
+                        Table.FirstN(Table.SelectRows(UnitsClean, each [Code] = currentCode), 1),
+                    
+                    // Add hierarchy metadata
+                    currentWithPath = Table.AddColumn(currentRecord, "HierarchyPath", each newPath),
+                    currentWithDepth = Table.AddColumn(currentWithPath, "Depth", each currentDepth),
+                    
+                    // Find child worktrays
+                    children = Table.SelectRows(RelationsClean, each [toUnitCode] = currentCode)[fromUnitCode],
+                    childrenSubtrees = List.Transform(children, (child) => GetSubtree(child, newPath)),
+                    
+                    // Combine current with children
+                    combined = if List.Count(childrenSubtrees) = 0 then 
+                        currentWithDepth 
+                    else 
+                        Table.Combine({currentWithDepth} & childrenSubtrees)
+                in combined
+        in result,
+    
+    // Generate all hierarchies
+    Hierarchies = List.Transform(Roots, (root) => GetSubtree(root, "")),
+    Combined = Table.Combine(Hierarchies),
+    
+    // Add display columns
+    AddIndentedName = Table.AddColumn(Combined, "IndentedName", each 
+        Text.Repeat("  ", [Depth] - 1) & 
+        (if [Summary] = "DUT" then "★ " else "") & 
+        [Code] & ": " & [Description], type text),
+    
+    AddRelationship = Table.Join(Combined, {"Code"}, RelationsClean, {"fromUnitCode"}, JoinKind.LeftOuter),
+    CleanRelations = Table.RenameColumns(AddRelationship, {{"relationship", "Relationship"}, {"toUnitCode", "ParentTray"}}),
+    
+    AddRootID = Table.AddColumn(CleanRelations, "RootID", each Text.Split([HierarchyPath], "→"){0}),
+    
+    // Final output columns
+    Reorder = Table.SelectColumns(AddRootID, {"RootID", "IndentedName", "Code", "Description", "Summary", "Depth", "Relationship", "ParentTray"})
+in
+    Reorder
