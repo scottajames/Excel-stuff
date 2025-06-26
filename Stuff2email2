@@ -1,0 +1,64 @@
+Sub CreateFilteredWorkbook()
+    Dim wsSource1 As Worksheet, wsSource2 As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsFiltered1 As Worksheet, wsFiltered2 As Worksheet
+    Dim lastRow As Long
+    Dim filterRange As Range
+    
+    ' Set the source worksheets
+    Set wsSource1 = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsSource2 = ThisWorkbook.Worksheets("Unit")
+    
+    ' Create a new workbook
+    Set newWorkbook = Workbooks.Add
+    
+    ' Ensure there are at least 2 sheets (for filtered data)
+    If newWorkbook.Sheets.Count < 2 Then
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(1)
+    End If
+    
+    ' Rename the sheets
+    Set wsFiltered1 = newWorkbook.Sheets(1)
+    Set wsFiltered2 = newWorkbook.Sheets(2)
+    wsFiltered1.Name = "AS_CentralSouth"
+    wsFiltered2.Name = "BCU_AS"
+    
+    ' --- Copy data from both sheets into a temporary sheet ---
+    Dim tempWs As Worksheet
+    Set tempWs = newWorkbook.Sheets.Add(Before:=wsFiltered1)
+    tempWs.Name = "TempData"
+    
+    ' Copy data from "Employee Listing"
+    wsSource1.UsedRange.Copy tempWs.Range("A1")
+    
+    ' Find the next empty row and paste "Unit" data below
+    lastRow = tempWs.Cells(tempWs.Rows.Count, "A").End(xlUp).Row + 1
+    wsSource2.UsedRange.Offset(1, 0).Copy tempWs.Range("A" & lastRow) 'Skip header
+    
+    ' Set the range to filter (all data)
+    Set filterRange = tempWs.UsedRange
+    
+    ' Apply first filter (Column J = "AS - central south command unit")
+    With filterRange
+        .AutoFilter Field:=10, Criteria1:="AS - central south command unit"
+        .Copy wsFiltered1.Range("A1")
+    End With
+    
+    ' Apply second filter (Column C = "BCU AS")
+    With filterRange
+        .AutoFilter Field:=3, Criteria1:="BCU AS"
+        .Copy wsFiltered2.Range("A1")
+    End With
+    
+    ' Remove filter and delete temp sheet
+    tempWs.AutoFilterMode = False
+    Application.DisplayAlerts = False
+    tempWs.Delete
+    Application.DisplayAlerts = True
+    
+    ' Autofit columns in new workbook
+    wsFiltered1.Columns.AutoFit
+    wsFiltered2.Columns.AutoFit
+    
+    MsgBox "New workbook created with filtered data!", vbInformation
+End Sub
