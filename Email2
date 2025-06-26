@@ -1,0 +1,20 @@
+Sub SendSheet3Simple()
+    Dim OutApp As Object
+    Dim OutMail As Object
+    
+    Set OutApp = CreateObject("Outlook.Application")
+    Set OutMail = OutApp.CreateItem(0)
+    
+    ThisWorkbook.Sheets("Sheet3").UsedRange.Copy
+    
+    With OutMail
+        .To = "recipient@example.com"
+        .Subject = "Sheet3 Data"
+        .Display
+        .GetInspector.WordEditor.Application.Selection.Paste
+    End With
+    
+    Set OutMail = Nothing
+    Set OutApp = Nothing
+    Application.CutCopyMode = False
+End Sub
