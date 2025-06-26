@@ -1,0 +1,30 @@
+Sub SendEmailUsingOutlook()
+    Dim OutlookApp As Object
+    Dim OutlookMail As Object
+    Dim rngTo As Range
+    Dim rngSubject As Range
+    Dim rngBody As Range
+    
+    ' Set references to cells containing email details
+    Set rngTo = ThisWorkbook.Sheets("Sheet1").Range("B1") ' Email address
+    Set rngSubject = ThisWorkbook.Sheets("Sheet1").Range("B2") ' Subject
+    Set rngBody = ThisWorkbook.Sheets("Sheet1").Range("B3") ' Body
+    
+    ' Create Outlook objects
+    Set OutlookApp = CreateObject("Outlook.Application")
+    Set OutlookMail = OutlookApp.CreateItem(0) ' 0 = olMailItem
+    
+    With OutlookMail
+        .To = rngTo.Value
+        .Subject = rngSubject.Value
+        .Body = rngBody.Value
+        ' Uncomment to add attachments
+        '.Attachments.Add "C:\Path\To\File.pdf"
+        .Display ' Use .Display to show email before sending
+        ' OR use .Send to send immediately without showing
+    End With
+    
+    ' Clean up
+    Set OutlookMail = Nothing
+    Set OutlookApp = Nothing
+End Sub
