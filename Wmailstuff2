@@ -1,0 +1,56 @@
+Sub CreateFilteredWorkbook()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsAS As Worksheet, wsBCU As Worksheet
+    Dim filterRangeEmployee As Range, filterRangeUnit As Range
+    
+    ' Set source sheets
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit") ' Ensure exact name
+    
+    ' Create new workbook
+    Set newWorkbook = Workbooks.Add
+    
+    ' Ensure 2 sheets exist (Excel 2016+ defaults to 1 sheet)
+    If newWorkbook.Sheets.Count < 2 Then
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(1)
+    End If
+    
+    ' Rename sheets
+    Set wsAS = newWorkbook.Sheets(1)
+    Set wsBCU = newWorkbook.Sheets(2)
+    wsAS.Name = "AS_CentralSouth"  ' For Employee Listing filter
+    wsBCU.Name = "BCU_AS"          ' For Unit filter
+    
+    ' === Filter "Employee Listing" (AS - central south command unit) ===
+    Set filterRangeEmployee = wsEmployee.UsedRange
+    
+    With filterRangeEmployee
+        .AutoFilter Field:=10, Criteria1:="AS - central south command unit" ' Column J
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            .Copy wsAS.Range("A1")
+        Else
+            wsAS.Range("A1").Value = "No matching data in Employee Listing."
+        End If
+    End With
+    wsEmployee.AutoFilterMode = False ' Clear filter
+    
+    ' === Filter "Unit" (BCU AS) ===
+    Set filterRangeUnit = wsUnit.UsedRange
+    
+    With filterRangeUnit
+        .AutoFilter Field:=3, Criteria1:="BCU AS" ' Column C
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            .Copy wsBCU.Range("A1")
+        Else
+            wsBCU.Range("A1").Value = "No matching data in Unit sheet."
+        End If
+    End With
+    wsUnit.AutoFilterMode = False ' Clear filter
+    
+    ' Autofit columns
+    wsAS.Columns.AutoFit
+    wsBCU.Columns.AutoFit
+    
+    MsgBox "Filtered data exported successfully!", vbInformation
+End Sub
