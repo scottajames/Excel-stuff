@@ -1,0 +1,101 @@
+Sub CreateFilteredWorkbook()
+    Dim wsSource1 As Worksheet, wsSource2 As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsFiltered1 As Worksheet, wsFiltered2 As Worksheet
+    Dim lastRow As Long
+    Dim filterRange1 As Range, filterRange2 As Range
+    Dim hasData1 As Boolean, hasData2 As Boolean
+    
+    ' Set the source worksheets
+    Set wsSource1 = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsSource2 = ThisWorkbook.Worksheets("Unit") 'Ensure exact name matches
+    
+    ' Create a new workbook
+    Set newWorkbook = Workbooks.Add
+    
+    ' Ensure there are at least 2 sheets (for filtered data)
+    If newWorkbook.Sheets.Count < 2 Then
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(1)
+    End If
+    
+    ' Rename the sheets
+    Set wsFiltered1 = newWorkbook.Sheets(1)
+    Set wsFiltered2 = newWorkbook.Sheets(2)
+    wsFiltered1.Name = "AS_CentralSouth"
+    wsFiltered2.Name = "BCU_AS"
+    
+    ' --- Process "Employee Listing" ---
+    lastRow = wsSource1.Cells(wsSource1.Rows.Count, "A").End(xlUp).Row
+    Set filterRange1 = wsSource1.Range("A1").CurrentRegion
+    
+    ' Filter for "AS - central south command unit" (Column J)
+    With filterRange1
+        .AutoFilter Field:=10, Criteria1:="AS - central south command unit"
+        ' Check if any data matches the filter
+        On Error Resume Next
+        hasData1 = (wsSource1.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count > 1)
+        On Error GoTo 0
+        
+        If hasData1 Then
+            .Copy wsFiltered1.Range("A1")
+        Else
+            wsFiltered1.Range("A1").Value = "No matching data in Employee Listing for AS - Central South"
+        End If
+    End With
+    
+    ' Filter for "BCU AS" (Column C)
+    With filterRange1
+        .AutoFilter Field:=3, Criteria1:="BCU AS"
+        On Error Resume Next
+        hasData2 = (wsSource1.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count > 1)
+        On Error GoTo 0
+        
+        If hasData2 Then
+            .Copy wsFiltered2.Range("A1")
+        Else
+            wsFiltered2.Range("A1").Value = "No matching data in Employee Listing for BCU AS"
+        End If
+    End With
+    
+    ' Remove filter from source sheet
+    wsSource1.AutoFilterMode = False
+    
+    ' --- Process "Unit" Sheet (if needed) ---
+    ' (Uncomment if you want to filter "Unit" sheet separately)
+    'lastRow = wsSource2.Cells(wsSource2.Rows.Count, "A").End(xlUp).Row
+    'Set filterRange2 = wsSource2.Range("A1").CurrentRegion
+    
+    'With filterRange2
+    '    .AutoFilter Field:=10, Criteria1:="AS - central south command unit"
+    '    On Error Resume Next
+    '    hasData1 = (wsSource2.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count > 1)
+    '    On Error GoTo 0
+    '    
+    '    If hasData1 Then
+    '        .Copy wsFiltered1.Range("A" & wsFiltered1.Cells(wsFiltered1.Rows.Count, "A").End(xlUp).Row + 1)
+    '    Else
+    '        wsFiltered1.Range("A" & wsFiltered1.Cells(wsFiltered1.Rows.Count, "A").End(xlUp).Row + 1).Value = "No matching data in Unit sheet for AS - Central South"
+    '    End If
+    'End With
+    
+    'With filterRange2
+    '    .AutoFilter Field:=3, Criteria1:="BCU AS"
+    '    On Error Resume Next
+    '    hasData2 = (wsSource2.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count > 1)
+    '    On Error GoTo 0
+    '    
+    '    If hasData2 Then
+    '        .Copy wsFiltered2.Range("A" & wsFiltered2.Cells(wsFiltered2.Rows.Count, "A").End(xlUp).Row + 1)
+    '    Else
+    '        wsFiltered2.Range("A" & wsFiltered2.Cells(wsFiltered2.Rows.Count, "A").End(xlUp).Row + 1).Value = "No matching data in Unit sheet for BCU AS"
+    '    End If
+    'End With
+    
+    'wsSource2.AutoFilterMode = False
+    
+    ' Autofit columns in new workbook
+    wsFiltered1.Columns.AutoFit
+    wsFiltered2.Columns.AutoFit
+    
+    MsgBox "New workbook created with filtered data!", vbInformation
+End Sub
