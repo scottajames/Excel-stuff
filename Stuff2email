@@ -1,0 +1,59 @@
+Sub CreateFilteredWorkbook()
+    Dim wsSource As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsFiltered1 As Worksheet, wsFiltered2 As Worksheet
+    Dim lastRow As Long
+    Dim filterRange As Range
+    
+    ' Set the source worksheet (change name if needed)
+    Set wsSource = ThisWorkbook.Worksheets("Sheet1")
+    
+    ' Find last row with data in source sheet
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+    
+    ' Set the range to filter (all columns from A to last column with data)
+    Set filterRange = wsSource.Range("A1").CurrentRegion
+    
+    ' Create a new workbook
+    Set newWorkbook = Workbooks.Add
+    
+    ' Add sheets if needed (default is 1 sheet in newer Excel versions)
+    If newWorkbook.Sheets.Count < 2 Then
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(1)
+    End If
+    
+    ' Rename the sheets
+    Set wsFiltered1 = newWorkbook.Sheets(1)
+    Set wsFiltered2 = newWorkbook.Sheets(2)
+    wsFiltered1.Name = "AS_CentralSouth"
+    wsFiltered2.Name = "BCU_AS"
+    
+    ' Apply first filter (Column J = "AS - central south command unit")
+    With filterRange
+        .AutoFilter Field:=10, Criteria1:="AS - central south command unit" 'Column J is field 10
+        .Copy wsFiltered1.Range("A1")
+    End With
+    
+    ' Apply second filter (Column C = "BCU AS")
+    With filterRange
+        .AutoFilter Field:=3, Criteria1:="BCU AS" 'Column C is field 3
+        .Copy wsFiltered2.Range("A1")
+    End With
+    
+    ' Remove filter from source sheet
+    wsSource.AutoFilterMode = False
+    
+    ' Autofit columns in new workbook
+    wsFiltered1.Columns.AutoFit
+    wsFiltered2.Columns.AutoFit
+    
+    ' Save the new workbook (optional - uncomment to use)
+    ' Dim savePath As String
+    ' savePath = Application.GetSaveAsFilename( _
+    '    FileFilter:="Excel Files (*.xlsx), *.xlsx")
+    ' If savePath <> "False" Then
+    '    newWorkbook.SaveAs savePath
+    ' End If
+    
+    MsgBox "New workbook created with filtered data!", vbInformation
+End Sub
