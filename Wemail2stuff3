@@ -1,0 +1,108 @@
+Sub BCU_AS_Improved()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsAS As Worksheet, wsBCU As Worksheet
+    Dim lastRow As Long
+    Dim visibleCount As Long
+    
+    ' Set references to source worksheets
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    
+    ' Debug: Verify we have the correct sheets
+    Debug.Print "Employee sheet name: " & wsEmployee.Name
+    Debug.Print "Unit sheet name: " & wsUnit.Name
+    
+    ' Create new workbook
+    Set newWorkbook = Workbooks.Add
+    
+    ' Ensure new workbook has 2 worksheets
+    Application.DisplayAlerts = False
+    Do While newWorkbook.Sheets.Count > 2
+        newWorkbook.Sheets(3).Delete
+    Loop
+    Do While newWorkbook.Sheets.Count < 2
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(newWorkbook.Sheets.Count)
+    Loop
+    Application.DisplayAlerts = True
+    
+    ' Rename and set references to new worksheets
+    Set wsAS = newWorkbook.Sheets(1)
+    Set wsBCU = newWorkbook.Sheets(2)
+    wsAS.Name = "Employee Listing"
+    wsBCU.Name = "Unit"
+    
+    ' 1. First process Unit sheet (BCU AS filter)
+    With wsUnit
+        ' Find last row with data in column A
+        lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
+        Debug.Print "Unit last row: " & lastRow
+        
+        ' Apply filter to column C (field 3)
+        If lastRow > 1 Then
+            .Range("A1:C" & lastRow).AutoFilter Field:=3, Criteria1:="*BCU AS*"
+            
+            ' Count visible rows (excluding header)
+            visibleCount = .AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count - 1
+            Debug.Print "Unit visible rows: " & visibleCount
+            
+            If visibleCount > 0 Then
+                .UsedRange.SpecialCells(xlCellTypeVisible).Copy wsBCU.Range("A1")
+            Else
+                wsBCU.Range("A1").Value = "No matching data in Unit sheet."
+            End If
+            
+            ' Remove filter
+            .AutoFilterMode = False
+        Else
+            wsBCU.Range("A1").Value = "Unit sheet is empty."
+        End If
+    End With
+    
+    ' 2. Process Employee Listing sheet (AS filter)
+    With wsEmployee
+        ' Find last row with data in column A
+        lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
+        Debug.Print "Employee last row: " & lastRow
+        
+        ' Apply filter to column J (field 10)
+        If lastRow > 1 Then
+            .Range("A1:J" & lastRow).AutoFilter Field:=10, Criteria1:="AS - Central South Command Unit"
+            
+            ' Debug: Check what's actually in column J
+            Debug.Print "Sample of column J values:"
+            For i = 1 To 5
+                If i <= lastRow Then Debug.Print .Cells(i, 10).Value
+            Next i
+            
+            ' Count visible rows (excluding header)
+            On Error Resume Next ' In case no visible cells
+            visibleCount = .AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Count - 1
+            On Error GoTo 0
+            Debug.Print "Employee visible rows: " & visibleCount
+            
+            If visibleCount > 0 Then
+                .UsedRange.SpecialCells(xlCellTypeVisible).Copy wsAS.Range("A1")
+            Else
+                wsAS.Range("A1").Value = "No matching data in Employee Listing."
+                ' Additional debug info
+                wsAS.Range("A2").Value = "Filter criteria: AS - Central South Command Unit"
+                wsAS.Range("A3").Value = "Total rows checked: " & lastRow
+            End If
+            
+            ' Remove filter
+            .AutoFilterMode = False
+        Else
+            wsAS.Range("A1").Value = "Employee Listing sheet is empty."
+        End If
+    End With
+    
+    ' Autofit columns in new workbook
+    wsAS.Columns.AutoFit
+    wsBCU.Columns.AutoFit
+    
+    ' Save the new workbook (optional)
+    ' newWorkbook.SaveAs "AS_BCU_Report_" & Format(Now(), "yyyymmdd_hhmmss")
+    
+    MsgBox "Processing complete. Check Immediate Window (Ctrl+G) for debug info.", vbInformation
+End Sub
