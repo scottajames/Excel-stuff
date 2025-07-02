@@ -1,0 +1,57 @@
+Sub BCU_AS()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsAS As Worksheet, wsBCU As Worksheet
+    Dim filterRangeEmployee As Range, filterRangeUnit As Range
+    
+    ' Giving query their variable names
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit") ' Ensure exact name
+    
+    ' Create new excel file
+    Set newWorkbook = Workbooks.Add
+    
+    ' checks for 2 excel files
+    If newWorkbook.Sheets.Count < 2 Then
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(1)
+    End If
+    
+    ' Renames the new excel file sheets
+    Set wsAS = newWorkbook.Sheets(1)
+    Set wsBCU = newWorkbook.Sheets(2)
+    wsAS.Name = "Employee Listing"  ' For Employee Listing filter
+    wsBCU.Name = "Unit"          ' For Unit filter
+    
+    ' filters unit
+    Set filterRangeUnit = wsUnit.UsedRange
+    
+    With filterRangeUnit
+        .AutoFilter Field:=3, Criteria1:="*BCU AS / *" ' Column C and the text it looks for
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            .Copy wsBCU.Range("A1")
+        Else
+            wsBCU.Range("A1").Value = "No matching data in Unit sheet."
+        End If
+    End With
+    wsUnit.AutoFilterMode = False ' Clear filter
+    
+    ' filters employee listing
+    Set filterRangeEmployee = wsEmployee.UsedRange
+    
+    With filterRangeEmployee
+        .AutoFilter Field:=10, Criteria1:="AS - Central South Command Unit" ' Column J and the text it looks for
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            .Copy wsAS.Range("A1")
+        Else
+            wsAS.Range("A1").Value = "No matching data in Employee Listing."
+        End If
+    End With
+    wsEmployee.AutoFilterMode = False ' Clear filter
+    
+    
+    ' Autofit columns
+    wsAS.Columns.AutoFit
+    wsBCU.Columns.AutoFit
+    
+    MsgBox "AS Employees & Units.", vbInformation
+End Sub
