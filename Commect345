@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Unit Hierarchy Visualizer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #tree {
+      margin-top: 20px;
+    }
+    .node {
+      margin: 5px 0;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #f5f5f5;
+      cursor: pointer;
+      width: fit-content;
+    }
+    .node:hover {
+      background: #e9e9e9;
+    }
+    .children {
+      margin-left: 25px;
+      border-left: 2px solid #aaa;
+      padding-left: 15px;
+    }
+    .hidden {
+      display: none;
+    }
+    .file-input {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    h1 {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Unit Hierarchy Visualizer</h1>
+  <input type="file" id="fileInput" class="file-input" accept=".xlsx">
+  <div id="tree"></div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+  <script>
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const edges = parseExcel(sheet);
+          const tree = buildHierarchy(edges);
+          renderTree(tree, document.getElementById('tree'));
+        } catch (error) {
+          alert("Error processing file: " + error.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function parseExcel(sheet) {
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: ['child', , 'parent'] });
+      return rows
+        .filter(row => row.child && row.parent)
+        .map(row => ({ 
+          child: String(row.child).trim(), 
+          parent: String(row.parent).trim() 
+        }));
+    }
+
+    function buildHierarchy(edges) {
+      const parentMap = {};
+      const allChildren = new Set();
+      
+      // Build parent-to-children map
+      edges.forEach(edge => {
+        if (!parentMap[edge.parent]) parentMap[edge.parent] = [];
+        parentMap[edge.parent].push(edge.child);
+        allChildren.add(edge.child);
+      });
+
+      // Find root nodes (nodes that aren't children of anyone)
+      const roots = Object.keys(parentMap)
+        .filter(parent => !allChildren.has(parent))
+        .concat([...new Set(edges // Include orphans
+          .filter(edge => !parentMap[edge.parent])
+          .map(edge => edge.parent)
+        )]);
+
+      return { roots: [...new Set(roots)], parentMap };
+    }
+
+    function renderTree(data, container) {
+      container.innerHTML = '';
+      if (data.roots.length === 0) {
+        container.innerHTML = '<p>No hierarchy found in file.</p>';
+        return;
+      }
+      
+      data.roots.forEach(root => {
+        if (root && root !== 'undefined') {
+          renderNode(root, data.parentMap, container);
+        }
+      });
+    }
+
+    function renderNode(node, parentMap, parentElement) {
+      const nodeElement = document.createElement('div');
+      nodeElement.className = 'node';
+      nodeElement.textContent = node;
+
+      const childrenContainer = document.createElement('div');
+      childrenContainer.className = 'children hidden';
+
+      if (parentMap[node]) {
+        nodeElement.addEventListener('click', function() {
+          childrenContainer.classList.toggle('hidden');
+        });
+        
+        parentMap[node].forEach(child => {
+          renderNode(child, parentMap, childrenContainer);
+        });
+      }
+
+      parentElement.appendChild(nodeElement);
+      parentElement.appendChild(childrenContainer);
+    }
+  </script>
+</body>
+</html>
