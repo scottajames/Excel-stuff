@@ -1,0 +1,24 @@
+Option Explicit
+
+Sub FindAllHierarchies()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim childDict As Object
+    Dim parentDict As Object
+    Dim cell As Range
+    Dim childValue As String
+    Dim parentValue As String
+    Dim outputRow As Long
+    
+    ' Error handling
+    On Error GoTo ErrorHandler
+    
+    ' Set the worksheet
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    lastRow = ws.Cells(ws.Rows.Count, "O").End(xlUp).Row
+    
+    ' Validate data exists
+    If lastRow < 2 Then
+        MsgBox "No data found in Sheet2 column O", vbExclamation
+        Exit Sub
+    End If
