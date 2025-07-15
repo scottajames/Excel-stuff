@@ -1,0 +1,97 @@
+Sub FindAllHierarchies()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim childDict As Object
+    Dim parentDict As Object
+    Dim child As Range
+    Dim parent As String
+    Dim outputRow As Long
+    Dim i As Integer
+    
+    ' Set the worksheet
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    lastRow = ws.Cells(ws.Rows.Count, "O").End(xlUp).Row
+    
+    ' Create dictionaries to store relationships
+    Set childDict = CreateObject("Scripting.Dictionary")
+    Set parentDict = CreateObject("Scripting.Dictionary")
+    
+    ' Store all child-parent relationships
+    For Each child In ws.Range("O2:O" & lastRow)
+        parent = ws.Cells(child.Row, "Q").Value
+        If Not childDict.exists(child.Value) Then
+            childDict.Add child.Value, parent
+        End If
+        If parent <> "" Then
+            If Not parentDict.exists(parent) Then
+                parentDict.Add parent, New Collection
+            End If
+            On Error Resume Next ' Avoid duplicate children
+            parentDict(parent).Add child.Value
+            On Error GoTo 0
+        End If
+    Next child
+    
+    ' Output hierarchies starting from each top-level parent (items with no parent)
+    outputRow = 1
+    ws.Parent.Worksheets.Add(After:=ws.Parent.Worksheets(ws.Parent.Worksheets.Count)).Name = "HierarchyOutput"
+    Dim outputWs As Worksheet
+    Set outputWs = ThisWorkbook.Sheets("HierarchyOutput")
+    
+    outputWs.Cells(outputRow, 1).Value = "Root"
+    outputWs.Cells(outputRow, 2).Value = "Level 1"
+    outputWs.Cells(outputRow, 3).Value = "Level 2"
+    outputWs.Cells(outputRow, 4).Value = "Level 3"
+    outputWs.Cells(outputRow, 5).Value = "Level 4"
+    outputRow = outputRow + 1
+    
+    Dim visited As Object
+    Set visited = CreateObject("Scripting.Dictionary")
+    
+    ' Find top-level parents (items that are parents but aren't children)
+    Dim topParents As Object
+    Set topParents = CreateObject("Scripting.Dictionary")
+    
+    For Each key In parentDict.keys()
+        If Not childDict.exists(key) Then
+            topParents.Add key, 1
+        End If
+    Next key
+    
+    ' Also include items that are children but have blank parents
+    For Each key In childDict.keys()
+        If childDict(key) = "" And Not topParents.exists(key) Then
+            topParents.Add key, 1
+        End If
+    Next key
+    
+    ' Process each top parent
+    For Each root In topParents.keys()
+        outputWs.Cells(outputRow, 1).Value = root
+        Call ProcessChildren(outputWs, outputRow, 2, root, parentDict, visited)
+        outputRow = outputRow + 1
+    Next root
+    
+    MsgBox "Hierarchy analysis complete! Results are in the 'HierarchyOutput' sheet."
+End Sub
+
+Sub ProcessChildren(outputWs As Worksheet, ByRef rowNum As Integer, level As Integer, parent As String, parentDict As Object, visited As Object)
+    If visited.exists(parent) Then
+        Exit Sub ' Avoid circular references
+    End If
+    visited.Add parent, 1
+    
+    If parentDict.exists(parent) Then
+        For Each child In parentDict(parent)
+            outputWs.Cells(rowNum, level).Value = child
+            Call ProcessChildren(outputWs, rowNum, level + 1, child, parentDict, visited)
+            rowNum = rowNum + 1
+            ' Copy previous levels to maintain hierarchy visualization
+            For i = 1 To level - 1
+                outputWs.Cells(rowNum, i).Value = outputWs.Cells(rowNum - 1, i).Value
+            Next i
+        Next child
+    End If
+    
+    visited.Remove parent
+End Sub
