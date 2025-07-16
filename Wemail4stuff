@@ -1,0 +1,71 @@
+Sub BCU_AS()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim newWorkbook As Workbook
+    Dim wsAS As Worksheet, wsBCU As Worksheet
+    Dim filterRangeEmployee As Range
+    Dim unitCol As Range, uniqueUnits As Collection
+    Dim cell As Range
+    Dim i As Long
+    
+    ' Set references to the source worksheets
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    
+    ' Create new workbook
+    Set newWorkbook = Workbooks.Add
+    
+    ' Ensure there are 2 sheets in the new workbook
+    If newWorkbook.Sheets.Count < 2 Then
+        newWorkbook.Sheets.Add After:=newWorkbook.Sheets(1)
+    End If
+    
+    ' Rename the sheets in the new workbook
+    Set wsAS = newWorkbook.Sheets(1)
+    Set wsBCU = newWorkbook.Sheets(2)
+    wsAS.Name = "Employee Listing"
+    wsBCU.Name = "Unit"
+    
+    ' Filter Employee Listing for AS - Central South Command Unit in Column H
+    Set filterRangeEmployee = wsEmployee.UsedRange
+    
+    With filterRangeEmployee
+        .AutoFilter Field:=8, Criteria1:="AS - Central South Command Unit" ' Column H
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            ' Copy all visible rows to the new Employee Listing sheet
+            .Copy wsAS.Range("A1")
+            
+            ' Get the Unit column (Column P) from the filtered data
+            Set unitCol = .Offset(0, 15).Resize(.Rows.Count, 1) ' Column P is 16th column (A=1, P=16)
+            
+            ' Collect unique units
+            Set uniqueUnits = New Collection
+            On Error Resume Next ' Ignore errors for duplicate items
+            For Each cell In unitCol.SpecialCells(xlCellTypeVisible)
+                If cell.Row > 1 And cell.Value <> "" Then ' Skip header and empty cells
+                    uniqueUnits.Add cell.Value, CStr(cell.Value)
+                End If
+            Next cell
+            On Error GoTo 0 ' Reset error handling
+            
+            ' Write unique units to the Unit sheet
+            If uniqueUnits.Count > 0 Then
+                wsBCU.Range("A1").Value = "Unit" ' Header
+                For i = 1 To uniqueUnits.Count
+                    wsBCU.Range("A" & i + 1).Value = uniqueUnits(i)
+                Next i
+            Else
+                wsBCU.Range("A1").Value = "No units found."
+            End If
+        Else
+            wsAS.Range("A1").Value = "No matching data in Employee Listing."
+            wsBCU.Range("A1").Value = "No units found."
+        End If
+    End With
+    wsEmployee.AutoFilterMode = False ' Clear filter
+    
+    ' Autofit columns
+    wsAS.Columns.AutoFit
+    wsBCU.Columns.AutoFit
+    
+    MsgBox "AS - Central South Command Unit data extracted successfully.", vbInformation
+End Sub
