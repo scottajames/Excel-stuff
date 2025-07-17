@@ -1,68 +1,91 @@
 Sub ExportFilteredSheetsToNewWorkbook()
+    On Error GoTo ErrorHandler
+    
     ' Declare variables
     Dim originalWorkbook As Workbook
     Dim wsEmployee As Worksheet, wsUnit As Worksheet
     Dim newWorkbook As Workbook
-    Dim filterRangeEmployee As Range, filterRangeUnit As Range
     
     ' Set references to the current workbook and worksheets
     Set originalWorkbook = ThisWorkbook
+    On Error Resume Next
     Set wsEmployee = originalWorkbook.Worksheets("Employee Listing")
     Set wsUnit = originalWorkbook.Worksheets("Unit")
+    On Error GoTo 0
     
-    ' Turn off screen updating for better performance
+    ' Check if sheets exist
+    If wsEmployee Is Nothing Or wsUnit Is Nothing Then
+        MsgBox "Required sheets not found!", vbCritical
+        Exit Sub
+    End If
+    
+    ' Turn off screen updating and enable events
     Application.ScreenUpdating = False
+    Application.EnableEvents = False
     
     ' Clear any existing filters
+    On Error Resume Next
     If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
     If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    On Error GoTo 0
     
     ' Create a new workbook for the filtered data
     Set newWorkbook = Workbooks.Add
     
     ' Delete default sheets in the new workbook
-    Application.DisplayAlerts = False ' Suppress confirmation prompts
+    Application.DisplayAlerts = False
     Do While newWorkbook.Worksheets.Count > 0
         newWorkbook.Worksheets(1).Delete
     Loop
     Application.DisplayAlerts = True
     
-    ' 1. Process and export Employee Listing with filter
-    Set filterRangeEmployee = wsEmployee.UsedRange
-    With filterRangeEmployee
-        ' Apply filter to Column H (8th column)
+    ' 1. Process and export Employee Listing
+    With wsEmployee.UsedRange
         .AutoFilter Field:=8, Criteria1:="AS - Central South Command Unit"
-        
-        ' Copy visible (filtered) data to new workbook
-        On Error Resume Next ' Skip if no data matches filter
-        wsEmployee.Copy Before:=newWorkbook.Sheets(1)
-        newWorkbook.Worksheets(1).Name = "Employee Listing"
-        On Error GoTo 0
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            wsEmployee.Copy Before:=newWorkbook.Sheets(1)
+            newWorkbook.Worksheets(1).Name = "Employee Listing"
+        Else
+            MsgBox "No data matching filter in Employee Listing", vbExclamation
+        End If
     End With
     
-    ' 2. Process and export Unit sheet with filter
-    Set filterRangeUnit = wsUnit.UsedRange
-    With filterRangeUnit
-        ' Apply filter to Column C (3rd column) with wildcard
+    ' 2. Process and export Unit sheet
+    With wsUnit.UsedRange
         .AutoFilter Field:=3, Criteria1:="*BCU AS*"
-        
-        ' Copy visible (filtered) data to new workbook
-        On Error Resume Next ' Skip if no data matches filter
-        wsUnit.Copy After:=newWorkbook.Sheets(1)
-        newWorkbook.Worksheets(2).Name = "Unit"
-        On Error GoTo 0
+        If .Columns(1).SpecialCells(xlCellTypeVisible).Count > 1 Then
+            wsUnit.Copy After:=newWorkbook.Sheets(1)
+            newWorkbook.Worksheets(2).Name = "Unit"
+        Else
+            MsgBox "No data matching filter in Unit sheet", vbExclamation
+        End If
     End With
     
-    ' Clear filters in the original workbook
+    ' Clear filters in original workbook
+    On Error Resume Next
     If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
     If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    On Error GoTo 0
     
-    ' Turn screen updating back on
+    ' Finalize
     Application.ScreenUpdating = True
+    Application.EnableEvents = True
     
-    ' Activate the new workbook and inform user
+    ' Activate the new workbook
     newWorkbook.Activate
-    MsgBox "Successfully created new workbook with:" & vbCrLf & _
-           "- Filtered 'Employee Listing' sheet" & vbCrLf & _
-           "- Filtered 'Unit' sheet", vbInformation, "Process Complete"
+    MsgBox "New workbook created successfully with filtered data", vbInformation
+    Exit Sub
+    
+ErrorHandler:
+    ' Restore settings and show error message
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    On Error Resume Next
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    On Error GoTo 0
+    
+    If Err.Number <> 0 Then
+        MsgBox "Error " & Err.Number & ": " & Err.Description, vbCritical
+    End If
 End Sub
