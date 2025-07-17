@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Hierarchy Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* [Previous CSS styles remain exactly the same] */
+    </style>
+</head>
+<body>
+    <h1>Excel Hierarchy Viewer</h1>
+    <p>Upload an Excel file to view hierarchy and identify items in Sheet2 A not found in Sheet1 P/Q</p>
+    
+    <div class="upload-container">
+        <input type="file" id="fileInput" accept=".xlsx, .xls" />
+        <button onclick="document.getElementById('fileInput').click()">Choose Excel File</button>
+        <p id="fileName">No file chosen</p>
+    </div>
+    
+    <div id="hierarchyResults"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('fileName').textContent = `Selected: ${file.name}`;
+            document.getElementById('hierarchyResults').innerHTML = '<p>Processing file...</p>';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    processWorkbook(workbook);
+                } catch (error) {
+                    document.getElementById('hierarchyResults').innerHTML = 
+                        `<p style="color: red;">Error processing file: ${error.message}</p>`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function processWorkbook(workbook) {
+            // Get Sheet1 and Sheet2
+            const sheet1Name = workbook.SheetNames.find(name => name.toLowerCase() === 'sheet1') || workbook.SheetNames[0];
+            const sheet2Name = workbook.SheetNames.find(name => name.toLowerCase() === 'sheet2') || workbook.SheetNames[1];
+            
+            const sheet1 = workbook.Sheets[sheet1Name];
+            const sheet2 = workbook.Sheets[sheet2Name];
+            
+            const sheet1Data = XLSX.utils.sheet_to_json(sheet1, { header: 1 });
+            const sheet2Data = XLSX.utils.sheet_to_json(sheet2, { header: 1 });
+
+            // Get all values from Sheet1 Columns P (15) and Q (16)
+            const sheet1ColumnsPQ = new Set();
+            for (let i = 1; i < sheet1Data.length; i++) {
+                const pValue = sheet1Data[i][15] ? String(sheet1Data[i][15]).trim() : null;
+                const qValue = sheet1Data[i][16] ? String(sheet1Data[i][16]).trim() : null;
+                
+                if (pValue) sheet1ColumnsPQ.add(pValue);
+                if (qValue) sheet1ColumnsPQ.add(qValue);
+            }
+
+            // Get all values from Sheet2 Column A (index 0)
+            const sheet2ColumnA = new Set();
+            for (let i = 1; i < sheet2Data.length; i++) {
+                const value = sheet2Data[i][0] ? String(sheet2Data[i][0]).trim() : null;
+                if (value) sheet2ColumnA.add(value);
+            }
+
+            // Find items in Sheet2 A that aren't in Sheet1 P/Q (excluding PMP/-SEC)
+            const notInSheet1PQ = [];
+            sheet2ColumnA.forEach(item => {
+                if (!sheet1ColumnsPQ.has(item) && 
+                    !item.includes('PMP') && 
+                    !item.includes('-SEC')) {
+                    notInSheet1PQ.push(item);
+                }
+            });
+
+            // Process hierarchy from Sheet1 (Column P = 15 = Child, Column Q = 16 = Parent)
+            const relationships = [];
+            for (let i = 1; i < sheet1Data.length; i++) {
+                const child = sheet1Data[i][15] ? String(sheet1Data[i][15]).trim() : null;
+                const parent = sheet1Data[i][16] ? String(sheet1Data[i][16]).trim() : null;
+                
+                if (child) {
+                    relationships.push({ child, parent });
+                }
+            }
+
+            // Build hierarchy
+            const hierarchy = buildHierarchy(relationships);
+            
+            // Display results
+            displayResults(hierarchy, notInSheet1PQ);
+        }
+        
+        /* [Rest of the JavaScript functions remain exactly the same] */
+    </script>
+</body>
+</html>
