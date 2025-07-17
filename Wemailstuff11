@@ -1,0 +1,101 @@
+Sub BCU_AS()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim filterRangeEmployee As Range, filterRangeUnit As Range
+    Dim dictUnits As Object, dictFilterValues As Object
+    Dim unitCell As Range, filterCell As Range
+    Dim unitValue As String, filterValue As String
+    Dim lastRow As Long
+    
+    ' Set references to worksheets
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    
+    ' Clear existing filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Initialize dictionaries
+    Set dictUnits = CreateObject("Scripting.Dictionary")
+    Set dictFilterValues = CreateObject("Scripting.Dictionary")
+    dictUnits.CompareMode = vbTextCompare
+    dictFilterValues.CompareMode = vbTextCompare
+    
+    ' 1. Get unique filter values from Column H in Employee Listing
+    lastRow = wsEmployee.Cells(wsEmployee.Rows.Count, "H").End(xlUp).Row
+    For Each filterCell In wsEmployee.Range("H2:H" & lastRow)
+        filterValue = Trim(filterCell.Value)
+        If filterValue <> "" Then
+            dictFilterValues(filterValue) = 1
+        End If
+    Next filterCell
+    
+    ' 2. Process each unique filter value
+    For Each filterValue In dictFilterValues.Keys
+        ' Filter Employee Listing based on Column H
+        wsEmployee.UsedRange.AutoFilter Field:=8, Criteria1:=filterValue
+        
+        ' Process visible units in Column P (skip header and blanks)
+        On Error Resume Next
+        For Each unitCell In wsEmployee.Range("P2:P" & lastRow).SpecialCells(xlCellTypeVisible)
+            unitValue = Trim(unitCell.Value)
+            If unitValue <> "" Then
+                ' Exclude PMPOT and -SEC
+                If InStr(1, unitValue, "PMPOT", vbTextCompare) = 0 And _
+                   InStr(1, unitValue, "-SEC", vbTextCompare) = 0 Then
+                    dictUnits(unitValue) = 1
+                End If
+            End If
+        Next unitCell
+        On Error GoTo 0
+        
+        ' Filter Unit sheet based on the current filter value
+        wsUnit.UsedRange.AutoFilter Field:=3, Criteria1:="*" & filterValue & "*"
+        
+        ' Process visible units in Unit sheet (Column C)
+        lastRow = wsUnit.Cells(wsUnit.Rows.Count, "C").End(xlUp).Row
+        On Error Resume Next
+        For Each unitCell In wsUnit.Range("C2:C" & lastRow).SpecialCells(xlCellTypeVisible)
+            unitValue = Trim(unitCell.Value)
+            If unitValue <> "" Then
+                ' Exclude PMPOT and -SEC
+                If InStr(1, unitValue, "PMPOT", vbTextCompare) = 0 And _
+                   InStr(1, unitValue, "-SEC", vbTextCompare) = 0 Then
+                    dictUnits(unitValue) = 1
+                End If
+            End If
+        Next unitCell
+        On Error GoTo 0
+    Next filterValue
+    
+    ' Clear filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Output results
+    If dictUnits.Count > 0 Then
+        ' Create a new worksheet for results or clear existing
+        Dim wsResult As Worksheet
+        On Error Resume Next
+        Set wsResult = ThisWorkbook.Worksheets("Results")
+        If wsResult Is Nothing Then
+            Set wsResult = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            wsResult.Name = "Results"
+        Else
+            wsResult.Cells.Clear
+        End If
+        On Error GoTo 0
+        
+        ' Write headers and results
+        wsResult.Range("A1").Value = "Unique Units (Filtered from Column H)"
+        wsResult.Range("A2").Resize(dictUnits.Count, 1).Value = Application.Transpose(dictUnits.Keys)
+        
+        ' Format the results
+        wsResult.Columns("A").AutoFit
+        wsResult.Range("A1").Font.Bold = True
+        
+        MsgBox "Found " & dictUnits.Count & " unique units." & vbCrLf & _
+               "Results have been written to the 'Results' sheet.", vbInformation
+    Else
+        MsgBox "No matching units found after filtering.", vbExclamation
+    End If
+End Sub
