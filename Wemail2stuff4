@@ -1,0 +1,100 @@
+Sub BCU_AS_Improved()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim filterRangeEmployee As Range, filterRangeUnit As Range
+    Dim dictUnits As Object
+    Dim unitCol As Range, unitCell As Range
+    Dim unitValue As String
+    
+    ' Set references to the source worksheets
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    
+    ' Clear any existing filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Initialize dictionary for storing unique units
+    Set dictUnits = CreateObject("Scripting.Dictionary")
+    dictUnits.CompareMode = vbTextCompare ' Case insensitive comparison
+    
+    ' 1. Process Employee Listing data (filter Column H)
+    Set filterRangeEmployee = wsEmployee.UsedRange
+    
+    With filterRangeEmployee
+        .AutoFilter Field:=8, Criteria1:="AS - Central South Command Unit" ' Column H
+        
+        ' Get the Unit column (Column P)
+        Set unitCol = .Columns(16) ' More reliable than Offset method
+        
+        ' Add unique units from Employee Listing to dictionary
+        On Error Resume Next ' Skip errors if no visible cells
+        For Each unitCell In unitCol.SpecialCells(xlCellTypeVisible)
+            If unitCell.Row > 1 Then ' Skip header
+                unitValue = Trim(unitCell.Value)
+                If unitValue <> "" Then
+                    ' Exclude PMPOT and -SEC
+                    If InStr(1, unitValue, "PMPOT", vbTextCompare) = 0 And _
+                       InStr(1, unitValue, "-SEC", vbTextCompare) = 0 Then
+                        dictUnits(unitValue) = 1
+                    End If
+                End If
+            End If
+        Next unitCell
+        On Error GoTo 0
+    End With
+    
+    ' 2. Process Unit sheet data (filter Column A with fuzzy search)
+    Set filterRangeUnit = wsUnit.UsedRange
+    
+    With filterRangeUnit
+        .AutoFilter Field:=1, Criteria1:="*BCU AS*" ' Column A with fuzzy search
+        
+        ' Add unique units from Unit sheet to dictionary (from Column A)
+        On Error Resume Next ' Skip errors if no visible cells
+        For Each unitCell In .Columns(1).SpecialCells(xlCellTypeVisible) ' Now checking Column A
+            If unitCell.Row > 1 Then ' Skip header
+                unitValue = Trim(unitCell.Value)
+                If unitValue <> "" Then
+                    ' Exclude PMPOT and -SEC
+                    If InStr(1, unitValue, "PMPOT", vbTextCompare) = 0 And _
+                       InStr(1, unitValue, "-SEC", vbTextCompare) = 0 Then
+                        dictUnits(unitValue) = 1
+                    End If
+                End If
+            End If
+        Next unitCell
+        On Error GoTo 0
+    End With
+    
+    ' Clear filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Output the results (optional)
+    If dictUnits.Count > 0 Then
+        ' Create or clear results sheet
+        Dim wsResult As Worksheet
+        On Error Resume Next
+        Set wsResult = ThisWorkbook.Worksheets("Results")
+        If wsResult Is Nothing Then
+            Set wsResult = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+            wsResult.Name = "Results"
+        Else
+            wsResult.Cells.Clear
+        End If
+        On Error GoTo 0
+        
+        ' Write results
+        wsResult.Range("A1").Value = "Unique Units (Excluding PMPOT/-SEC)"
+        wsResult.Range("A2").Resize(dictUnits.Count, 1).Value = Application.Transpose(dictUnits.Keys)
+        
+        ' Format results
+        wsResult.Columns("A").AutoFit
+        wsResult.Range("A1").Font.Bold = True
+        
+        MsgBox "Found " & dictUnits.Count & " unique units after filtering." & vbCrLf & _
+               "Results written to 'Results' sheet.", vbInformation
+    Else
+        MsgBox "No units found matching criteria after exclusions.", vbExclamation
+    End If
+End Sub
