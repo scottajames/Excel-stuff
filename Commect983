@@ -145,11 +145,11 @@
                 if (value) sheet2ColumnA.add(value);
             }
 
-            // Get all values from Sheet2 Columns O (14) and P (15)
+            // Get all values from Sheet2 Columns P (15) and Q (16)
             const sheet2ColumnsOP = new Set();
             for (let i = 1; i < sheet2Data.length; i++) {
-                const oValue = sheet2Data[i][14] ? String(sheet2Data[i][14]).trim() : null;
-                const pValue = sheet2Data[i][15] ? String(sheet2Data[i][15]).trim() : null;
+                const oValue = sheet2Data[i][15] ? String(sheet2Data[i][15]).trim() : null;
+                const pValue = sheet2Data[i][16] ? String(sheet2Data[i][16]).trim() : null;
                 
                 if (oValue) sheet2ColumnsOP.add(oValue);
                 if (pValue) sheet2ColumnsOP.add(pValue);
@@ -159,16 +159,17 @@
             const notInUse = [];
             sheet2ColumnA.forEach(item => {
                 if (!sheet2ColumnsOP.has(item) && 
+		    !item.includes('PROF STNDS') &&
                     !item.includes('PMP') && 
                     !item.includes('-SEC')) {
                     notInUse.push(item);
                 }
             });
 
-            // Process hierarchy from Sheet2 (Column O = 14 = Child, Column Q = 16 = Parent)
+            // Process hierarchy from Sheet2 (Column P = 15 = Child, Column Q = 16 = Parent)
             const relationships = [];
             for (let i = 1; i < sheet2Data.length; i++) {
-                const child = sheet2Data[i][14] ? String(sheet2Data[i][14]).trim() : null;
+                const child = sheet2Data[i][15] ? String(sheet2Data[i][15]).trim() : null;
                 const parent = sheet2Data[i][16] ? String(sheet2Data[i][16]).trim() : null;
                 
                 if (child) {
@@ -259,10 +260,10 @@
             
             // Display hierarchy if exists
             if (Object.keys(hierarchy).length > 0) {
-                html += '<h2>Hierarchy Structure (Sheet2 Columns O → Q)</h2>';
+                html += '<h2>Hierarchy Structure (Not including PMP or SECURE)</h2>';
                 
                 Object.keys(hierarchy).forEach(root => {
-                    html += `<div class="tree-container"><h3>Root: <span class="node root">${root}</span></h3>`;
+                    html += `<div class="tree-container"><h3>Parent: <span class="node root">${root}</span></h3>`;
                     html += '<ul class="tree">';
                     html += buildTreeHTML(hierarchy[root]);
                     html += '</ul></div>';
