@@ -1,0 +1,84 @@
+Sub FilterAndExportResults()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim newWorkbook As Workbook
+    Dim filterRangeEmployee As Range, filterRangeUnit As Range
+    Dim dictUnits As Object
+    Dim unitValue As String
+    
+    ' Set references to source worksheets
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    
+    ' Clear existing filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Create new workbook for results
+    Set newWorkbook = Workbooks.Add
+    Application.DisplayAlerts = False ' Suppress sheet deletion prompts
+    
+    ' Delete default sheets in new workbook
+    While newWorkbook.Worksheets.Count > 0
+        newWorkbook.Worksheets(1).Delete
+    Wend
+    Application.DisplayAlerts = True
+    
+    ' 1. Process and export Employee Listing data
+    Set filterRangeEmployee = wsEmployee.UsedRange
+    With filterRangeEmployee
+        .AutoFilter Field:=8, Criteria1:="AS - Central South Command Unit" ' Column H
+        
+        ' Copy filtered data to new workbook
+        On Error Resume Next
+        .SpecialCells(xlCellTypeVisible).Copy
+        wsEmployee.Copy After:=newWorkbook.Sheets(newWorkbook.Sheets.Count)
+        newWorkbook.Worksheets(newWorkbook.Worksheets.Count).Name = "Employee Listing"
+        On Error GoTo 0
+    End With
+    
+    ' 2. Process and export Unit data (filter Column A)
+    Set filterRangeUnit = wsUnit.UsedRange
+    With filterRangeUnit
+        .AutoFilter Field:=1, Criteria1:="*BCU AS*" ' Column A with fuzzy search
+        
+        ' Copy filtered data to new workbook
+        On Error Resume Next
+        .SpecialCells(xlCellTypeVisible).Copy
+        wsUnit.Copy After:=newWorkbook.Sheets(newWorkbook.Sheets.Count)
+        newWorkbook.Worksheets(newWorkbook.Worksheets.Count).Name = "Unit"
+        On Error GoTo 0
+    End With
+    
+    ' Clear filters in original workbook
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Remove PMPOT and -SEC entries from both sheets in new workbook
+    CleanUnits newWorkbook.Worksheets("Employee Listing"), 16 ' Column P
+    CleanUnits newWorkbook.Worksheets("Unit"), 1 ' Column A
+    
+    ' Activate the new workbook
+    newWorkbook.Activate
+    MsgBox "Filtered data exported to new workbook", vbInformation
+End Sub
+
+Private Sub CleanUnits(ws As Worksheet, unitCol As Long)
+    Dim lastRow As Long, i As Long
+    Dim unitValue As String
+    
+    With ws
+        lastRow = .Cells(.Rows.Count, unitCol).End(xlUp).Row
+        
+        ' Process from bottom to top for deletion
+        For i = lastRow To 2 Step -1
+            unitValue = Trim(.Cells(i, unitCol).Value)
+            If unitValue <> "" Then
+                ' Check for excluded terms
+                If InStr(1, unitValue, "PMPOT", vbTextCompare) > 0 Or _
+                   InStr(1, unitValue, "-SEC", vbTextCompare) > 0 Then
+                    .Rows(i).Delete
+                End If
+            End If
+        Next i
+    End With
+End Sub
