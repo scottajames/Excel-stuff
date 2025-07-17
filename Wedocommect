@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Hierarchy Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .upload-section {
+            text-align: center;
+            padding: 30px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            background-color: #f9f9f9;
+        }
+        .upload-section:hover {
+            border-color: #999;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        #file-info {
+            margin-top: 15px;
+            font-style: italic;
+            color: #666;
+        }
+        #hierarchy-container {
+            display: none;
+            margin-top: 30px;
+        }
+        .instructions {
+            background-color: #e8f4fc;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .loading {
+            text-align: center;
+            display: none;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #tree {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            overflow: auto;
+            max-height: 600px;
+        }
+        .error {
+            color: #e74c3c;
+            background-color: #fdecea;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Organization Hierarchy Viewer</h1>
+        
+        <div class="instructions">
+            <h3>How to use this tool:</h3>
+            <ol>
+                <li>Upload an Excel file containing your hierarchy data</li>
+                <li>The tool will look for children in column P and parents in column R</li>
+                <li>The hierarchy will be displayed in an easy-to-explore tree format</li>
+                <li>Click on nodes to expand/collapse parts of the hierarchy</li>
+            </ol>
+        </div>
+        
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept=".xlsx, .xls" style="display: none;">
+            <button class="btn" onclick="document.getElementById('fileInput').click()">Choose Excel File</button>
+            <p id="file-info">No file selected</p>
+            <div class="error" id="error-message"></div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your file...</p>
+        </div>
+        
+        <div id="hierarchy-container">
+            <h2>Hierarchy Structure</h2>
+            <div id="tree"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('file-info').textContent = `Selected file: ${file.name}`;
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('hierarchy-container').style.display = 'none';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get the first sheet
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    
+                    // Process the data to build hierarchy
+                    const hierarchy = buildHierarchy(jsonData);
+                    
+                    // Display the hierarchy
+                    displayHierarchy(hierarchy);
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('hierarchy-container').style.display = 'block';
+                } catch (error) {
+                    document.getElementById('loading').style.display = 'none';
+                    const errorElement = document.getElementById('error-message');
+                    errorElement.textContent = `Error processing file: ${error.message}`;
+                    errorElement.style.display = 'block';
+                    console.error(error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function buildHierarchy(data) {
+            // Columns P (16) and R (18) in Excel are 15 and 17 in zero-based index
+            const CHILD_COL = 15; // Column P (0-based index 15)
+            const PARENT_COL = 17; // Column R (0-based index 17)
+            
+            // Skip header row if exists (assuming first row might be headers)
+            const startRow = data.length > 0 && isNaN(data[0][CHILD_COL]) ? 1 : 0;
+            
+            // Create a map of all nodes and their children
+            const nodeMap = {};
+            const parentMap = {};
+            const roots = [];
+            
+            // First pass: collect all nodes and their immediate children
+            for (let i = startRow; i < data.length; i++) {
+                const child = data[i][CHILD_COL];
+                const parent = data[i][PARENT_COL];
+                
+                if (child === undefined || child === null || child === '') continue;
+                
+                // Initialize node if not exists
+                if (!nodeMap[child]) {
+                    nodeMap[child] = { id: child, text: child, children: [] };
+                }
+                
+                if (parent !== undefined && parent !== null && parent !== '') {
+                    // Initialize parent node if not exists
+                    if (!nodeMap[parent]) {
+                        nodeMap[parent] = { id: parent, text: parent, children: [] };
+                    }
+                    
+                    // Add child to parent's children
+                    nodeMap[parent].children.push(nodeMap[child]);
+                    
+                    // Track parent for this child
+                    parentMap[child] = parent;
+                }
+            }
+            
+            // Second pass: find root nodes (nodes with no parent)
+            for (const nodeId in nodeMap) {
+                if (!parentMap[nodeId]) {
+                    roots.push(nodeMap[nodeId]);
+                }
+            }
+            
+            // If no roots found (all nodes have parents but cycles exist), show all top-level nodes
+            if (roots.length === 0) {
+                for (const nodeId in nodeMap) {
+                    if (nodeMap[nodeId].children.length > 0) {
+                        roots.push(nodeMap[nodeId]);
+                    }
+                }
+                
+                // If still no roots (all isolated nodes), just show all nodes
+                if (roots.length === 0) {
+                    for (const nodeId in nodeMap) {
+                        roots.push(nodeMap[nodeId]);
+                    }
+                }
+            }
+            
+            return roots;
+        }
+        
+        function displayHierarchy(hierarchy) {
+            const treeData = hierarchy.map(root => ({
+                id: root.id,
+                text: root.text,
+                children: getChildren(root),
+                state: { opened: true }
+            }));
+            
+            $('#tree').jstree({
+                'core': {
+                    'data': treeData,
+                    'themes': {
+                        'responsive': true,
+                        'dots': true,
+                        'icons': true
+                    }
+                },
+                'plugins': ['wholerow']
+            });
+        }
+        
+        function getChildren(node) {
+            if (node.children.length === 0) return false; // jstree uses false for no children
+            
+            return node.children.map(child => ({
+                id: child.id,
+                text: child.text,
+                children: getChildren(child)
+            }));
+        }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</body>
+</html>
