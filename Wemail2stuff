@@ -1,0 +1,114 @@
+Sub FilterWithNewColumn()
+    Dim wsEmployee As Worksheet, wsUnit As Worksheet, wsResults As Worksheet
+    Dim dictUnits As Object
+    Dim searchTerm As String
+    Dim lastRow As Long, i As Long
+    Dim unitValue As String
+    
+    ' Set worksheet references
+    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    
+    ' Clear existing filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Get search term from user
+    searchTerm = InputBox("Enter search term for fuzzy matching:" & vbCrLf & _
+                         "- Column H in Employee Listing" & vbCrLf & _
+                         "- Column A in Unit", "Fuzzy Search")
+    If searchTerm = "" Then Exit Sub
+    
+    ' Initialize dictionary for unique units
+    Set dictUnits = CreateObject("Scripting.Dictionary")
+    dictUnits.CompareMode = vbTextCompare
+    
+    ' 1. FILTER EMPLOYEE LISTING (Column H)
+    With wsEmployee.UsedRange
+        .AutoFilter Field:=8, Criteria1:="*" & searchTerm & "*" ' Column H
+        
+        ' Process visible units in Column P
+        lastRow = wsEmployee.Cells(wsEmployee.Rows.Count, "P").End(xlUp).Row
+        On Error Resume Next
+        For i = 2 To lastRow
+            If Not wsEmployee.Rows(i).Hidden Then
+                unitValue = Trim(wsEmployee.Cells(i, 16).Value)
+                If unitValue <> "" Then
+                    If InStr(1, unitValue, "PMPOT", vbTextCompare) = 0 And _
+                       InStr(1, unitValue, "-SEC", vbTextCompare) = 0 Then
+                        dictUnits(unitValue) = 1
+                    End If
+                End If
+            End If
+        Next i
+        On Error GoTo 0
+    End With
+    
+    ' 2. FILTER UNIT SHEET (Column A - NEW CHANGE)
+    With wsUnit.UsedRange
+        .AutoFilter Field:=1, Criteria1:="*" & searchTerm & "*" ' Column A
+        
+        ' Process visible units in Column A
+        lastRow = wsUnit.Cells(wsUnit.Rows.Count, "A").End(xlUp).Row
+        On Error Resume Next
+        For i = 2 To lastRow
+            If Not wsUnit.Rows(i).Hidden Then
+                unitValue = Trim(wsUnit.Cells(i, 1).Value)
+                If unitValue <> "" Then
+                    If InStr(1, unitValue, "PMPOT", vbTextCompare) = 0 And _
+                       InStr(1, unitValue, "-SEC", vbTextCompare) = 0 Then
+                        dictUnits(unitValue) = 1
+                    End If
+                End If
+            End If
+        Next i
+        On Error GoTo 0
+    End With
+    
+    ' Clear filters
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Output results
+    CreateResultsSheet dictUnits, searchTerm
+End Sub
+
+Private Sub CreateResultsSheet(dictUnits As Object, searchTerm As String)
+    Dim wsResults As Worksheet
+    
+    ' Prepare results sheet
+    On Error Resume Next
+    Set wsResults = ThisWorkbook.Worksheets("Results")
+    If wsResults Is Nothing Then
+        Set wsResults = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Worksheets(ThisWorkbook.Worksheets.Count))
+        wsResults.Name = "Results"
+    Else
+        wsResults.Cells.Clear
+    End If
+    On Error GoTo 0
+    
+    ' Write results if any found
+    If dictUnits.Count > 0 Then
+        ' Headers
+        wsResults.Range("A1").Value = "Search Criteria:"
+        wsResults.Range("B1").Value = "*" & searchTerm & "*"
+        wsResults.Range("A2").Value = "Sheets Searched:"
+        wsResults.Range("B2").Value = "Employee Listing (Column H), Unit (Column A)"
+        wsResults.Range("A3").Value = "Unique Units Found:"
+        
+        ' Data
+        wsResults.Range("A4").Resize(dictUnits.Count, 1).Value = Application.Transpose(dictUnits.Keys)
+        
+        ' Formatting
+        With wsResults
+            .Columns("A:B").AutoFit
+            .Range("A1:A3").Font.Bold = True
+            .Range("B1").Font.Color = RGB(0, 0, 255)
+            .Range("A4:A" & 4 + dictUnits.Count).Borders(xlEdgeBottom).LineStyle = xlContinuous
+        End With
+        
+        MsgBox "Found " & dictUnits.Count & " unique units", vbInformation, "Results"
+    Else
+        MsgBox "No matching units found after filtering", vbExclamation, "No Results"
+    End If
+End Sub
