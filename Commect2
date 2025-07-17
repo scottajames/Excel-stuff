@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Hierarchy Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-container {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #fileInput {
+            display: none;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #hierarchyResults {
+            margin-top: 20px;
+        }
+        .tree {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+        .tree li {
+            position: relative;
+            padding-left: 15px;
+            margin: 5px 0;
+        }
+        .tree li:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 10px;
+            height: 1px;
+            background: #333;
+        }
+        .tree li:after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #333;
+        }
+        .tree li:last-child:after {
+            height: 10px;
+        }
+        .node {
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .root {
+            background-color: #dff0d8;
+            font-weight: bold;
+        }
+        .not-in-use {
+            background-color: #ffdddd;
+            color: #d32f2f;
+            border: 1px solid #ffaaaa;
+            margin: 3px;
+            padding: 3px 6px;
+        }
+        .section {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+        .not-in-use-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel Hierarchy Viewer</h1>
+    <p>Upload an Excel file to view hierarchy and identify items in Sheet2 A not found in Sheet1 P/Q</p>
+    
+    <div class="upload-container">
+        <input type="file" id="fileInput" accept=".xlsx, .xls" />
+        <button onclick="document.getElementById('fileInput').click()">Choose Excel File</button>
+        <p id="fileName">No file chosen</p>
+    </div>
+    
+    <div id="hierarchyResults"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('fileName').textContent = `Selected: ${file.name}`;
+            document.getElementById('hierarchyResults').innerHTML = '<p>Processing file...</p>';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    processWorkbook(workbook);
+                } catch (error) {
+                    document.getElementById('hierarchyResults').innerHTML = 
+                        `<p style="color: red;">Error processing file: ${error.message}</p>`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function processWorkbook(workbook) {
+            // Get Sheet1 and Sheet2
+            const sheet1Name = workbook.SheetNames.find(name => name.toLowerCase() === 'sheet1') || workbook.SheetNames[0];
+            const sheet2Name = workbook.SheetNames.find(name => name.toLowerCase() === 'sheet2') || workbook.SheetNames[1];
+            
+            const sheet1 = workbook.Sheets[sheet1Name];
+            const sheet2 = workbook.Sheets[sheet2Name];
+            
+            const sheet1Data = XLSX.utils.sheet_to_json(sheet1, { header: 1 });
+            const sheet2Data = XLSX.utils.sheet_to_json(sheet2, { header: 1 });
+
+            // Get all values from Sheet1 Columns P (15) and Q (16)
+            const sheet1ColumnsPQ = new Set();
+            for (let i = 1; i < sheet1Data.length; i++) {
+                const pValue = sheet1Data[i][15] ? String(sheet1Data[i][15]).trim() : null;
+                const qValue = sheet1Data[i][16] ? String(sheet1Data[i][16]).trim() : null;
+                
+                if (pValue) sheet1ColumnsPQ.add(pValue);
+                if (qValue) sheet1ColumnsPQ.add(qValue);
+            }
+
+            // Get all values from Sheet2 Column A (index 0)
+            const sheet2ColumnA = new Set();
+            for (let i = 1; i < sheet2Data.length; i++) {
+                const value = sheet2Data[i][0] ? String(sheet2Data[i][0]).trim() : null;
+                if (value) sheet2ColumnA.add(value);
+            }
+
+            // Find items in Sheet2 A that aren't in Sheet1 P/Q (excluding PMP/-SEC)
+            const notInSheet1PQ = [];
+            sheet2ColumnA.forEach(item => {
+                if (!sheet1ColumnsPQ.has(item) && 
+                    !item.includes('PMP') && 
+                    !item.includes('-SEC')) {
+                    notInSheet1PQ.push(item);
+                }
+            });
+
+            // Process hierarchy from Sheet1 (Column P = 15 = Child, Column Q = 16 = Parent)
+            const relationships = [];
+            for (let i = 1; i < sheet1Data.length; i++) {
+                const child = sheet1Data[i][15] ? String(sheet1Data[i][15]).trim() : null;
+                const parent = sheet1Data[i][16] ? String(sheet1Data[i][16]).trim() : null;
+                
+                if (child) {
+                    relationships.push({ child, parent });
+                }
+            }
+
+            // Build hierarchy
+            const hierarchy = buildHierarchy(relationships);
+            
+            // Display results
+            displayResults(hierarchy, notInSheet1PQ);
+        }
+        
+        function buildHierarchy(relationships) {
+            const childToParent = new Map();
+            const parentToChildren = new Map();
+            
+            // Create mappings
+            relationships.forEach(rel => {
+                childToParent.set(rel.child, rel.parent);
+                
+                if (rel.parent) {
+                    if (!parentToChildren.has(rel.parent)) {
+                        parentToChildren.set(rel.parent, []);
+                    }
+                    parentToChildren.get(rel.parent).push(rel.child);
+                }
+            });
+            
+            // Find root nodes (items with no parent or parents that don't exist as children)
+            const rootNodes = [];
+            const allChildren = new Set(childToParent.keys());
+            
+            // Items with no parent
+            relationships.forEach(rel => {
+                if (!rel.parent && !rootNodes.includes(rel.child)) {
+                    rootNodes.push(rel.child);
+                }
+            });
+            
+            // Parents that aren't children themselves
+            parentToChildren.forEach((children, parent) => {
+                if (!allChildren.has(parent) && !rootNodes.includes(parent)) {
+                    rootNodes.push(parent);
+                }
+            });
+            
+            // If no root nodes found, just use all unique parents
+            if (rootNodes.length === 0) {
+                const allParents = new Set(relationships.filter(r => r.parent).map(r => r.parent));
+                rootNodes.push(...allParents);
+            }
+            
+            // Build hierarchy tree for each root
+            const hierarchy = {};
+            rootNodes.forEach(root => {
+                hierarchy[root] = buildTree(root, parentToChildren);
+            });
+            
+            return hierarchy;
+        }
+        
+        function buildTree(node, parentToChildren, depth = 0, visited = new Set()) {
+            if (visited.has(node)) return {}; // Prevent circular references
+            visited.add(node);
+            
+            const tree = {};
+            
+            if (parentToChildren.has(node)) {
+                parentToChildren.get(node).forEach(child => {
+                    tree[child] = buildTree(child, parentToChildren, depth + 1, visited);
+                });
+            }
+            
+            return tree;
+        }
+        
+        function displayResults(hierarchy, notInSheet1PQ) {
+            const resultsDiv = document.getElementById('hierarchyResults');
+            
+            if (Object.keys(hierarchy).length === 0 && notInSheet1PQ.length === 0) {
+                resultsDiv.innerHTML = '<p>No hierarchy data found in Sheet1 (columns P and Q)</p>';
+                return;
+            }
+            
+            let html = '';
+            
+            // Display hierarchy if exists
+            if (Object.keys(hierarchy).length > 0) {
+                html += '<h2>Hierarchy Structure (Not including PMP or SECURE)</h2>';
+                
+                Object.keys(hierarchy).forEach(root => {
+                    html += `<div class="tree-container"><h3>Parent: <span class="node root">${root}</span></h3>`;
+                    html += '<ul class="tree">';
+                    html += buildTreeHTML(hierarchy[root]);
+                    html += '</ul></div>';
+                });
+            }
+            
+            // Display ITEMS IN SHEET2 A BUT NOT IN SHEET1 P/Q section
+            if (notInSheet1PQ.length > 0) {
+                html += `<div class="section">
+                    <h2>ITEMS IN SHEET2 A BUT NOT IN SHEET1 P/Q</h2>
+                    <div class="not-in-use-container">`;
+                
+                notInSheet1PQ.sort().forEach(item => {
+                    html += `<span class="node not-in-use">${item}</span>`;
+                });
+                
+                html += '</div><p>Total: ' + notInSheet1PQ.length + ' items</p></div>';
+            } else {
+                html += `<div class="section">
+                    <h2>ITEMS IN SHEET2 A BUT NOT IN SHEET1 P/Q</h2>
+                    <p>All items in Sheet2 column A are present in Sheet1 columns P or Q</p>
+                </div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function buildTreeHTML(tree, level = 1) {
+            let html = '';
+            
+            Object.keys(tree).forEach(child => {
+                html += `<li><span class="node">${child}</span>`;
+                
+                if (Object.keys(tree[child]).length > 0) {
+                    html += '<ul>';
+                    html += buildTreeHTML(tree[child], level + 1);
+                    html += '</ul>';
+                }
+                
+                html += '</li>';
+            });
+            
+            return html;
+        }
+    </script>
+</body>
+</html>
