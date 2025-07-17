@@ -1,54 +1,68 @@
-Sub BCU_AS()
+Sub ExportFilteredSheetsToNewWorkbook()
+    ' Declare variables
+    Dim originalWorkbook As Workbook
     Dim wsEmployee As Worksheet, wsUnit As Worksheet
+    Dim newWorkbook As Workbook
     Dim filterRangeEmployee As Range, filterRangeUnit As Range
-    Dim dictUnits As Object
-    Dim arrUnits() As Variant
-    Dim i As Long
     
-    ' Set references to the source worksheets
-    Set wsEmployee = ThisWorkbook.Worksheets("Employee Listing")
-    Set wsUnit = ThisWorkbook.Worksheets("Unit")
+    ' Set references to the current workbook and worksheets
+    Set originalWorkbook = ThisWorkbook
+    Set wsEmployee = originalWorkbook.Worksheets("Employee Listing")
+    Set wsUnit = originalWorkbook.Worksheets("Unit")
+    
+    ' Turn off screen updating for better performance
+    Application.ScreenUpdating = False
     
     ' Clear any existing filters
     If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
     If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
     
-    ' Initialize dictionary for storing unique units
-    Set dictUnits = CreateObject("Scripting.Dictionary")
-    dictUnits.CompareMode = vbTextCompare ' Case insensitive comparison
+    ' Create a new workbook for the filtered data
+    Set newWorkbook = Workbooks.Add
     
-    ' 1. Process Employee Listing data
+    ' Delete default sheets in the new workbook
+    Application.DisplayAlerts = False ' Suppress confirmation prompts
+    Do While newWorkbook.Worksheets.Count > 0
+        newWorkbook.Worksheets(1).Delete
+    Loop
+    Application.DisplayAlerts = True
+    
+    ' 1. Process and export Employee Listing with filter
     Set filterRangeEmployee = wsEmployee.UsedRange
-    
     With filterRangeEmployee
-        .AutoFilter Field:=8, Criteria1:="AS - Central South Command Unit" ' Column H
+        ' Apply filter to Column H (8th column)
+        .AutoFilter Field:=8, Criteria1:="AS - Central South Command Unit"
         
-        ' Get the Unit column (Column P) from the filtered data
-        Set unitCol = .Offset(0, 15).Resize(.Rows.Count, 1) ' Column P is 16th column (A=1, P=16)
-        
-        ' Add unique units from Employee Listing to dictionary
-        On Error Resume Next ' Skip errors if no visible cells
-        For Each unitCell In unitCol.SpecialCells(xlCellTypeVisible)
-            If unitCell.Row > 1 And Trim(unitCell.Value) <> "" Then ' Skip header and empty cells
-                dictUnits(Trim(unitCell.Value)) = 1 ' Value doesn't matter, we just need the key
-            End If
-        Next unitCell
+        ' Copy visible (filtered) data to new workbook
+        On Error Resume Next ' Skip if no data matches filter
+        wsEmployee.Copy Before:=newWorkbook.Sheets(1)
+        newWorkbook.Worksheets(1).Name = "Employee Listing"
         On Error GoTo 0
     End With
     
-    ' 2. Process Unit sheet data
+    ' 2. Process and export Unit sheet with filter
     Set filterRangeUnit = wsUnit.UsedRange
-    
     With filterRangeUnit
-        .AutoFilter Field:=3, Criteria1:="*BCU AS*" ' Column C with wildcards
+        ' Apply filter to Column C (3rd column) with wildcard
+        .AutoFilter Field:=3, Criteria1:="*BCU AS*"
         
-        ' Add unique units from Unit sheet to dictionary
-        On Error Resume Next ' Skip errors if no visible cells
-        For Each unitCell In .Columns(3).SpecialCells(xlCellTypeVisible) ' Column C
-            If unitCell.Row > 1 And Trim(unitCell.Value) <> "" Then ' Skip header and empty cells
-                dictUnits(Trim(unitCell.Value)) = 1
-            End If
-        Next unitCell
+        ' Copy visible (filtered) data to new workbook
+        On Error Resume Next ' Skip if no data matches filter
+        wsUnit.Copy After:=newWorkbook.Sheets(1)
+        newWorkbook.Worksheets(2).Name = "Unit"
         On Error GoTo 0
     End With
+    
+    ' Clear filters in the original workbook
+    If wsEmployee.AutoFilterMode Then wsEmployee.AutoFilterMode = False
+    If wsUnit.AutoFilterMode Then wsUnit.AutoFilterMode = False
+    
+    ' Turn screen updating back on
+    Application.ScreenUpdating = True
+    
+    ' Activate the new workbook and inform user
+    newWorkbook.Activate
+    MsgBox "Successfully created new workbook with:" & vbCrLf & _
+           "- Filtered 'Employee Listing' sheet" & vbCrLf & _
+           "- Filtered 'Unit' sheet", vbInformation, "Process Complete"
 End Sub
