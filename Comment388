@@ -122,10 +122,10 @@
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            // Column O (index 14) = Child, Column Q (index 16) = Parent
+            // Column O (index 15) = Child, Column Q (index 16) = Parent
             const relationships = [];
             for (let i = 1; i < jsonData.length; i++) {
-                const child = jsonData[i][14] ? String(jsonData[i][14]).trim() : null;
+                const child = jsonData[i][15] ? String(jsonData[i][15]).trim() : null;
                 const parent = jsonData[i][16] ? String(jsonData[i][16]).trim() : null;
                 
                 if (child) {
