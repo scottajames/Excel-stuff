@@ -135,6 +135,7 @@
             margin-right: 5px;
             width: 15px;
             text-align: center;
+            cursor: pointer;
         }
 
         .section-title {
@@ -147,6 +148,10 @@
             margin-top: 30px;
             padding-top: 15px;
             border-top: 2px solid #eee;
+        }
+
+        .collapsed > .children {
+            display: none;
         }
     </style>
 </head>
@@ -333,6 +338,7 @@
             allLinks = [];
             unusedTrays = [];
             const occurrenceCount = {};
+            const uniqueLinks = new Set();
             
             // Find the correct headers
             const childHeader = findHeader(sheet1Data[0], "Worktray - DB Value");
@@ -342,20 +348,17 @@
                 return [];
             }
             
-            // First pass: count occurrences and create all nodes
+            // First pass: create all unique nodes
             sheet1Data.forEach(row => {
                 const child = row[childHeader];
                 const parent = row[parentHeader];
                 
                 if (child !== undefined && child !== null) {
                     const childStr = String(child).trim();
-                    occurrenceCount[childStr] = (occurrenceCount[childStr] || 0) + 1;
-                    
                     if (!allNodes[childStr]) {
                         allNodes[childStr] = {
                             id: childStr,
                             rank: 1, // Default rank
-                            count: 0,
                             isUsed: true
                         };
                     }
@@ -363,20 +366,17 @@
                 
                 if (parent !== undefined && parent !== null) {
                     const parentStr = String(parent).trim();
-                    occurrenceCount[parentStr] = (occurrenceCount[parentStr] || 0) + 1;
-                    
                     if (!allNodes[parentStr]) {
                         allNodes[parentStr] = {
                             id: parentStr,
                             rank: 1, // Default rank
-                            count: 0,
                             isUsed: true
                         };
                     }
                 }
             });
             
-            // Second pass: create all relationships
+            // Second pass: create unique relationships
             sheet1Data.forEach(row => {
                 const child = row[childHeader];
                 const parent = row[parentHeader];
@@ -384,15 +384,15 @@
                 if (child !== undefined && child !== null && parent !== undefined && parent !== null) {
                     const childStr = String(child).trim();
                     const parentStr = String(parent).trim();
+                    const linkKey = `${parentStr}->${childStr}`;
                     
-                    allLinks.push({
-                        source: parentStr,
-                        target: childStr
-                    });
-                    
-                    // Update counts
-                    allNodes[childStr].count = occurrenceCount[childStr];
-                    allNodes[parentStr].count = occurrenceCount[parentStr];
+                    if (!uniqueLinks.has(linkKey)) {
+                        uniqueLinks.add(linkKey);
+                        allLinks.push({
+                            source: parentStr,
+                            target: childStr
+                        });
+                    }
                 }
             });
             
@@ -402,7 +402,6 @@
                     unusedTrays.push({
                         id: tray,
                         rank: 'unused',
-                        count: 0,
                         isUsed: false
                     });
                 }
@@ -414,15 +413,23 @@
                 return !allLinks.some(link => link.target === id);
             });
             
-            // Build hierarchical structure
+            // Build hierarchical structure (ensuring no duplicates)
+            const seenNodes = new Set();
             function buildHierarchy(id) {
+                if (seenNodes.has(id)) return null; // Prevent duplicates
+                seenNodes.add(id);
+                
                 const node = allNodes[id];
                 const childrenLinks = allLinks.filter(link => link.source === id);
                 
                 // Sort children alphabetically
                 childrenLinks.sort((a, b) => a.target.localeCompare(b.target));
                 
-                const children = childrenLinks.map(link => buildHierarchy(link.target));
+                const children = [];
+                childrenLinks.forEach(link => {
+                    const childNode = buildHierarchy(link.target);
+                    if (childNode) children.push(childNode);
+                });
                     
                 return {
                     ...node,
@@ -433,7 +440,7 @@
             // Sort root nodes alphabetically
             rootNodes.sort((a, b) => a.localeCompare(b));
             
-            return rootNodes.map(root => buildHierarchy(root));
+            return rootNodes.map(root => buildHierarchy(root)).filter(Boolean);
         }
 
         function createRankMapFromSheet2(sheet2Data) {
@@ -504,11 +511,6 @@
                     const toggle = document.createElement('span');
                     toggle.className = 'toggle-children';
                     toggle.textContent = '▶';
-                    toggle.onclick = function(e) {
-                        e.stopPropagation();
-                        node.classList.toggle('collapsed');
-                        toggle.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
-                    };
                     nodeHeader.appendChild(toggle);
                 } else {
                     // Add spacer for alignment
@@ -519,17 +521,10 @@
                     nodeHeader.appendChild(spacer);
                 }
                 
-                // Add the name and occurrence count if > 1
+                // Add the name
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = item.id;
                 nodeHeader.appendChild(nameSpan);
-                
-                if (item.count > 1) {
-                    const countSpan = document.createElement('span');
-                    countSpan.className = 'node-count';
-                    countSpan.textContent = `(${item.count})`;
-                    nodeHeader.appendChild(countSpan);
-                }
                 
                 node.appendChild(nodeHeader);
                 
@@ -550,15 +545,19 @@
                 }
                 
                 // Add click handler to toggle children
-                node.onclick = function(e) {
-                    if (e.target.tagName !== 'SPAN' || !e.target.classList.contains('toggle-children')) {
+                node.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('toggle-children')) {
+                        node.classList.toggle('collapsed');
+                        e.target.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
+                        e.stopPropagation();
+                    } else if (e.target === nodeHeader || e.target === nameSpan) {
                         node.classList.toggle('collapsed');
                         const toggle = node.querySelector('.toggle-children');
                         if (toggle) {
                             toggle.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
                         }
                     }
-                };
+                });
                 
                 return node;
             }
