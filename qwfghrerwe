@@ -1,0 +1,4 @@
+Get all Child and Parent units from UnitRelation Column C and Column E
+Check all people inside of Child and Parent Units from HR Feed Column Z
+Check level 10 Column Q, 9 Column P, 8 Column O, 7 Column N, 6 Column M, 5 Column L, 4 Column K, 3 Column J, 2 Column I, 1 Column I with Rank Column AE + Posting Column AG
+output hierarchy with child and parent units say where each security level in that unit gets its security level from 10, 9, 8, 7 ,6 ,5 ,4 ,3 ,2 ,1
