@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Hierarchy Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding-bottom: 50px;
+        }
+
+        #visualization {
+            min-height: 500px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            background-color: white;
+            overflow-x: auto;
+        }
+
+        .node {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 2px 0;
+            display: block;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .node:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        .children {
+            margin-left: 25px;
+            border-left: 2px solid #ddd;
+            padding-left: 5px;
+        }
+
+        .legend-item {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .debug-info {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .people-count {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-left: 5px;
+            font-style: italic;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-children {
+            margin-right: 5px;
+            width: 15px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin: 15px 0 5px 0;
+            color: #333;
+        }
+
+        .collapsed > .children {
+            display: none;
+        }
+
+        .security-info {
+            font-size: 0.8em;
+            margin-left: 10px;
+            color: #666;
+            white-space: normal;
+        }
+
+        .security-role {
+            margin-left: 10px;
+            font-weight: bold;
+        }
+
+        .security-level {
+            margin-left: 15px;
+            font-style: italic;
+        }
+
+        .progress {
+            height: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-info {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .security-source {
+            margin-left: 5px;
+            font-style: italic;
+            color: #444;
+        }
+
+        .unit-type {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Security Hierarchy Analyzer</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Upload Excel File</h5>
+                <input type="file" id="excelFile" class="form-control" accept=".xlsm,.xlsx,.xls">
+                <div class="progress mt-3" id="progressBar" style="display: none;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div class="status-info" id="statusInfo"></div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="debugCheck">
+                    <label class="form-check-label" for="debugCheck">
+                        Show debug information
+                    </label>
+                </div>
+                <button id="processBtn" class="btn btn-primary mt-3">Analyze File</button>
+                <div id="fileStats" class="stats"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Security Hierarchy</h5>
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search units...">
+                    <button id="searchBtn" class="btn btn-secondary mt-2">Search</button>
+                    <button id="expandAll" class="btn btn-sm btn-outline-secondary mt-2">Expand All</button>
+                    <button id="collapseAll" class="btn btn-sm btn-outline-secondary mt-2">Collapse All</button>
+                </div>
+                <div id="visualization" class="mt-3">
+                    <p>Upload an Excel file to analyze the security hierarchy.</p>
+                </div>
+                <div id="debugOutput" class="debug-info" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Global variables
+        let allNodes = {};
+        let allLinks = [];
+        let currentHierarchy = [];
+        let unitPersonnel = {};
+        let securityRoleLevels = {};
+        
+        document.getElementById('processBtn').addEventListener('click', processExcelFile);
+        document.getElementById('debugCheck').addEventListener('change', function() {
+            document.getElementById('debugOutput').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('searchBtn').addEventListener('click', searchHierarchy);
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') searchHierarchy();
+        });
+        document.getElementById('expandAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('collapsed');
+                const toggle = node.querySelector('.toggle-children');
+                if (toggle) toggle.textContent = '▼';
+            });
+        });
+        document.getElementById('collapseAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                if (node.querySelector('.children')) {
+                    node.classList.add('collapsed');
+                    const toggle = node.querySelector('.toggle-children');
+                    if (toggle) toggle.textContent = '▶';
+                }
+            });
+        });
+
+        function updateProgress(percent, message) {
+            const progressBar = document.getElementById('progressBar');
+            const bar = progressBar.querySelector('.progress-bar');
+            const statusInfo = document.getElementById('statusInfo');
+            
+            progressBar.style.display = 'block';
+            bar.style.width = `${percent}%`;
+            statusInfo.textContent = message;
+        }
+
+        async function processExcelFile() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.innerHTML = '';
+            
+            if (!file) {
+                showError('Please select an Excel file first.');
+                return;
+            }
+            
+            // Reset global variables
+            allNodes = {};
+            allLinks = [];
+            currentHierarchy = [];
+            unitPersonnel = {};
+            securityRoleLevels = {};
+            
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                try {
+                    updateProgress(0, 'Reading file...');
+                    
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Debug: Show sheet names
+                    debugOutput.innerHTML += `<p>Sheets found: ${workbook.SheetNames.join(', ')}</p>`;
+                    
+                    // Get required sheets
+                    const hrFeedSheet = workbook.Sheets['HR Feed'];
+                    const unitRelationSheet = workbook.Sheets['UnitRelation'];
+                    const rankPostingSheet = workbook.Sheets['Rank + Posting'];
+                    
+                    if (!hrFeedSheet || !unitRelationSheet || !rankPostingSheet) {
+                        showError('Could not find all required sheets (HR Feed, UnitRelation, and Rank + Posting).');
+                        return;
+                    }
+                    
+                    updateProgress(10, 'Processing Rank + Posting sheet...');
+                    
+                    // Process Rank + Posting sheet first (Column A = Security Role)
+                    const rankPostingJson = XLSX.utils.sheet_to_json(rankPostingSheet);
+                    processRankPostingData(rankPostingJson);
+                    
+                    updateProgress(20, 'Processing UnitRelation sheet...');
+                    
+                    // Process UnitRelation sheet (Column C = Child, Column E = Parent)
+                    const unitRelationJson = XLSX.utils.sheet_to_json(unitRelationSheet);
+                    processUnitRelations(unitRelationJson);
+                    
+                    updateProgress(40, 'Processing HR Feed sheet...');
+                    
+                    // Process HR Feed sheet (Column Z = Unit, AG = Security Role, Q-P = Levels 10-1)
+                    const hrFeedJson = XLSX.utils.sheet_to_json(hrFeedSheet);
+                    processHRFeed(hrFeedJson);
+                    
+                    updateProgress(70, 'Analyzing security roles...');
+                    
+                    // Analyze security roles for all units
+                    analyzeSecurityRoles();
+                    
+                    updateProgress(90, 'Building hierarchy...');
+                    
+                    // Build hierarchical structure
+                    currentHierarchy = buildHierarchy();
+                    
+                    // Update stats
+                    document.getElementById('fileStats').innerHTML = `
+                        <div>Total units: ${Object.keys(allNodes).length}</div>
+                        <div>Hierarchy relationships: ${allLinks.length}</div>
+                        <div>Root units: ${currentHierarchy.length}</div>
+                        <div>People processed: ${Object.values(unitPersonnel).reduce((sum, arr) => sum + arr.length, 0)}</div>
+                    `;
+                    
+                    updateProgress(100, 'Visualizing hierarchy...');
+                    
+                    // Visualize the hierarchy
+                    visualizeHierarchy(currentHierarchy);
+                    
+                    setTimeout(() => {
+                        document.getElementById('progressBar').style.display = 'none';
+                        document.getElementById('statusInfo').textContent = 'Analysis complete!';
+                    }, 1000);
+                    
+                } catch (error) {
+                    showError('Error processing Excel file: ' + error.message);
+                    debugOutput.innerHTML += `<p class="error-message">Error: ${error.stack}</p>`;
+                    document.getElementById('progressBar').style.display = 'none';
+                }
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading the file.');
+                document.getElementById('progressBar').style.display = 'none';
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processRankPostingData(data) {
+            // Column A = Security Role, other columns contain level information
+            // We need to map security roles to their level sources
+            data.forEach(row => {
+                const securityRole = row['A'] ? String(row['A']).trim() : '';
+                if (!securityRole) return;
+                
+                securityRoleLevels[securityRole] = {};
+                
+                // Check which columns contain this security role
+                const levelColumns = {
+                    'Q': 10, 'P': 9, 'O': 8, 'N': 7,
+                    'M': 6, 'L': 5, 'K': 4, 'J': 3,
+                    'I': 2, 'H': 1
+                };
+                
+                for (const [col, level] of Object.entries(levelColumns)) {
+                    if (row[col] && String(row[col]).trim() === securityRole) {
+                        securityRoleLevels[securityRole][level] = true;
+                    }
+                }
+            });
+        }
+
+        function processUnitRelations(data) {
+            // Column C = Child, Column E = Parent
+            const childCol = 'C';
+            const parentCol = 'E';
+            
+            const uniqueLinks = new Set();
+            
+            data.forEach(row => {
+                const child = row[childCol];
+                const parent = row[parentCol];
+                
+                if (child && parent) {
+                    const childStr = String(child).trim();
+                    const parentStr = String(parent).trim();
+                    const linkKey = `${parentStr}->${childStr}`;
+                    
+                    if (!uniqueLinks.has(linkKey)) {
+                        uniqueLinks.add(linkKey);
+                        
+                        // Create nodes if they don't exist
+                        if (!allNodes[childStr]) {
+                            allNodes[childStr] = {
+                                id: childStr,
+                                children: [],
+                                personnel: [],
+                                securityRoles: {}
+                            };
+                        }
+                        
+                        if (!allNodes[parentStr]) {
+                            allNodes[parentStr] = {
+                                id: parentStr,
+                                children: [],
+                                personnel: [],
+                                securityRoles: {}
+                            };
+                        }
+                        
+                        // Add relationship
+                        allLinks.push({
+                            source: parentStr,
+                            target: childStr
+                        });
+                        
+                        // Add child reference to parent
+                        if (!allNodes[parentStr].children.includes(childStr)) {
+                            allNodes[parentStr].children.push(childStr);
+                        }
+                    }
+                }
+            });
+        }
+
+        function processHRFeed(data) {
+            // Column Z = Unit, AG = Security Role
+            const unitCol = 'Z';
+            const securityRoleCol = 'AG';
+            
+            data.forEach(row => {
+                const unit = row[unitCol];
+                if (!unit) return;
+                
+                const unitStr = String(unit).trim();
+                const securityRole = row[securityRoleCol] ? String(row[securityRoleCol]).trim() : '';
+                
+                // Initialize unit if not exists
+                if (!unitPersonnel[unitStr]) {
+                    unitPersonnel[unitStr] = [];
+                }
+                
+                // Add person to unit with their security role
+                unitPersonnel[unitStr].push({
+                    securityRole: securityRole,
+                    // Also store the level columns for this person
+                    levels: {
+                        'Q': row['Q'], 'P': row['P'], 'O': row['O'], 'N': row['N'],
+                        'M': row['M'], 'L': row['L'], 'K': row['K'], 'J': row['J'],
+                        'I': row['I'], 'H': row['H']
+                    }
+                });
+            });
+        }
+
+        function analyzeSecurityRoles() {
+            // Analyze security roles for each unit based on its personnel
+            Object.keys(unitPersonnel).forEach(unit => {
+                if (!allNodes[unit]) {
+                    // Create node for units that exist in HR Feed but not in UnitRelation
+                    allNodes[unit] = {
+                        id: unit,
+                        children: [],
+                        personnel: unitPersonnel[unit],
+                        securityRoles: {}
+                    };
+                } else {
+                    allNodes[unit].personnel = unitPersonnel[unit];
+                }
+                
+                const unitData = allNodes[unit];
+                unitData.securityRoles = {};
+                
+                // Track which security roles exist in this unit and their level sources
+                for (const person of unitData.personnel) {
+                    if (person.securityRole) {
+                        if (!unitData.securityRoles[person.securityRole]) {
+                            unitData.securityRoles[person.securityRole] = {
+                                count: 0,
+                                levelSources: new Set()
+                            };
+                        }
+                        
+                        unitData.securityRoles[person.securityRole].count++;
+                        
+                        // Check which levels this security role appears in for this person
+                        for (const [col, level] of Object.entries({
+                            'Q': 10, 'P': 9, 'O': 8, 'N': 7,
+                            'M': 6, 'L': 5, 'K': 4, 'J': 3,
+                            'I': 2, 'H': 1
+                        })) {
+                            if (person.levels[col] && String(person.levels[col]).trim() === person.securityRole) {
+                                unitData.securityRoles[person.securityRole].levelSources.add(level);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function buildHierarchy() {
+            // Find root nodes (nodes with no parents)
+            const nodeIds = Object.keys(allNodes);
+            const rootNodes = nodeIds.filter(id => {
+                return !allLinks.some(link => link.target === id);
+            });
+            
+            // Build hierarchical structure
+            function buildHierarchyNodes(id) {
+                const node = allNodes[id];
+                const childrenLinks = allLinks.filter(link => link.source === id);
+                
+                // Sort children alphabetically
+                childrenLinks.sort((a, b) => a.target.localeCompare(b.target));
+                
+                const children = childrenLinks.map(link => buildHierarchyNodes(link.target));
+                
+                return {
+                    ...node,
+                    children: children.length ? children : null
+                };
+            }
+            
+            // Sort root nodes alphabetically
+            rootNodes.sort((a, b) => a.localeCompare(b));
+            
+            return rootNodes.map(root => buildHierarchyNodes(root));
+        }
+
+        function visualizeHierarchy(data) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="error-message">No hierarchy data found.</p>';
+                return;
+            }
+            
+            // Function to create node element
+            function createNodeElement(item) {
+                const node = document.createElement('div');
+                node.className = 'node';
+                
+                // Create node header
+                const nodeHeader = document.createElement('div');
+                nodeHeader.className = 'node-header';
+                
+                // Add toggle for children if needed
+                if (item.children && item.children.length > 0) {
+                    const toggle = document.createElement('span');
+                    toggle.className = 'toggle-children';
+                    toggle.textContent = '▶';
+                    nodeHeader.appendChild(toggle);
+                } else {
+                    // Add spacer for alignment
+                    const spacer = document.createElement('span');
+                    spacer.className = 'toggle-children';
+                    spacer.style.visibility = 'hidden';
+                    spacer.textContent = '▶';
+                    nodeHeader.appendChild(spacer);
+                }
+                
+                // Add the unit name
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = item.id;
+                nodeHeader.appendChild(nameSpan);
+                
+                // Add personnel count
+                const countSpan = document.createElement('span');
+                countSpan.className = 'people-count';
+                countSpan.textContent = `(${item.personnel ? item.personnel.length : 0} people)`;
+                nodeHeader.appendChild(countSpan);
+                
+                node.appendChild(nodeHeader);
+                
+                // Add security role information
+                const securityDiv = document.createElement('div');
+                securityDiv.className = 'security-info';
+                
+                for (const [role, info] of Object.entries(item.securityRoles)) {
+                    const roleDiv = document.createElement('div');
+                    roleDiv.className = 'security-role';
+                    roleDiv.textContent = `${role} (${info.count} people)`;
+                    securityDiv.appendChild(roleDiv);
+                    
+                    // Add level sources for this role
+                    if (info.levelSources.size > 0) {
+                        const levelsDiv = document.createElement('div');
+                        levelsDiv.className = 'security-level';
+                        levelsDiv.textContent = 'Levels: ' + Array.from(info.levelSources).sort((a,b) => b-a).join(', ');
+                        securityDiv.appendChild(levelsDiv);
+                    }
+                }
+                
+                node.appendChild(securityDiv);
+                
+                if (item.children && item.children.length > 0) {
+                    // Add children container
+                    const childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'children';
+                    
+                    // Sort children alphabetically
+                    item.children.sort((a, b) => a.id.localeCompare(b.id));
+                    
+                    item.children.forEach(child => {
+                        childrenContainer.appendChild(createNodeElement(child));
+                    });
+                    
+                    node.appendChild(childrenContainer);
+                    node.classList.add('collapsed');
+                }
+                
+                // Add click handler to toggle children
+                node.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('toggle-children')) {
+                        node.classList.toggle('collapsed');
+                        e.target.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
+                        e.stopPropagation();
+                    } else if (e.target === nodeHeader || e.target === nameSpan || e.target === countSpan) {
+                        node.classList.toggle('collapsed');
+                        const toggle = node.querySelector('.toggle-children');
+                        if (toggle) {
+                            toggle.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
+                        }
+                    }
+                });
+                
+                return node;
+            }
+            
+            // Create and append all root nodes
+            data.forEach(root => {
+                container.appendChild(createNodeElement(root));
+            });
+        }
+
+        function showError(message) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = `<p class="error-message">${message}</p>`;
+        }
+
+        function searchHierarchy() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (!searchTerm) return;
+            
+            const container = document.getElementById('visualization');
+            const nodes = container.querySelectorAll('.node');
+            
+            // First reset all highlights
+            nodes.forEach(node => {
+                node.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+            });
+            
+            // Find and highlight matches
+            let found = false;
+            nodes.forEach(node => {
+                const nodeText = node.textContent.toLowerCase();
+                if (nodeText.includes(searchTerm)) {
+                    node.style.boxShadow = '0 0 0 2px yellow';
+                    // Expand parents to make it visible
+                    let parent = node.parentElement;
+                    while (parent && parent.classList.contains('node')) {
+                        parent.classList.remove('collapsed');
+                        const toggle = parent.querySelector('.toggle-children');
+                        if (toggle) toggle.textContent = '▼';
+                        parent = parent.parentElement;
+                    }
+                    found = true;
+                }
+            });
+            
+            if (!found) {
+                alert('No matches found for: ' + searchTerm);
+            }
+        }
+    </script>
+</body>
+</html>
