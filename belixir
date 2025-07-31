@@ -1,0 +1,9 @@
+17 sheets total (sheet1 named Front Sheet, sheet2 named 'HR Feed', sheet3 named 'Default Unit', sheet4 named 'Unit', sheet5 named 'UnitRelation', sheet6 named 'Rank', sheet7 named 'Rank + Posting', Sheet8 named 'Job', sheet9 named 'Missing Grades', Sheet10 named 'Duplicate Default Units', sheet11 named 'Duplicate Security Roles', sheet12 named 'Missing Worktray Description', Sheet13 named 'No ACCESS with Security Role', sheet14 named 'NO Warrant Number', sheet15 named 'Future Postings Check', sheet16 named 'Missing Default Unit Assignment', sheet17 named 'Missing Sec Role Assignment'
+
+only get information from HR Feed, UnitRelation and Rank + Posting sheets (they will always be named this)
+First check UnitRelation Column C for child and column E for parent
+Check 'HR Feed' column Z to find if there are people in there if so output in a number how many there are.
+From HR feed as well check column AG to gain security role names and columns Q, P, O, N, M, L, K, J, I, H and compare Q, P, O, N, M, L, K, J, I, H with Rank + Posting column A and tell us what column but call it level that each of the security roles come from.
+
+
+I am wanting to create a website that allows me to upload an .xlsm and created a hierarchy based off the UnitRelation column C and column E and also let me know how many users are in their based off HR Feed column Z and also tell me what security roles they have (column AG), and checking each level they have based off HR Feed columns Q, P, O, N, M, L, K, J, I, H and compare what is inside of each other those with Rank + Posting column A and then tell us what column (level) it came from for each security role they have (column AG)
