@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Hierarchy Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .upload-container {
+            border: 2px dashed #3498db;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        #fileInput {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .upload-btn:hover {
+            background-color: #2980b9;
+        }
+        .results {
+            display: none;
+            margin-top: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .tree {
+            margin-left: 20px;
+        }
+        .tree ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+        .tree li {
+            position: relative;
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        .tree li:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 15px;
+            height: 1px;
+            background: #333;
+        }
+        .tree li:after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #333;
+        }
+        .tree li:last-child:after {
+            height: 10px;
+        }
+        .unit-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .role-info {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 3px;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Organization Hierarchy Analyzer</h1>
+    <div class="upload-container">
+        <p>Upload your organization Excel file (.xlsm) to analyze the hierarchy and user information</p>
+        <input type="file" id="fileInput" accept=".xls,.xlsx,.xlsm" />
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+        <p id="fileName">No file chosen</p>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Processing file...</p>
+    </div>
+
+    <div class="results" id="results">
+        <div class="section" id="hierarchySection">
+            <h2>Organization Hierarchy with Security Roles</h2>
+            <div class="tree" id="hierarchyTree"></div>
+        </div>
+
+        <div class="section" id="userCountSection">
+            <h2>User Count</h2>
+            <p>Total users found: <span id="userCount">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    processExcelFile(data);
+                } catch (error) {
+                    showError(error);
+                }
+            };
+            reader.onerror = function() {
+                showError("Error reading file");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processExcelFile(data) {
+            try {
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get required sheets
+                const hrFeedSheet = workbook.Sheets['HR Feed'];
+                const unitRelationSheet = workbook.Sheets['UnitRelation'];
+                const rankPostingSheet = workbook.Sheets['Rank + Posting'];
+
+                if (!hrFeedSheet || !unitRelationSheet || !rankPostingSheet) {
+                    throw new Error("Required sheets not found. Please ensure the file contains sheets named 'HR Feed', 'UnitRelation', and 'Rank + Posting'.");
+                }
+
+                // Process all data
+                const hrFeedData = XLSX.utils.sheet_to_json(hrFeedSheet, { header: 1 });
+                const unitRelationData = XLSX.utils.sheet_to_json(unitRelationSheet, { header: 1 });
+                const rankPostingData = XLSX.utils.sheet_to_json(rankPostingSheet, { header: 1 });
+
+                // Count users
+                const userCount = countUsers(hrFeedData);
+                document.getElementById('userCount').textContent = userCount;
+
+                // Build hierarchy with security roles
+                const { hierarchy, rootNodes, unitRoles } = buildHierarchyWithRoles(unitRelationData, hrFeedData, rankPostingData);
+                displayHierarchyWithRoles(hierarchy, rootNodes, unitRoles);
+
+                // Show results
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        function buildHierarchyWithRoles(unitRelationData, hrFeedData, rankPostingData) {
+            const hierarchy = {};
+            const unitRoles = {};
+            const allUnits = new Set();
+
+            // First pass: find all unique units and map their security roles
+            for (let i = 1; i < hrFeedData.length; i++) {
+                const row = hrFeedData[i];
+                const unit = row[2]; // Column C (index 2) - Unit assignment
+                const securityRole = row[32]; // Column AG (index 32) - Security Role
+                
+                if (unit && securityRole) {
+                    if (!unitRoles[unit]) {
+                        unitRoles[unit] = new Set();
+                    }
+                    unitRoles[unit].add(securityRole);
+                }
+            }
+
+            // Second pass: build parent-child relationships from UnitRelation
+            for (let i = 1; i < unitRelationData.length; i++) {
+                const row = unitRelationData[i];
+                const child = row[2]; // Column C (index 2)
+                const parent = row[4]; // Column E (index 4)
+                
+                if (child) allUnits.add(child);
+                if (parent) allUnits.add(parent);
+
+                if (child && parent) {
+                    if (!hierarchy[parent]) {
+                        hierarchy[parent] = { children: [] };
+                    }
+                    hierarchy[parent].children.push(child);
+                }
+            }
+
+            // Initialize any units that don't have children
+            Array.from(allUnits).forEach(unit => {
+                if (!hierarchy[unit]) {
+                    hierarchy[unit] = { children: [] };
+                }
+            });
+
+            // Find root nodes (nodes that are not children of any other node)
+            const childUnits = new Set();
+            for (let i = 1; i < unitRelationData.length; i++) {
+                const row = unitRelationData[i];
+                const child = row[2]; // Column C (index 2)
+                if (child) childUnits.add(child);
+            }
+
+            const rootNodes = Array.from(allUnits).filter(unit => !childUnits.has(unit));
+            
+            return { hierarchy, rootNodes, unitRoles };
+        }
+
+        function displayHierarchyWithRoles(hierarchy, rootNodes, unitRoles) {
+            const container = document.getElementById('hierarchyTree');
+            container.innerHTML = '';
+
+            if (rootNodes.length === 0) {
+                container.innerHTML = '<p>No hierarchy data found.</p>';
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            rootNodes.forEach(root => {
+                const li = createTreeNodeWithRoles(root, hierarchy, unitRoles);
+                ul.appendChild(li);
+            });
+            container.appendChild(ul);
+        }
+
+        function createTreeNodeWithRoles(unit, hierarchy, unitRoles) {
+            const li = document.createElement('li');
+            
+            // Create unit name element
+            const unitName = document.createElement('div');
+            unitName.className = 'unit-name';
+            unitName.textContent = unit;
+            li.appendChild(unitName);
+            
+            // Add security roles if they exist
+            if (unitRoles[unit] && unitRoles[unit].size > 0) {
+                const roleInfo = document.createElement('div');
+                roleInfo.className = 'role-info';
+                roleInfo.textContent = `Security Roles: ${Array.from(unitRoles[unit]).join(', ')}`;
+                li.appendChild(roleInfo);
+            } else {
+                const roleInfo = document.createElement('div');
+                roleInfo.className = 'role-info';
+                roleInfo.textContent = 'No security roles assigned';
+                li.appendChild(roleInfo);
+            }
+
+            // Add children if they exist
+            if (hierarchy[unit] && hierarchy[unit].children.length > 0) {
+                const ul = document.createElement('ul');
+                hierarchy[unit].children.forEach(child => {
+                    const childLi = createTreeNodeWithRoles(child, hierarchy, unitRoles);
+                    ul.appendChild(childLi);
+                });
+                li.appendChild(ul);
+            }
+
+            return li;
+        }
+
+        function countUsers(hrFeedData) {
+            // Column Z is index 25 (0-based index)
+            const userColIndex = 25;
+            
+            if (hrFeedData.length <= 1) return 0; // No data rows
+
+            let count = 0;
+            for (let i = 1; i < hrFeedData.length; i++) {
+                const row = hrFeedData[i];
+                if (row[userColIndex]) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            
+            // Remove any existing error messages
+            const existingErrors = document.querySelectorAll('.error');
+            existingErrors.forEach(el => el.remove());
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = typeof message === 'string' ? message : message.message;
+            
+            const container = document.querySelector('.upload-container');
+            container.appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
