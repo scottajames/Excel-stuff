@@ -1,209 +1,77 @@
-Sub CombinedImportAndValidation()
-    On Error GoTo ErrorHandler
+Sub ImportColumnsWithConditions()
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim needsDefault As Boolean
     
-    Dim wsOutput As Worksheet, wsSummary As Worksheet, wsMapping As Worksheet
-    Dim lastRow As Long, i As Long, duRow As Long, hrRow As Long, col As Integer
-    Dim needsDefault As Boolean, found As Boolean
-    Dim orgLevel As String, unitToCheck As String
-    Dim rolesFound As String, rankFound As String
-    Dim defaultUnitQuery As ListObject, hrFeedQuery As ListObject
-    Dim defaultUnitArray As Variant, hrFeedArray As Variant
-    Dim queryAvailable As Boolean
-    
-    ' Set worksheets with error handling
-    Set wsOutput = GetWorksheet("OUTPUT")
-    Set wsSummary = GetWorksheet("SUMMARY")
-    Set wsMapping = GetWorksheet("MAPPING")
-    If wsOutput Is Nothing Or wsSummary Is Nothing Or wsMapping Is Nothing Then Exit Sub
-    
-    ' Get queries from "Mapping [2]" group
-    Set defaultUnitQuery = GetQueryFromPQGroup("DEFAULTUNIT_CHECK", "Mapping [2]")
-    Set hrFeedQuery = GetQueryFromPQGroup("HR_Feed", "Mapping [2]")
-    
-    ' Check query availability
-    queryAvailable = Not (defaultUnitQuery Is Nothing Or hrFeedQuery Is Nothing)
-    If Not queryAvailable Then
-        If MsgBox("Queries not found in 'Mapping [2]' group. Continue with import only?", vbQuestion + vbYesNo) = vbNo Then
-            Exit Sub
-        End If
-    Else
-        ' Load query data
-        On Error Resume Next
-        defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
-        hrFeedArray = hrFeedQuery.DataBodyRange.Value
-        If Err.Number <> 0 Then
-            queryAvailable = False
-            MsgBox "Error loading query data. Continuing with import only.", vbExclamation
-        End If
-        On Error GoTo 0
-    End If
+    Set ws1 = ThisWorkbook.Sheets("MAPPING")
+    Set ws2 = ThisWorkbook.Sheets("OUTPUT")
     
     Application.ScreenUpdating = False
     
-    ' ===== PART 1: IMPORT FROM SUMMARY TO OUTPUT =====
-    lastRow = GetLastRow(wsSummary, "A")
+    ' Find last row with data in Sheet2 (starting from row 2)
+    lastRow = ws2.Cells(ws2.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 2 Then lastRow = 2 ' Ensure we at least process row 2
     
-    ' Clear target columns
-    wsOutput.Range("D2:D" & lastRow).ClearContents
-    wsOutput.Range("E2:E" & lastRow).ClearContents
-    wsOutput.Range("J2:J" & lastRow).ClearContents
+    ' Clear previous data in target columns (A, D, E, I, J) starting from row 2
+    ws1.Range("A2:A" & lastRow).ClearContents
+    ws1.Range("D2:D" & lastRow).ClearContents
+    ws1.Range("E2:E" & lastRow).ClearContents
+    ws1.Range("I2:I" & lastRow).ClearContents
+    ws1.Range("J2:J" & lastRow).ClearContents
     
-    ' Process import
+    ' Import data starting from row 2
     For i = 2 To lastRow
         needsDefault = False
         
-        ' Column D: R→S→T→U→V from SUMMARY
-        For col = 18 To 22
-            If Not IsEmpty(wsSummary.Cells(i, col)) Then
-                wsOutput.Cells(i, 4).Value = wsSummary.Cells(i, col).Value
-                needsDefault = True
-                Exit For
-            End If
-        Next col
+        ' Column A in Sheet1: Default value if any data is found
+        ' Column B and C remain blank (no action needed)
         
-        ' Column E: I from SUMMARY
-        If Not IsEmpty(wsSummary.Cells(i, 9)) Then
-            wsOutput.Cells(i, 5).Value = wsSummary.Cells(i, 9).Value
+        ' Column D in Sheet1: Takes from Column P in Sheet2
+        If ws2.Cells(i, 16).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 16).Value
             needsDefault = True
         End If
         
-        ' Column J: H→G→F→E→D from SUMMARY
-        For col = 8 To 4 Step -1
-            If Not IsEmpty(wsSummary.Cells(i, col)) Then
-                wsOutput.Cells(i, 10).Value = wsSummary.Cells(i, col).Value
-                needsDefault = True
-                Exit For
-            End If
-        Next col
-        
-        If IsEmpty(wsOutput.Cells(i, 10)) And Not IsEmpty(wsSummary.Cells(i, 4)) Then
-            wsOutput.Cells(i, 10).Value = wsSummary.Cells(i, 4).Value
+        ' Column E in Sheet1: Takes from Column J in Sheet2
+        If ws2.Cells(i, 10).Value <> "" Then
+            ws1.Cells(i, 5).Value = ws2.Cells(i, 10).Value
             needsDefault = True
         End If
         
-        ' Set defaults if needed
+        ' Column F and G remain blank (no action needed)
+        
+        ' Column I in Sheet1: Default value if any data is found
+        
+        ' Column J in Sheet1: Searches Sheet2 columns I, H, G, F, E until filled
+        If ws2.Cells(i, 9).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 9).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 8).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 8).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 7).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 7).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 6).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 6).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 5).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 5).Value
+            needsDefault = True
+        End If
+        
+        ' Set default values if any of D, E, or J have text
         If needsDefault Then
-            wsOutput.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
-            wsOutput.Cells(i, 8).Value = "Y"
-            wsOutput.Cells(i, 9).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+            ws1.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+            ws1.Cells(i, 9).Value = "XXC_CONNECT_ORG_AND_GRADE"
         Else
-            wsOutput.Cells(i, 1).ClearContents
-            wsOutput.Cells(i, 8).ClearContents
-            wsOutput.Cells(i, 9).ClearContents
+            ' Clear these columns if none of D,E,J have text
+            ws1.Cells(i, 1).ClearContents
+            ws1.Cells(i, 9).ClearContents
         End If
     Next i
     
-    ' ===== PART 2: VALIDATE MAPPING DATA =====
-    If queryAvailable Then
-        lastRow = GetLastRow(wsMapping, "J")
-        
-        For i = 2 To lastRow
-            rolesFound = ""
-            rankFound = ""
-            unitToCheck = Trim(wsMapping.Cells(i, "J").Value)
-            
-            If unitToCheck <> "" Then
-                ' Search DEFAULTUNIT_CHECK (column J → K)
-                For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
-                    If Trim(CStr(defaultUnitArray(duRow, 10))) = unitToCheck Then ' Column J
-                        orgLevel = Trim(CStr(defaultUnitArray(duRow, 11))) ' Column K
-                        
-                        ' Search HR_Feed (columns H-Q → AG and C)
-                        For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
-                            For col = 8 To 17 ' Columns H-Q
-                                If Trim(CStr(hrFeedArray(hrRow, col))) = orgLevel Then
-                                    ' Security Roles (AG)
-                                    If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
-                                        rolesFound = AddToList(rolesFound, CStr(hrFeedArray(hrRow, 33)))
-                                    End If
-                                    ' Rank (C)
-                                    If rankFound = "" And Not IsEmpty(hrFeedArray(hrRow, 3)) Then
-                                        rankFound = CStr(hrFeedArray(hrRow, 3))
-                                    End If
-                                    Exit For
-                                End If
-                            Next col
-                        Next hrRow
-                        
-                        ' Update MAPPING
-                        wsMapping.Cells(i, "K").Value = rolesFound
-                        wsMapping.Cells(i, "I").Value = rankFound
-                        Exit For
-                    End If
-                Next duRow
-            End If
-            
-            ' Clear if no match found
-            If rolesFound = "" Then wsMapping.Cells(i, "K").ClearContents
-            If rankFound = "" Then wsMapping.Cells(i, "I").ClearContents
-        Next i
-    End If
-    
     Application.ScreenUpdating = True
-    MsgBox "Process completed successfully!", vbInformation
-    Exit Sub
-    
-ErrorHandler:
-    Application.ScreenUpdating = True
-    MsgBox "Error in row " & i & ": " & Err.Description, vbCritical
+    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows.", vbInformation
 End Sub
 
-' ===== HELPER FUNCTIONS =====
-Function GetWorksheet(sheetName As String) As Worksheet
-    On Error Resume Next
-    Set GetWorksheet = ThisWorkbook.Sheets(sheetName)
-    On Error GoTo 0
-    If GetWorksheet Is Nothing Then
-        MsgBox "Sheet '" & sheetName & "' not found!", vbExclamation
-    End If
-End Function
-
-Function GetQueryFromPQGroup(queryName As String, groupName As String) As ListObject
-    Dim conn As WorkbookConnection
-    Dim lo As ListObject
-    Dim ws As Worksheet
-    
-    ' Try all possible connection name formats
-    On Error Resume Next
-    For Each conn In ThisWorkbook.Connections
-        If conn.Name = groupName & "\" & queryName Or _
-           conn.Name = groupName & "!" & queryName Then
-            Set ws = ThisWorkbook.Sheets(conn.WorksheetConnection.Parent.Name)
-            Set GetQueryFromPQGroup = ws.ListObjects(queryName)
-            Exit For
-        End If
-    Next conn
-    
-    ' Fallback: Search all queries if not found in group
-    If GetQueryFromPQGroup Is Nothing Then
-        For Each ws In ThisWorkbook.Worksheets
-            For Each lo In ws.ListObjects
-                If lo.Name = queryName Then
-                    Set GetQueryFromPQGroup = lo
-                    Exit For
-                End If
-            Next lo
-            If Not GetQueryFromPQGroup Is Nothing Then Exit For
-        Next ws
-    End If
-    On Error GoTo 0
-    
-    If GetQueryFromPQGroup Is Nothing Then
-        MsgBox "Query '" & queryName & "' not found in group '" & groupName & "'", vbExclamation
-    End If
-End Function
-
-Function GetLastRow(ws As Worksheet, col As String) As Long
-    On Error Resume Next
-    GetLastRow = ws.Cells(ws.Rows.Count, col).End(xlUp).Row
-    If GetLastRow < 2 Then GetLastRow = 2
-    On Error GoTo 0
-End Function
-
-Function AddToList(existingList As String, newItem As String) As String
-    If existingList = "" Then
-        AddToList = newItem
-    Else
-        AddToList = existingList & ", " & newItem
-    End If
-End Function
