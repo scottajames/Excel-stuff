@@ -1,160 +1,146 @@
-Sub CombinedImportAndValidation()
-    Dim wsMapping As Worksheet, wsOutput As Worksheet
+Sub MasterImportAndValidation()
+    Dim wsMapping As Worksheet, wsOutput As Worksheet, wsSummary As Worksheet
     Dim lastRow As Long, i As Long, duRow As Long, hrRow As Long, col As Integer
     Dim needsDefault As Boolean, found As Boolean
     Dim orgLevel As String, unitToCheck As String
     Dim securityRoles As String, rank As String
     Dim defaultUnitQuery As ListObject, hrFeedQuery As ListObject
     Dim defaultUnitArray As Variant, hrFeedArray As Variant
-    Dim queryAvailable As Boolean
     
-    ' Set worksheets
+    ' Set worksheets with error handling
     On Error Resume Next
     Set wsMapping = ThisWorkbook.Sheets("MAPPING")
     Set wsOutput = ThisWorkbook.Sheets("OUTPUT")
+    Set wsSummary = ThisWorkbook.Sheets("SUMMARY")
     On Error GoTo 0
     
-    If wsMapping Is Nothing Or wsOutput Is Nothing Then
-        MsgBox "Required sheets not found!", vbExclamation
+    If wsMapping Is Nothing Or wsOutput Is Nothing Or wsSummary Is Nothing Then
+        MsgBox "Required sheets not found! Please check sheet names.", vbCritical
         Exit Sub
     End If
     
+    ' Get queries from "Mapping [2]" group
+    Set defaultUnitQuery = GetQueryFromGroup("DEFAULTUNIT_CHECK", "Mapping [2]")
+    Set hrFeedQuery = GetQueryFromGroup("HR_Feed", "Mapping [2]")
+    
+    If defaultUnitQuery Is Nothing Or hrFeedQuery Is Nothing Then
+        MsgBox "Required queries not found in 'Mapping [2]' group!", vbCritical
+        Exit Sub
+    End If
+    
+    ' Load query data into arrays for faster processing
+    defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
+    hrFeedArray = hrFeedQuery.DataBodyRange.Value
+    
     Application.ScreenUpdating = False
     
-    ' ===== PART 1: IMPORT FROM OUTPUT TO MAPPING =====
+    ' ===== STEP 1: IMPORT FROM OUTPUT TO MAPPING =====
     lastRow = wsOutput.Cells(wsOutput.Rows.Count, "A").End(xlUp).Row
     If lastRow < 2 Then lastRow = 2
     
     ' Clear target columns in MAPPING
-    wsMapping.Range("A2:A" & lastRow).ClearContents
-    wsMapping.Range("D2:D" & lastRow).ClearContents
-    wsMapping.Range("E2:E" & lastRow).ClearContents
-    wsMapping.Range("I2:I" & lastRow).ClearContents
-    wsMapping.Range("J2:J" & lastRow).ClearContents
+    wsMapping.Range("A2:K" & lastRow).ClearContents
     
-    ' Process import
+    ' Process import from OUTPUT to MAPPING
     For i = 2 To lastRow
         needsDefault = False
         
-        ' Column D in MAPPING: Takes from Column P in OUTPUT
-        If wsOutput.Cells(i, 16).Value <> "" Then
+        ' Column D in MAPPING: From Column P in OUTPUT
+        If Not IsEmpty(wsOutput.Cells(i, 16)) Then
             wsMapping.Cells(i, 4).Value = wsOutput.Cells(i, 16).Value
             needsDefault = True
         End If
         
-        ' Column E in MAPPING: Takes from Column J in OUTPUT
-        If wsOutput.Cells(i, 10).Value <> "" Then
+        ' Column E in MAPPING: From Column J in OUTPUT
+        If Not IsEmpty(wsOutput.Cells(i, 10)) Then
             wsMapping.Cells(i, 5).Value = wsOutput.Cells(i, 10).Value
             needsDefault = True
         End If
         
-        ' Column J in MAPPING: Searches OUTPUT columns I, H, G, F, E until filled
-        If wsOutput.Cells(i, 9).Value <> "" Then
-            wsMapping.Cells(i, 10).Value = wsOutput.Cells(i, 9).Value
-            needsDefault = True
-        ElseIf wsOutput.Cells(i, 8).Value <> "" Then
-            wsMapping.Cells(i, 10).Value = wsOutput.Cells(i, 8).Value
-            needsDefault = True
-        ElseIf wsOutput.Cells(i, 7).Value <> "" Then
-            wsMapping.Cells(i, 10).Value = wsOutput.Cells(i, 7).Value
-            needsDefault = True
-        ElseIf wsOutput.Cells(i, 6).Value <> "" Then
-            wsMapping.Cells(i, 10).Value = wsOutput.Cells(i, 6).Value
-            needsDefault = True
-        ElseIf wsOutput.Cells(i, 5).Value <> "" Then
-            wsMapping.Cells(i, 10).Value = wsOutput.Cells(i, 5).Value
-            needsDefault = True
-        End If
+        ' Column J in MAPPING: From Columns I,H,G,F,E in OUTPUT (first non-empty)
+        For col = 9 To 5 Step -1
+            If Not IsEmpty(wsOutput.Cells(i, col)) Then
+                wsMapping.Cells(i, 10).Value = wsOutput.Cells(i, col).Value
+                needsDefault = True
+                Exit For
+            End If
+        Next col
         
-        ' Set default values if any of D, E, or J have text
+        ' Set default values if any data was imported
         If needsDefault Then
             wsMapping.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
             wsMapping.Cells(i, 9).Value = "XXC_CONNECT_ORG_AND_GRADE"
-        Else
-            wsMapping.Cells(i, 1).ClearContents
-            wsMapping.Cells(i, 9).ClearContents
         End If
     Next i
     
-    ' ===== PART 2: VALIDATE MAPPING DATA =====
-    ' Get queries from "Mapping [2]" group
-    Set defaultUnitQuery = GetQueryFromGroup("DEFAULTUNIT_CHECK", "Mapping [2]")
-    Set hrFeedQuery = GetQueryFromGroup("HR_Feed", "Mapping [2]")
-    queryAvailable = Not (defaultUnitQuery Is Nothing Or hrFeedQuery Is Nothing)
+    ' ===== STEP 2: IMPORT FROM SUMMARY TO MAPPING =====
+    lastRow = wsSummary.Cells(wsSummary.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 2 Then lastRow = 2
     
-    If queryAvailable Then
-        ' Load query data into arrays
-        defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
-        hrFeedArray = hrFeedQuery.DataBodyRange.Value
+    ' Process import from SUMMARY to MAPPING (additional data)
+    For i = 2 To lastRow
+        ' Add your specific import logic from SUMMARY sheet here
+        ' Example: wsMapping.Cells(i, "F").Value = wsSummary.Cells(i, "C").Value
+    Next i
+    
+    ' ===== STEP 3: VALIDATE AND ENRICH DATA =====
+    lastRow = wsMapping.Cells(wsMapping.Rows.Count, "J").End(xlUp).Row
+    
+    For i = 2 To lastRow
+        securityRoles = ""
+        rank = ""
+        unitToCheck = Trim(wsMapping.Cells(i, "J").Value)
         
-        ' Process validation
-        For i = 2 To lastRow
-            securityRoles = ""
-            rank = ""
-            unitToCheck = Trim(wsMapping.Cells(i, "J").Value)
-            
-            If unitToCheck <> "" Then
-                ' Search DEFAULTUNIT_CHECK (column J → K)
-                For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
-                    If Trim(CStr(defaultUnitArray(duRow, 10))) = unitToCheck Then ' Column J is index 10
-                        orgLevel = Trim(CStr(defaultUnitArray(duRow, 11))) ' Column K is index 11
-                        
-                        ' Search HR_Feed for orgLevel (columns H-Q)
-                        For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
-                            ' Check columns H (8) to Q (17)
-                            For col = 8 To 17
-                                If Trim(CStr(hrFeedArray(hrRow, col))) = orgLevel Then
-                                    ' Get Security Roles from AG (column 33)
-                                    If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
-                                        securityRoles = AddToList(securityRoles, CStr(hrFeedArray(hrRow, 33)))
-                                    End If
-                                    ' Get Rank from C (column 3)
-                                    If rank = "" And Not IsEmpty(hrFeedArray(hrRow, 3)) Then
-                                        rank = CStr(hrFeedArray(hrRow, 3))
-                                    End If
-                                    Exit For
+        If unitToCheck <> "" Then
+            ' Search DEFAULTUNIT_CHECK (column J → K)
+            For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
+                If Trim(CStr(defaultUnitArray(duRow, 10))) = unitToCheck Then ' Column J
+                    orgLevel = Trim(CStr(defaultUnitArray(duRow, 11))) ' Column K
+                    
+                    ' Search HR_Feed for orgLevel (columns H-Q)
+                    For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
+                        For col = 8 To 17 ' Columns H-Q
+                            If Trim(CStr(hrFeedArray(hrRow, col))) = orgLevel Then
+                                ' Get Security Roles from AG (column 33)
+                                If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
+                                    securityRoles = AddToList(securityRoles, CStr(hrFeedArray(hrRow, 33)))
                                 End If
-                            Next col
-                        Next hrRow
-                        
-                        ' Update MAPPING sheet
-                        wsMapping.Cells(i, "K").Value = securityRoles
-                        wsMapping.Cells(i, "I").Value = rank
-                        Exit For
-                    End If
-                Next duRow
-            End If
-        Next i
-    End If
+                                ' Get Rank from C (column 3)
+                                If rank = "" And Not IsEmpty(hrFeedArray(hrRow, 3)) Then
+                                    rank = CStr(hrFeedArray(hrRow, 3))
+                                End If
+                                Exit For
+                            End If
+                        Next col
+                    Next hrRow
+                    
+                    ' Update MAPPING sheet
+                    wsMapping.Cells(i, "K").Value = securityRoles ' Security roles to column K
+                    wsMapping.Cells(i, "I").Value = rank ' Rank to column I
+                    Exit For
+                End If
+            Next duRow
+        End If
+    Next i
     
     Application.ScreenUpdating = True
-    
-    ' Completion message
-    Dim msg As String
-    msg = "Process completed:" & vbCrLf & _
-          "• Imported " & (lastRow - 1) & " rows from OUTPUT to MAPPING"
-    
-    If queryAvailable Then
-        msg = msg & vbCrLf & "• Validated security roles and ranks in MAPPING"
-    Else
-        msg = msg & vbCrLf & "• Validation skipped (queries not available)"
-    End If
-    
-    MsgBox msg, vbInformation
+    MsgBox "All data imported and validated successfully!" & vbCrLf & _
+           "Processed " & lastRow - 1 & " rows in MAPPING.", vbInformation
 End Sub
 
 Function GetQueryFromGroup(queryName As String, groupName As String) As ListObject
     Dim conn As WorkbookConnection
     Dim ws As Worksheet
     
-    ' Try different connection name formats
-    On Error Resume Next
+    ' Try all possible connection name formats
     For Each conn In ThisWorkbook.Connections
         If conn.Name = groupName & "\" & queryName Or _
            conn.Name = groupName & "!" & queryName Or _
            conn.Name = queryName Then
+            On Error Resume Next
             Set ws = ThisWorkbook.Sheets(conn.WorksheetConnection.Parent.Name)
             Set GetQueryFromGroup = ws.ListObjects(queryName)
+            On Error GoTo 0
             If Not GetQueryFromGroup Is Nothing Then Exit Function
         End If
     Next conn
