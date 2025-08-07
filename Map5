@@ -10,26 +10,32 @@ Sub CombinedImportAndValidation()
     Dim defaultUnitArray As Variant, hrFeedArray As Variant
     Dim queryAvailable As Boolean
     
-    ' Set worksheets with error checking
+    ' Set worksheets
     Set wsOutput = GetWorksheet("OUTPUT")
     Set wsSummary = GetWorksheet("SUMMARY")
     Set wsMapping = GetWorksheet("MAPPING")
     If wsOutput Is Nothing Or wsSummary Is Nothing Or wsMapping Is Nothing Then Exit Sub
     
-    ' Get queries from Mapping group
-    Set defaultUnitQuery = GetListObjectFromGroup("DEFAULTUNIT_CHECK", "Mapping")
-    Set hrFeedQuery = GetListObjectFromGroup("HR_Feed", "Mapping")
+    ' Get queries from Mapping folder (Power Query group)
+    Set defaultUnitQuery = GetQueryFromPQGroup("DEFAULTUNIT_CHECK", "Mapping")
+    Set hrFeedQuery = GetQueryFromPQGroup("HR_Feed", "Mapping")
     
     ' Check query availability
     queryAvailable = Not (defaultUnitQuery Is Nothing Or hrFeedQuery Is Nothing)
     If Not queryAvailable Then
-        If MsgBox("Queries not found in Mapping group. Continue with import only?", vbQuestion + vbYesNo) = vbNo Then
+        If MsgBox("Queries not found in Mapping folder. Continue with import only?", vbQuestion + vbYesNo) = vbNo Then
             Exit Sub
         End If
     Else
         ' Load query data into arrays
+        On Error Resume Next
         defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
         hrFeedArray = hrFeedQuery.DataBodyRange.Value
+        If Err.Number <> 0 Then
+            queryAvailable = False
+            MsgBox "Error loading query data. Continuing with import only.", vbExclamation
+        End If
+        On Error GoTo 0
     End If
     
     Application.ScreenUpdating = False
@@ -37,16 +43,16 @@ Sub CombinedImportAndValidation()
     ' ===== PART 1: IMPORT FROM SUMMARY TO OUTPUT =====
     lastRow = GetLastRow(wsSummary, "A")
     
-    ' Clear target columns in OUTPUT
+    ' Clear target columns
     wsOutput.Range("D2:D" & lastRow).ClearContents
     wsOutput.Range("E2:E" & lastRow).ClearContents
     wsOutput.Range("J2:J" & lastRow).ClearContents
     
-    ' Process each row
+    ' Process import
     For i = 2 To lastRow
         needsDefault = False
         
-        ' Column D: R→S→T→U→V from SUMMARY
+        ' Column D: R→S→T→U→V
         For col = 18 To 22
             If Not IsEmpty(wsSummary.Cells(i, col)) Then
                 wsOutput.Cells(i, 4).Value = wsSummary.Cells(i, col).Value
@@ -55,13 +61,13 @@ Sub CombinedImportAndValidation()
             End If
         Next col
         
-        ' Column E: I from SUMMARY
+        ' Column E: I
         If Not IsEmpty(wsSummary.Cells(i, 9)) Then
             wsOutput.Cells(i, 5).Value = wsSummary.Cells(i, 9).Value
             needsDefault = True
         End If
         
-        ' Column J: H→G→F→E→D from SUMMARY
+        ' Column J: H→G→F→E→D
         For col = 8 To 4 Step -1
             If Not IsEmpty(wsSummary.Cells(i, col)) Then
                 wsOutput.Cells(i, 10).Value = wsSummary.Cells(i, col).Value
@@ -75,7 +81,7 @@ Sub CombinedImportAndValidation()
             needsDefault = True
         End If
         
-        ' Set defaults if needed
+        ' Set defaults
         If needsDefault Then
             wsOutput.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
             wsOutput.Cells(i, 8).Value = "Y"
@@ -97,20 +103,20 @@ Sub CombinedImportAndValidation()
             unitToCheck = wsMapping.Cells(i, "J").Value
             
             If Not IsEmpty(unitToCheck) Then
-                ' Search DEFAULTUNIT_CHECK (column J → K)
+                ' Search DEFAULTUNIT_CHECK (J → K)
                 For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
-                    If CStr(defaultUnitArray(duRow, 10)) = CStr(unitToCheck) Then ' Column J
-                        orgLevel = CStr(defaultUnitArray(duRow, 11)) ' Column K
+                    If CStr(defaultUnitArray(duRow, 10)) = CStr(unitToCheck) Then
+                        orgLevel = CStr(defaultUnitArray(duRow, 11))
                         
-                        ' Search HR_Feed (columns H-Q → AG for roles, C for rank)
+                        ' Search HR_Feed (H-Q → AG and C)
                         For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
-                            For col = 8 To 17 ' Columns H-Q
+                            For col = 8 To 17
                                 If CStr(hrFeedArray(hrRow, col)) = orgLevel Then
-                                    ' Get Security Roles (AG)
+                                    ' Security Roles (AG)
                                     If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
                                         rolesFound = AddToList(rolesFound, CStr(hrFeedArray(hrRow, 33)))
                                     End If
-                                    ' Get Rank (C)
+                                    ' Rank (C)
                                     If rankFound = "" And Not IsEmpty(hrFeedArray(hrRow, 3)) Then
                                         rankFound = CStr(hrFeedArray(hrRow, 3))
                                     End If
@@ -134,13 +140,9 @@ Sub CombinedImportAndValidation()
     End If
     
     Application.ScreenUpdating = True
-    
-    ' Completion message
-    Dim msg As String
-    msg = "Process completed:" & vbCrLf & _
-          "• Imported " & (lastRow - 1) & " rows to OUTPUT" & vbCrLf & _
-          "• Validated " & GetLastRow(wsMapping, "J") - 1 & " rows in MAPPING"
-    MsgBox msg, vbInformation
+    MsgBox "Process completed:" & vbCrLf & _
+          "• Imported " & GetLastRow(wsSummary, "A") - 1 & " rows to OUTPUT" & vbCrLf & _
+          "• Validated " & GetLastRow(wsMapping, "J") - 1 & " rows in MAPPING", vbInformation
     Exit Sub
     
 ErrorHandler:
@@ -148,34 +150,38 @@ ErrorHandler:
     MsgBox "Error in row " & i & ": " & Err.Description, vbCritical
 End Sub
 
+' ===== IMPROVED QUERY LOCATOR =====
+Function GetQueryFromPQGroup(queryName As String, groupName As String) As ListObject
+    Dim conn As WorkbookConnection
+    Dim lo As ListObject
+    
+    ' First try to find connection with group prefix
+    On Error Resume Next
+    For Each conn In ThisWorkbook.Connections
+        If conn.Name = groupName & "\" & queryName Then
+            Set GetQueryFromPQGroup = ThisWorkbook.Sheets(conn.WorksheetConnection.Parent.Name).ListObjects(queryName)
+            Exit For
+        End If
+    Next conn
+    
+    ' If not found, try direct name (some versions don't include group in connection name)
+    If GetQueryFromPQGroup Is Nothing Then
+        For Each lo In ThisWorkbook.Sheets(1).Parent.ListObjects ' Check all sheets
+            If lo.Name = queryName Then
+                Set GetQueryFromPQGroup = lo
+                Exit For
+            End If
+        Next lo
+    End If
+    On Error GoTo 0
+End Function
+
 ' ===== HELPER FUNCTIONS =====
 Function GetWorksheet(sheetName As String) As Worksheet
     On Error Resume Next
     Set GetWorksheet = ThisWorkbook.Sheets(sheetName)
     On Error GoTo 0
-    If GetWorksheet Is Nothing Then
-        MsgBox "Sheet '" & sheetName & "' not found!", vbExclamation
-    End If
-End Function
-
-Function GetListObjectFromGroup(queryName As String, groupName As String) As ListObject
-    Dim conn As WorkbookConnection
-    Dim qt As QueryTable
-    Dim ws As Worksheet
-    
-    On Error Resume Next
-    For Each conn In ThisWorkbook.Connections
-        If conn.Name = groupName & "!" & queryName Then
-            Set ws = ThisWorkbook.Sheets(conn.WorksheetConnection.Parent.Name)
-            Set GetListObjectFromGroup = ws.ListObjects(queryName)
-            Exit For
-        End If
-    Next conn
-    On Error GoTo 0
-    
-    If GetListObjectFromGroup Is Nothing Then
-        MsgBox "Query '" & queryName & "' not found in group '" & groupName & "'", vbExclamation
-    End If
+    If GetWorksheet Is Nothing Then MsgBox "Sheet '" & sheetName & "' not found!", vbExclamation
 End Function
 
 Function GetLastRow(ws As Worksheet, col As String) As Long
