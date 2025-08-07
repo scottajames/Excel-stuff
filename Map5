@@ -1,40 +1,11 @@
 Sub ImportColumnsWithConditions()
-    Dim ws1 As Worksheet, ws2 As Worksheet, wsLists As Worksheet
+    Dim ws1 As Worksheet, ws2 As Worksheet, wsMapping As Worksheet
     Dim lastRow As Long, i As Long
     Dim needsDefault As Boolean
-    Dim bandList As Variant
     
+    ' Set worksheets
     Set ws1 = ThisWorkbook.Sheets("Sheet1")
     Set ws2 = ThisWorkbook.Sheets("Sheet2")
-    
-    ' Check if Lists sheet exists, if not create it
-    On Error Resume Next
-    Set wsLists = ThisWorkbook.Sheets("Lists")
-    On Error GoTo 0
-    
-    If wsLists Is Nothing Then
-        Set wsLists = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-        wsLists.Name = "Lists"
-        
-        ' Add all band options to column A
-        bandList = Array("Advisor To Management Board", "Assistant Commissioner", "Band A", "Band B", "Band C", "Band D", _
-                        "Band E", "Band F", "Band G", "Band H", "Band I", "Band J1", "Band J2", "Band J3", "Band J4", _
-                        "Band K1", "Band K2", "Band L", "Band M", "Band N", "Band O", "Band P1", "Band P2", "Band Q", _
-                        "Band R DP", "Band R Transport", "Band S", "Band S1", "Band T", "Band U", "Band V", "BB1", "BB2", _
-                        "CBSS1", "Chief Inspector", "Chief Superintendent", "Commander", "Commissioner", "Constable", _
-                        "Constable - PEQF", "Deputy Asst Commissioner", "Deputy Commissioner", "Detective Chief Inspector", _
-                        "Detective Chief Superintendent", "Detective Constable", "Detective Constable - PEQF", _
-                        "Detective Inspector", "Detective Sergeant", "Fleet - Manager", "Fleet - Team Manager", "FSS", _
-                        "Inspector", "Intern", "MASS M2", "MADS P2", "MASS S4", "MOPAC Advisor", "MOPAC Apprentice", _
-                        "MOPAC Band B", "MOPAC Fixed Salary Range", "MOPAC Grade 1", "MOPAC Grade 2", "MOPAC Grade 3", _
-                        "MOPAC Grade 4", "MOPAC Grade 5", "MOPAC Grade 6", "MOPAC Grade 7", "MOPAC Grade8", "MOPAC SMT", _
-                        "New Constable", "New Detective Constable", "New Superintendent", "Non Exec Director", "Sergeant", _
-                        "Special Assistant Chief Inspector", "Special Chief Inspector", "Special Chief Officer", _
-                        "Special Constable", "Special Inspector", "Special Sergeant", "TUPE Interim", "UKFPU - 6", _
-                        "UKFPU - 7", "UKFPU - EO", "UKFPU - HEO", "UKFPU - SEO", "Unbanded", "Volunteer", "(blank)")
-        
-        wsLists.Range("A1:A" & UBound(bandList) + 1).Value = Application.Transpose(bandList)
-    End If
     
     Application.ScreenUpdating = False
     
@@ -46,19 +17,6 @@ Sub ImportColumnsWithConditions()
     ws1.Range("D2:D" & lastRow).ClearContents
     ws1.Range("E2:E" & lastRow).ClearContents
     ws1.Range("J2:J" & lastRow).ClearContents
-    
-    ' Create named range for the band list
-    ThisWorkbook.Names.Add Name:="PositionBands", RefersTo:="=Lists!$A$1:$A$" & wsLists.Cells(wsLists.Rows.Count, "A").End(xlUp).Row
-    
-    ' Set up data validation for column E (searchable drop-down)
-    With ws1.Range("E2:E" & lastRow).Validation
-        .Delete ' Remove any existing validation
-        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="=PositionBands"
-        .IgnoreBlank = True
-        .InCellDropdown = True
-        .ShowInput = True
-        .ShowError = True
-    End With
     
     ' Import data starting from row 2
     For i = 2 To lastRow
@@ -82,11 +40,9 @@ Sub ImportColumnsWithConditions()
             needsDefault = True
         End If
         
-        ' Column E in Sheet1 gets I from Sheet2 (now with drop-down)
-        If ws2.Cells(i, 9).Value <> "" Then
-            ws1.Cells(i, 5).Value = ws2.Cells(i, 9).Value
-            needsDefault = True
-        End If
+        ' Column E in Sheet1 gets I from Sheet2
+        ws1.Cells(i, 5).Value = ws2.Cells(i, 9).Value
+        If ws1.Cells(i, 5).Value <> "" Then needsDefault = True
         
         ' Column J in Sheet1: H→G→F→E→D from Sheet2
         If ws2.Cells(i, 8).Value <> "" Then
@@ -119,67 +75,93 @@ Sub ImportColumnsWithConditions()
         End If
     Next i
     
-    ' Add search functionality to column E (requires ActiveX combo box)
-    AddSearchableDropDown ws1, "E", lastRow
+    ' Now run the additional check for DEFAULTUNIT_CHECK and HR_Feed
+    Call CheckDefaultUnitsAndAddRoles
     
     Application.ScreenUpdating = True
-    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows." & vbCrLf & _
-           "Searchable drop-down added to column E.", vbInformation
+    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows.", vbInformation
 End Sub
 
-Sub AddSearchableDropDown(ws As Worksheet, columnLetter As String, lastRow As Long)
-    ' This adds a searchable drop-down using ActiveX combo boxes
-    Dim cb As OLEObject
-    Dim cell As Range
+Sub CheckDefaultUnitsAndAddRoles()
+    Dim wsMapping As Worksheet
+    Dim defaultUnitQuery As ListObject, hrFeedQuery As ListObject
+    Dim i As Long, lastRow As Long, hrRow As Long, col As Integer
+    Dim orgLevel As String, unitToCheck As String
+    Dim found As Boolean
+    Dim defaultUnitArray As Variant, hrFeedArray As Variant
+    Dim rolesFound As String, rankFound As String
     
-    ' Delete any existing combo boxes in the column
-    For Each cb In ws.OLEObjects
-        If cb.Name Like "Combo_" & columnLetter & "*" Then
-            cb.Delete
+    ' Set worksheet - changed to Sheet1 since that's where your data is going
+    Set wsMapping = ThisWorkbook.Sheets("Sheet1")
+    
+    ' Get the data queries
+    On Error Resume Next
+    Set defaultUnitQuery = ThisWorkbook.Connections("DEFAULTUNIT_CHECK").Worksheet.ListObjects(1)
+    Set hrFeedQuery = ThisWorkbook.Connections("HR_Feed").Worksheet.ListObjects(1)
+    On Error GoTo 0
+    
+    If defaultUnitQuery Is Nothing Then
+        Debug.Print "DEFAULTUNIT_CHECK query not found!"
+        Exit Sub
+    End If
+    
+    If hrFeedQuery Is Nothing Then
+        Debug.Print "HR_Feed query not found!"
+        Exit Sub
+    End If
+    
+    ' Load data into arrays for faster processing
+    defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
+    hrFeedArray = hrFeedQuery.DataBodyRange.Value
+    
+    ' Get last row in Sheet1 (column J)
+    lastRow = wsMapping.Cells(wsMapping.Rows.Count, "J").End(xlUp).Row
+    
+    ' Turn off screen updating
+    Application.ScreenUpdating = False
+    
+    ' Process each row in Sheet1
+    For i = 2 To lastRow
+        rolesFound = ""
+        rankFound = ""
+        unitToCheck = wsMapping.Cells(i, "J").Value
+        
+        ' Search DEFAULTUNIT_CHECK for the unit (assuming column A has the units)
+        For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
+            If defaultUnitArray(duRow, 1) = unitToCheck Then
+                orgLevel = defaultUnitArray(duRow, 11) ' Column K (11th column)
+                found = True
+                Exit For
+            End If
+        Next duRow
+        
+        If found Then
+            ' Search HR_Feed for the orgLevel (columns H-Q)
+            For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
+                For col = 1 To 10 ' Columns H-Q (1-10 in array)
+                    If hrFeedArray(hrRow, col) = orgLevel Then
+                        ' Get Security Roles (AG = column 33)
+                        If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
+                            rolesFound = IIf(rolesFound = "", hrFeedArray(hrRow, 33), rolesFound & ", " & hrFeedArray(hrRow, 33))
+                        End If
+                        ' Get Rank (C = column 3)
+                        If rankFound = "" And Not IsEmpty(hrFeedArray(hrRow, 3)) Then
+                            rankFound = hrFeedArray(hrRow, 3)
+                        End If
+                        Exit For
+                    End If
+                Next col
+            Next hrRow
+            
+            ' Update Sheet1 (columns K and L)
+            wsMapping.Cells(i, "K").Value = rolesFound
+            wsMapping.Cells(i, "L").Value = rankFound
+        Else
+            wsMapping.Cells(i, "K").Value = ""
+            wsMapping.Cells(i, "L").Value = ""
         End If
-    Next cb
+        found = False ' Reset for next row
+    Next i
     
-    ' Add combo boxes to each cell in the column
-    For Each cell In ws.Range(columnLetter & "2:" & columnLetter & lastRow)
-        Set cb = ws.OLEObjects.Add(ClassType:="Forms.ComboBox.1", _
-                                  Left:=cell.Left, _
-                                  Top:=cell.Top, _
-                                  Width:=cell.Width, _
-                                  Height:=cell.Height)
-        cb.Name = "Combo_" & columnLetter & cell.Row
-        cb.Object.MatchEntry = fmMatchEntryComplete
-        cb.Object.ListFillRange = "PositionBands"
-        cb.Object.LinkedCell = cell.Address
-        cb.Object.Style = fmStyleDropDownList
-        cb.Placement = xlMoveAndSize
-        cb.Visible = False ' Hide by default
-    Next cell
-    
-    ' Add worksheet event handler for when cells are selected
-    Dim code As String
-    code = "Private Sub Worksheet_SelectionChange(ByVal Target As Range)" & vbCrLf & _
-           "    If Target.Count > 1 Then Exit Sub" & vbCrLf & _
-           "    If Target.Column = " & ws.Range(columnLetter & "1").Column & " And Target.Row >= 2 Then" & vbCrLf & _
-           "        On Error Resume Next" & vbCrLf & _
-           "        With Me.OLEObjects(""Combo_"" & Split(Cells(1, Target.Column).Address(False, False) & Target.Row)" & vbCrLf & _
-           "            .Visible = True" & vbCrLf & _
-           "            .Activate" & vbCrLf & _
-           "            .Object.DropDown" & vbCrLf & _
-           "        End With" & vbCrLf & _
-           "    Else" & vbCrLf & _
-           "        For Each ole In Me.OLEObjects" & vbCrLf & _
-           "            If ole.Name Like ""Combo_"" & Split(Cells(1, " & ws.Range(columnLetter & "1").Column & ").Address(False, False) & ""*"" Then" & vbCrLf & _
-           "                ole.Visible = False" & vbCrLf & _
-           "            End If" & vbCrLf & _
-           "        Next ole" & vbCrLf & _
-           "    End If" & vbCrLf & _
-           "End Sub"
-    
-    ' Add the event code to the worksheet
-    With ws.CodeModule
-        On Error Resume Next
-        .DeleteLines 1, .CountOfLines
-        On Error GoTo 0
-        .InsertLines 1, code
-    End With
+    Application.ScreenUpdating = True
 End Sub
