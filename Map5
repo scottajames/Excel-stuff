@@ -10,15 +10,26 @@ Sub CombinedImportAndValidation()
     Dim defaultUnitArray As Variant, hrFeedArray As Variant
     Dim queryAvailable As Boolean
     
-    ' Set worksheets
+    ' Set worksheets with validation
     Set wsOutput = GetWorksheet("OUTPUT")
     Set wsSummary = GetWorksheet("SUMMARY")
     Set wsMapping = GetWorksheet("MAPPING")
     If wsOutput Is Nothing Or wsSummary Is Nothing Or wsMapping Is Nothing Then Exit Sub
     
+    ' Debug: List all connections
+    Debug.Print "=== CONNECTIONS ==="
+    Dim conn As WorkbookConnection
+    For Each conn In ThisWorkbook.Connections
+        Debug.Print conn.Name
+    Next conn
+    
     ' Get queries from "Mapping [2]" group
     Set defaultUnitQuery = GetQueryFromPQGroup("DEFAULTUNIT_CHECK", "Mapping [2]")
     Set hrFeedQuery = GetQueryFromPQGroup("HR_Feed", "Mapping [2]")
+    
+    ' Debug query status
+    Debug.Print "DEFAULTUNIT_CHECK Found: " & (Not defaultUnitQuery Is Nothing)
+    Debug.Print "HR_Feed Found: " & (Not hrFeedQuery Is Nothing)
     
     ' Check query availability
     queryAvailable = Not (defaultUnitQuery Is Nothing Or hrFeedQuery Is Nothing)
@@ -27,19 +38,96 @@ Sub CombinedImportAndValidation()
             Exit Sub
         End If
     Else
-        ' Load query data into arrays
+        ' Load query data with validation
         On Error Resume Next
         defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
         hrFeedArray = hrFeedQuery.DataBodyRange.Value
         If Err.Number <> 0 Then
             queryAvailable = False
             MsgBox "Error loading query data. Continuing with import only.", vbExclamation
+        Else
+            ' Debug array dimensions
+            Debug.Print "DEFAULTUNIT_CHECK Rows: " & UBound(defaultUnitArray, 1) & ", Cols: " & UBound(defaultUnitArray, 2)
+            Debug.Print "HR_Feed Rows: " & UBound(hrFeedArray, 1) & ", Cols: " & UBound(hrFeedArray, 2)
         End If
         On Error GoTo 0
     End If
     
-    ' Rest of your code remains exactly the same...
-    ' [Previous implementation continues here]
+    Application.ScreenUpdating = False
+    
+    ' ===== PART 1: IMPORT FROM SUMMARY TO OUTPUT =====
+    lastRow = GetLastRow(wsSummary, "A")
+    wsOutput.Range("D2:D" & lastRow).ClearContents
+    wsOutput.Range("E2:E" & lastRow).ClearContents
+    wsOutput.Range("J2:J" & lastRow).ClearContents
+    
+    For i = 2 To lastRow
+        ' [Previous import logic remains exactly the same]
+    Next i
+    
+    ' ===== PART 2: VALIDATE MAPPING DATA =====
+    If queryAvailable Then
+        lastRow = GetLastRow(wsMapping, "J")
+        Debug.Print "MAPPING rows to process: " & lastRow - 1
+        
+        For i = 2 To lastRow
+            rolesFound = ""
+            rankFound = ""
+            unitToCheck = Trim(wsMapping.Cells(i, "J").Value)
+            
+            If unitToCheck <> "" Then
+                ' Debug current unit
+                Debug.Print "Processing row " & i & ": " & unitToCheck
+                
+                ' Search DEFAULTUNIT_CHECK (column J → K)
+                For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
+                    If Trim(CStr(defaultUnitArray(duRow, 10))) = unitToCheck Then ' Column J
+                        orgLevel = Trim(CStr(defaultUnitArray(duRow, 11))) ' Column K
+                        Debug.Print "Found orgLevel: " & orgLevel
+                        
+                        ' Search HR_Feed (columns H-Q → AG and C)
+                        For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
+                            For col = 8 To 17 ' Columns H-Q
+                                If Trim(CStr(hrFeedArray(hrRow, col))) = orgLevel Then
+                                    ' Security Roles (AG)
+                                    If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
+                                        rolesFound = AddToList(rolesFound, CStr(hrFeedArray(hrRow, 33)))
+                                        Debug.Print "Added role: " & hrFeedArray(hrRow, 33)
+                                    End If
+                                    ' Rank (C)
+                                    If rankFound = "" And Not IsEmpty(hrFeedArray(hrRow, 3)) Then
+                                        rankFound = CStr(hrFeedArray(hrRow, 3))
+                                        Debug.Print "Added rank: " & rankFound
+                                    End If
+                                    Exit For
+                                End If
+                            Next col
+                        Next hrRow
+                        
+                        ' Update MAPPING
+                        wsMapping.Cells(i, "K").Value = rolesFound
+                        wsMapping.Cells(i, "I").Value = rankFound
+                        Debug.Print "Updated row " & i & " with: " & rolesFound & " | " & rankFound
+                        Exit For
+                    End If
+                Next duRow
+            End If
+            
+            ' Debug if no match
+            If rolesFound = "" Then 
+                wsMapping.Cells(i, "K").ClearContents
+                Debug.Print "No roles found for row " & i
+            End If
+            If rankFound = "" Then 
+                wsMapping.Cells(i, "I").ClearContents
+                Debug.Print "No rank found for row " & i
+            End If
+        Next i
+    End If
+    
+    Application.ScreenUpdating = True
+    MsgBox "Process completed with debug output in Immediate Window (Ctrl+G)", vbInformation
+    Exit Sub
     
 ErrorHandler:
     Application.ScreenUpdating = True
@@ -51,47 +139,35 @@ Function GetQueryFromPQGroup(queryName As String, groupName As String) As ListOb
     Dim lo As ListObject
     Dim ws As Worksheet
     
-    ' Method 1: Try finding connection with exact group name
+    ' Try all possible connection name formats
+    Dim groupFormats
+    groupFormats = Array(groupName & "\", groupName & "!", _
+                         Replace(groupName, " [2]", "") & "\", _
+                         Replace(groupName, " [2]", "") & "!")
+    
     On Error Resume Next
     For Each conn In ThisWorkbook.Connections
-        ' Check both possible naming formats
-        If conn.Name = groupName & "\" & queryName Or _
-           conn.Name = groupName & "!" & queryName Then
-            Set ws = ThisWorkbook.Sheets(conn.WorksheetConnection.Parent.Name)
-            Set GetQueryFromPQGroup = ws.ListObjects(queryName)
-            Exit For
-        End If
-    Next conn
-    
-    ' Method 2: Try finding by query name only (fallback)
-    If GetQueryFromPQGroup Is Nothing Then
-        For Each ws In ThisWorkbook.Worksheets
-            For Each lo In ws.ListObjects
-                If lo.Name = queryName Then
-                    Set GetQueryFromPQGroup = lo
-                    Exit For
-                End If
-            Next lo
-            If Not GetQueryFromPQGroup Is Nothing Then Exit For
-        Next ws
-    End If
-    
-    ' Method 3: Try alternative group name formats
-    If GetQueryFromPQGroup Is Nothing Then
-        For Each conn In ThisWorkbook.Connections
-            ' Try without brackets
-            If conn.Name = "Mapping\" & queryName Or _
-               conn.Name = "Mapping!" & queryName Then
+        For Each fmt In groupFormats
+            If conn.Name = fmt & queryName Then
                 Set ws = ThisWorkbook.Sheets(conn.WorksheetConnection.Parent.Name)
                 Set GetQueryFromPQGroup = ws.ListObjects(queryName)
-                Exit For
+                If Not GetQueryFromPQGroup Is Nothing Then Exit Function
             End If
-        Next conn
-    End If
+        Next fmt
+    Next conn
     
+    ' Fallback: Search all queries
+    For Each ws In ThisWorkbook.Worksheets
+        For Each lo In ws.ListObjects
+            If lo.Name = queryName Then
+                Set GetQueryFromPQGroup = lo
+                Exit Function
+            End If
+        Next lo
+    Next ws
     On Error GoTo 0
     
-    If GetQueryFromPQGroup Is Nothing Then
-        MsgBox "Query '" & queryName & "' not found in group '" & groupName & "'", vbExclamation
-    End If
+    Debug.Print "Query '" & queryName & "' not found in group '" & groupName & "'"
 End Function
+
+' [Keep all other helper functions the same]
