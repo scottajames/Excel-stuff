@@ -1,28 +1,54 @@
-Sub ImportColumnsWithConditions()
-    Dim ws1 As Worksheet, ws2 As Worksheet, wsMapping As Worksheet
-    Dim lastRow As Long, i As Long
-    Dim needsDefault As Boolean
+Sub ImportAllData()
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long, duRow As Long, hrRow As Long, col As Integer
+    Dim needsDefault As Boolean, found As Boolean
+    Dim orgLevel As String, unitToCheck As String
+    Dim rolesFound As String, rankFound As String
+    Dim defaultUnitQuery As ListObject, hrFeedQuery As ListObject
+    Dim defaultUnitArray As Variant, hrFeedArray As Variant
     
     ' Set worksheets
     Set ws1 = ThisWorkbook.Sheets("Sheet1")
     Set ws2 = ThisWorkbook.Sheets("Sheet2")
     
+    ' Error handling for query connections
+    On Error Resume Next
+    Set defaultUnitQuery = ThisWorkbook.Connections("DEFAULTUNIT_CHECK").Worksheet.ListObjects(1)
+    Set hrFeedQuery = ThisWorkbook.Connections("HR_Feed").Worksheet.ListObjects(1)
+    On Error GoTo 0
+    
+    ' Check if queries exist
+    If defaultUnitQuery Is Nothing Then
+        MsgBox "DEFAULTUNIT_CHECK query not found!", vbExclamation
+        Exit Sub
+    End If
+    
+    If hrFeedQuery Is Nothing Then
+        MsgBox "HR_Feed query not found!", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Load query data into arrays for faster processing
+    defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
+    hrFeedArray = hrFeedQuery.DataBodyRange.Value
+    
     Application.ScreenUpdating = False
     
-    ' Find last row with data in Sheet2 (starting from row 2)
+    ' Find last row with data in Sheet2
     lastRow = ws2.Cells(ws2.Rows.Count, "A").End(xlUp).Row
-    If lastRow < 2 Then lastRow = 2 ' Ensure we at least process row 2
+    If lastRow < 2 Then lastRow = 2
     
-    ' Clear previous data in target columns (D, E, J) starting from row 2
-    ws1.Range("D2:D" & lastRow).ClearContents
-    ws1.Range("E2:E" & lastRow).ClearContents
-    ws1.Range("J2:J" & lastRow).ClearContents
+    ' Clear previous data in target columns
+    ws1.Range("D2:L" & lastRow).ClearContents
     
-    ' Import data starting from row 2
+    ' Main processing loop
     For i = 2 To lastRow
         needsDefault = False
+        rolesFound = ""
+        rankFound = ""
         
-        ' Column D in Sheet1: R→S→T→U→V from Sheet2
+        ' --- Original Import Logic ---
+        ' Column D: R→S→T→U→V from Sheet2
         If ws2.Cells(i, 18).Value <> "" Then
             ws1.Cells(i, 4).Value = ws2.Cells(i, 18).Value
             needsDefault = True
@@ -40,11 +66,11 @@ Sub ImportColumnsWithConditions()
             needsDefault = True
         End If
         
-        ' Column E in Sheet1 gets I from Sheet2
+        ' Column E: I from Sheet2
         ws1.Cells(i, 5).Value = ws2.Cells(i, 9).Value
         If ws1.Cells(i, 5).Value <> "" Then needsDefault = True
         
-        ' Column J in Sheet1: H→G→F→E→D from Sheet2
+        ' Column J: H→G→F→E→D from Sheet2
         If ws2.Cells(i, 8).Value <> "" Then
             ws1.Cells(i, 10).Value = ws2.Cells(i, 8).Value
             needsDefault = True
@@ -62,83 +88,25 @@ Sub ImportColumnsWithConditions()
             If ws1.Cells(i, 10).Value <> "" Then needsDefault = True
         End If
         
-        ' Set default values if any of D, E, or J have text
-        If needsDefault Then
-            ws1.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
-            ws1.Cells(i, 8).Value = "Y"
-            ws1.Cells(i, 9).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
-        Else
-            ' Optional: Clear these columns if none of D/E/J have text
-            ws1.Cells(i, 1).ClearContents
-            ws1.Cells(i, 8).ClearContents
-            ws1.Cells(i, 9).ClearContents
+        ' --- New DEFAULTUNIT_CHECK Logic ---
+        unitToCheck = ws1.Cells(i, "J").Value
+        found = False
+        
+        ' Search DEFAULTUNIT_CHECK
+        If Not IsEmpty(unitToCheck) Then
+            For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
+                If defaultUnitArray(duRow, 1) = unitToCheck Then
+                    orgLevel = defaultUnitArray(duRow, 11) ' Column K
+                    found = True
+                    Exit For
+                End If
+            Next duRow
         End If
-    Next i
-    
-    ' Now run the additional check for DEFAULTUNIT_CHECK and HR_Feed
-    Call CheckDefaultUnitsAndAddRoles
-    
-    Application.ScreenUpdating = True
-    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows.", vbInformation
-End Sub
-
-Sub CheckDefaultUnitsAndAddRoles()
-    Dim wsMapping As Worksheet
-    Dim defaultUnitQuery As ListObject, hrFeedQuery As ListObject
-    Dim i As Long, lastRow As Long, hrRow As Long, col As Integer
-    Dim orgLevel As String, unitToCheck As String
-    Dim found As Boolean
-    Dim defaultUnitArray As Variant, hrFeedArray As Variant
-    Dim rolesFound As String, rankFound As String
-    
-    ' Set worksheet - changed to Sheet1 since that's where your data is going
-    Set wsMapping = ThisWorkbook.Sheets("Sheet1")
-    
-    ' Get the data queries
-    On Error Resume Next
-    Set defaultUnitQuery = ThisWorkbook.Connections("DEFAULTUNIT_CHECK").Worksheet.ListObjects(1)
-    Set hrFeedQuery = ThisWorkbook.Connections("HR_Feed").Worksheet.ListObjects(1)
-    On Error GoTo 0
-    
-    If defaultUnitQuery Is Nothing Then
-        Debug.Print "DEFAULTUNIT_CHECK query not found!"
-        Exit Sub
-    End If
-    
-    If hrFeedQuery Is Nothing Then
-        Debug.Print "HR_Feed query not found!"
-        Exit Sub
-    End If
-    
-    ' Load data into arrays for faster processing
-    defaultUnitArray = defaultUnitQuery.DataBodyRange.Value
-    hrFeedArray = hrFeedQuery.DataBodyRange.Value
-    
-    ' Get last row in Sheet1 (column J)
-    lastRow = wsMapping.Cells(wsMapping.Rows.Count, "J").End(xlUp).Row
-    
-    ' Turn off screen updating
-    Application.ScreenUpdating = False
-    
-    ' Process each row in Sheet1
-    For i = 2 To lastRow
-        rolesFound = ""
-        rankFound = ""
-        unitToCheck = wsMapping.Cells(i, "J").Value
         
-        ' Search DEFAULTUNIT_CHECK for the unit (assuming column A has the units)
-        For duRow = LBound(defaultUnitArray, 1) To UBound(defaultUnitArray, 1)
-            If defaultUnitArray(duRow, 1) = unitToCheck Then
-                orgLevel = defaultUnitArray(duRow, 11) ' Column K (11th column)
-                found = True
-                Exit For
-            End If
-        Next duRow
-        
-        If found Then
-            ' Search HR_Feed for the orgLevel (columns H-Q)
+        ' Search HR_Feed if found in DEFAULTUNIT_CHECK
+        If found And Not IsEmpty(orgLevel) Then
             For hrRow = LBound(hrFeedArray, 1) To UBound(hrFeedArray, 1)
-                For col = 1 To 10 ' Columns H-Q (1-10 in array)
+                For col = 1 To 10 ' Columns H-Q
                     If hrFeedArray(hrRow, col) = orgLevel Then
                         ' Get Security Roles (AG = column 33)
                         If Not IsEmpty(hrFeedArray(hrRow, 33)) Then
@@ -152,16 +120,26 @@ Sub CheckDefaultUnitsAndAddRoles()
                     End If
                 Next col
             Next hrRow
-            
-            ' Update Sheet1 (columns K and L)
-            wsMapping.Cells(i, "K").Value = rolesFound
-            wsMapping.Cells(i, "L").Value = rankFound
-        Else
-            wsMapping.Cells(i, "K").Value = ""
-            wsMapping.Cells(i, "L").Value = ""
         End If
-        found = False ' Reset for next row
+        
+        ' Set default values if needed
+        If needsDefault Then
+            ws1.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+            ws1.Cells(i, 8).Value = "Y"
+            ws1.Cells(i, 9).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+            ' Update K and L with roles and rank if found
+            ws1.Cells(i, "K").Value = rolesFound
+            ws1.Cells(i, "L").Value = rankFound
+        Else
+            ws1.Cells(i, 1).ClearContents
+            ws1.Cells(i, 8).ClearContents
+            ws1.Cells(i, 9).ClearContents
+            ws1.Cells(i, "K").ClearContents
+            ws1.Cells(i, "L").ClearContents
+        End If
     Next i
     
     Application.ScreenUpdating = True
+    MsgBox "Data import and processing completed successfully!" & vbCrLf & _
+           "Processed " & (lastRow - 1) & " rows.", vbInformation
 End Sub
