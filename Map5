@@ -1,0 +1,185 @@
+Sub ImportColumnsWithConditions()
+    Dim ws1 As Worksheet, ws2 As Worksheet, wsLists As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim needsDefault As Boolean
+    Dim bandList As Variant
+    
+    Set ws1 = ThisWorkbook.Sheets("Sheet1")
+    Set ws2 = ThisWorkbook.Sheets("Sheet2")
+    
+    ' Check if Lists sheet exists, if not create it
+    On Error Resume Next
+    Set wsLists = ThisWorkbook.Sheets("Lists")
+    On Error GoTo 0
+    
+    If wsLists Is Nothing Then
+        Set wsLists = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsLists.Name = "Lists"
+        
+        ' Add all band options to column A
+        bandList = Array("Advisor To Management Board", "Assistant Commissioner", "Band A", "Band B", "Band C", "Band D", _
+                        "Band E", "Band F", "Band G", "Band H", "Band I", "Band J1", "Band J2", "Band J3", "Band J4", _
+                        "Band K1", "Band K2", "Band L", "Band M", "Band N", "Band O", "Band P1", "Band P2", "Band Q", _
+                        "Band R DP", "Band R Transport", "Band S", "Band S1", "Band T", "Band U", "Band V", "BB1", "BB2", _
+                        "CBSS1", "Chief Inspector", "Chief Superintendent", "Commander", "Commissioner", "Constable", _
+                        "Constable - PEQF", "Deputy Asst Commissioner", "Deputy Commissioner", "Detective Chief Inspector", _
+                        "Detective Chief Superintendent", "Detective Constable", "Detective Constable - PEQF", _
+                        "Detective Inspector", "Detective Sergeant", "Fleet - Manager", "Fleet - Team Manager", "FSS", _
+                        "Inspector", "Intern", "MASS M2", "MADS P2", "MASS S4", "MOPAC Advisor", "MOPAC Apprentice", _
+                        "MOPAC Band B", "MOPAC Fixed Salary Range", "MOPAC Grade 1", "MOPAC Grade 2", "MOPAC Grade 3", _
+                        "MOPAC Grade 4", "MOPAC Grade 5", "MOPAC Grade 6", "MOPAC Grade 7", "MOPAC Grade8", "MOPAC SMT", _
+                        "New Constable", "New Detective Constable", "New Superintendent", "Non Exec Director", "Sergeant", _
+                        "Special Assistant Chief Inspector", "Special Chief Inspector", "Special Chief Officer", _
+                        "Special Constable", "Special Inspector", "Special Sergeant", "TUPE Interim", "UKFPU - 6", _
+                        "UKFPU - 7", "UKFPU - EO", "UKFPU - HEO", "UKFPU - SEO", "Unbanded", "Volunteer", "(blank)")
+        
+        wsLists.Range("A1:A" & UBound(bandList) + 1).Value = Application.Transpose(bandList)
+    End If
+    
+    Application.ScreenUpdating = False
+    
+    ' Find last row with data in Sheet2 (starting from row 2)
+    lastRow = ws2.Cells(ws2.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 2 Then lastRow = 2 ' Ensure we at least process row 2
+    
+    ' Clear previous data in target columns (D, E, J) starting from row 2
+    ws1.Range("D2:D" & lastRow).ClearContents
+    ws1.Range("E2:E" & lastRow).ClearContents
+    ws1.Range("J2:J" & lastRow).ClearContents
+    
+    ' Create named range for the band list
+    ThisWorkbook.Names.Add Name:="PositionBands", RefersTo:="=Lists!$A$1:$A$" & wsLists.Cells(wsLists.Rows.Count, "A").End(xlUp).Row
+    
+    ' Set up data validation for column E (searchable drop-down)
+    With ws1.Range("E2:E" & lastRow).Validation
+        .Delete ' Remove any existing validation
+        .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="=PositionBands"
+        .IgnoreBlank = True
+        .InCellDropdown = True
+        .ShowInput = True
+        .ShowError = True
+    End With
+    
+    ' Import data starting from row 2
+    For i = 2 To lastRow
+        needsDefault = False
+        
+        ' Column D in Sheet1: R→S→T→U→V from Sheet2
+        If ws2.Cells(i, 18).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 18).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 19).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 19).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 20).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 20).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 21).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 21).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 22).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 22).Value
+            needsDefault = True
+        End If
+        
+        ' Column E in Sheet1 gets I from Sheet2 (now with drop-down)
+        If ws2.Cells(i, 9).Value <> "" Then
+            ws1.Cells(i, 5).Value = ws2.Cells(i, 9).Value
+            needsDefault = True
+        End If
+        
+        ' Column J in Sheet1: H→G→F→E→D from Sheet2
+        If ws2.Cells(i, 8).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 8).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 7).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 7).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 6).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 6).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 5).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 5).Value
+            needsDefault = True
+        Else
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 4).Value
+            If ws1.Cells(i, 10).Value <> "" Then needsDefault = True
+        End If
+        
+        ' Set default values if any of D, E, or J have text
+        If needsDefault Then
+            ws1.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+            ws1.Cells(i, 8).Value = "Y"
+            ws1.Cells(i, 9).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+        Else
+            ' Optional: Clear these columns if none of D/E/J have text
+            ws1.Cells(i, 1).ClearContents
+            ws1.Cells(i, 8).ClearContents
+            ws1.Cells(i, 9).ClearContents
+        End If
+    Next i
+    
+    ' Add search functionality to column E (requires ActiveX combo box)
+    AddSearchableDropDown ws1, "E", lastRow
+    
+    Application.ScreenUpdating = True
+    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows." & vbCrLf & _
+           "Searchable drop-down added to column E.", vbInformation
+End Sub
+
+Sub AddSearchableDropDown(ws As Worksheet, columnLetter As String, lastRow As Long)
+    ' This adds a searchable drop-down using ActiveX combo boxes
+    Dim cb As OLEObject
+    Dim cell As Range
+    
+    ' Delete any existing combo boxes in the column
+    For Each cb In ws.OLEObjects
+        If cb.Name Like "Combo_" & columnLetter & "*" Then
+            cb.Delete
+        End If
+    Next cb
+    
+    ' Add combo boxes to each cell in the column
+    For Each cell In ws.Range(columnLetter & "2:" & columnLetter & lastRow)
+        Set cb = ws.OLEObjects.Add(ClassType:="Forms.ComboBox.1", _
+                                  Left:=cell.Left, _
+                                  Top:=cell.Top, _
+                                  Width:=cell.Width, _
+                                  Height:=cell.Height)
+        cb.Name = "Combo_" & columnLetter & cell.Row
+        cb.Object.MatchEntry = fmMatchEntryComplete
+        cb.Object.ListFillRange = "PositionBands"
+        cb.Object.LinkedCell = cell.Address
+        cb.Object.Style = fmStyleDropDownList
+        cb.Placement = xlMoveAndSize
+        cb.Visible = False ' Hide by default
+    Next cell
+    
+    ' Add worksheet event handler for when cells are selected
+    Dim code As String
+    code = "Private Sub Worksheet_SelectionChange(ByVal Target As Range)" & vbCrLf & _
+           "    If Target.Count > 1 Then Exit Sub" & vbCrLf & _
+           "    If Target.Column = " & ws.Range(columnLetter & "1").Column & " And Target.Row >= 2 Then" & vbCrLf & _
+           "        On Error Resume Next" & vbCrLf & _
+           "        With Me.OLEObjects(""Combo_"" & Split(Cells(1, Target.Column).Address(False, False) & Target.Row)" & vbCrLf & _
+           "            .Visible = True" & vbCrLf & _
+           "            .Activate" & vbCrLf & _
+           "            .Object.DropDown" & vbCrLf & _
+           "        End With" & vbCrLf & _
+           "    Else" & vbCrLf & _
+           "        For Each ole In Me.OLEObjects" & vbCrLf & _
+           "            If ole.Name Like ""Combo_"" & Split(Cells(1, " & ws.Range(columnLetter & "1").Column & ").Address(False, False) & ""*"" Then" & vbCrLf & _
+           "                ole.Visible = False" & vbCrLf & _
+           "            End If" & vbCrLf & _
+           "        Next ole" & vbCrLf & _
+           "    End If" & vbCrLf & _
+           "End Sub"
+    
+    ' Add the event code to the worksheet
+    With ws.CodeModule
+        On Error Resume Next
+        .DeleteLines 1, .CountOfLines
+        On Error GoTo 0
+        .InsertLines 1, code
+    End With
+End Sub
