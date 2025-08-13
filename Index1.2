@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tray & Rank Hierarchy Visualizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding-bottom: 50px;
+        }
+
+        #visualization {
+            min-height: 500px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .node {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px 0;
+            display: inline-block;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .staff {
+            background-color: #59a14f;
+            color: white;
+        }
+
+        .constable {
+            background-color: #4e79a7;
+            color: white;
+        }
+
+        .sergeant {
+            background-color: #f28e2b;
+            color: white;
+        }
+
+        .inspector {
+            background-color: #e15759;
+            color: white;
+        }
+
+        .chief-inspector {
+            background-color: #b07aa1;
+            color: white;
+        }
+
+        .other-police {
+            background-color: #76b7b2;
+            color: white;
+        }
+
+        .tray {
+            background-color: #8c564b;
+            color: white;
+        }
+
+        .legend-item {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .debug-info {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .collapsed .children {
+            display: none;
+        }
+
+        .expand-collapse {
+            font-size: 0.8em;
+            margin-left: 10px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .children {
+            margin-left: 20px;
+            border-left: 2px solid #ddd;
+            padding-left: 10px;
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .node-title {
+            display: flex;
+            align-items: center;
+        }
+
+        .rank-section {
+            margin-bottom: 20px;
+        }
+
+        .rank-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .rank-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .rank-item {
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin-bottom: 5px;
+        }
+
+        .tray-item {
+            margin-bottom: 10px;
+        }
+
+        .tray-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .tray-hierarchy {
+            margin-left: 20px;
+        }
+
+        .tray-node {
+            margin-bottom: 5px;
+        }
+
+        .user-count {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Tray & Rank Hierarchy Visualizer</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Upload Excel File</h5>
+                <input type="file" id="excelFile" class="form-control" accept=".xlsx, .xls">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="debugCheck">
+                    <label class="form-check-label" for="debugCheck">
+                        Show debug information
+                    </label>
+                </div>
+                <button id="processBtn" class="btn btn-primary mt-3">Process File</button>
+                <div id="fileStats" class="stats"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Hierarchy Visualization</h5>
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search items...">
+                    <div class="d-flex mt-2">
+                        <button id="searchBtn" class="btn btn-secondary me-2">Search</button>
+                        <button id="expandAll" class="btn btn-sm btn-outline-secondary me-2">Expand All</button>
+                        <button id="collapseAll" class="btn btn-sm btn-outline-secondary me-2">Collapse All</button>
+                    </div>
+                </div>
+                <div id="visualization" class="mt-3">
+                    <p>Upload an Excel file to see the hierarchy visualization.</p>
+                </div>
+                <div id="debugOutput" class="debug-info" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Legend</h5>
+                <div class="legend-item"><span class="legend-color staff"></span> Staff Roles (G, Y, F, O, T, X)</div>
+                <div class="legend-item"><span class="legend-color constable"></span> Constable (Cons, PC, CSgt)</div>
+                <div class="legend-item"><span class="legend-color sergeant"></span> Sergeant (Sgt, DS, PS, Serg)</div>
+                <div class="legend-item"><span class="legend-color inspector"></span> Inspector (Insp, DI)</div>
+                <div class="legend-item"><span class="legend-color chief-inspector"></span> Chief Inspector (CI)</div>
+                <div class="legend-item"><span class="legend-color other-police"></span> Other Police Ranks (Supt, Chief Super)</div>
+                <div class="legend-item"><span class="legend-color tray"></span> Work Trays</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Enhanced rank pattern matching
+        const RANK_PATTERNS = {
+            'Staff': [/^[GYFOTX]$/i, /Staff/i],
+            'Constable': [/Constable/i, /Cons?/i, /CSgt/i, /PC\b/i],
+            'Sergeant': [/Sergeant/i, /Serg?/i, /Sgt/i, /DS\b/i, /PS\b/i, /[EK1WI]/i],
+            'Inspector': [/Inspector/i, /Insp?/i, /DI\b/i, /[DK2NPQ]/i],
+            'Chief Inspector': [/Chief Inspector/i, /CI\b/i, /[CMV]/i],
+            'Other Police': [/[BJLUAHSS]/i, /Superintendent/i, /Supt/i, /Chief Super/i]
+        };
+
+        // Rank class mapping
+        const RANK_CLASSES = {
+            'Staff': 'staff',
+            'Constable': 'constable',
+            'Sergeant': 'sergeant',
+            'Inspector': 'inspector',
+            'Chief Inspector': 'chief-inspector',
+            'Other Police': 'other-police',
+            'Tray': 'tray'
+        };
+
+        // Global variables
+        let rankItems = [];
+        let trayItems = [];
+        let trayHierarchy = {};
+        
+        document.getElementById('processBtn').addEventListener('click', processExcelFile);
+        document.getElementById('debugCheck').addEventListener('change', function() {
+            document.getElementById('debugOutput').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('searchBtn').addEventListener('click', searchHierarchy);
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') searchHierarchy();
+        });
+        document.getElementById('expandAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('collapsed');
+                const expandSpan = node.querySelector('.expand-collapse');
+                if (expandSpan) expandSpan.textContent = '[-]';
+            });
+        });
+        document.getElementById('collapseAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                if (node.querySelector('.children')) {
+                    node.classList.add('collapsed');
+                    const expandSpan = node.querySelector('.expand-collapse');
+                    if (expandSpan) expandSpan.textContent = '[+]';
+                }
+            });
+        });
+
+        function processExcelFile() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.innerHTML = '';
+            
+            if (!file) {
+                showError('Please select an Excel file first.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Debug: Show sheet names
+                    debugOutput.innerHTML += `<p>Sheets found: ${workbook.SheetNames.join(', ')}</p>`;
+                    
+                    // Process Sheet1 (Ranks) and Sheet2 (Trays)
+                    const sheet1 = workbook.Sheets[workbook.SheetNames[0]];
+                    const sheet2 = workbook.Sheets[workbook.SheetNames[1]];
+                    
+                    const sheet1Data = XLSX.utils.sheet_to_json(sheet1);
+                    const sheet2Data = XLSX.utils.sheet_to_json(sheet2);
+                    
+                    debugOutput.innerHTML += `<p>Sheet1 first row: ${JSON.stringify(sheet1Data[0])}</p>`;
+                    debugOutput.innerHTML += `<p>Sheet2 first row: ${JSON.stringify(sheet2Data[0])}</p>`;
+                    
+                    // Process Sheet1 (Ranks from Grade column)
+                    rankItems = processRankData(sheet1Data);
+                    
+                    // Process Sheet2 (Trays from column A) with enhanced rank detection
+                    trayItems = processTrayData(sheet2Data);
+                    
+                    // Build tray hierarchy
+                    trayHierarchy = buildTrayHierarchy(trayItems);
+                    
+                    // Update stats
+                    const totalTrays = trayItems.length;
+                    const hierarchicalTrays = Object.values(trayHierarchy).reduce((sum, group) => sum + group.length, 0);
+                    const standaloneTrays = totalTrays - hierarchicalTrays;
+                    
+                    document.getElementById('fileStats').innerHTML = `
+                        <div>Total rank items: ${rankItems.length}</div>
+                        <div>Total trays: ${totalTrays}</div>
+                        <div>Hierarchical trays: ${hierarchicalTrays}</div>
+                        <div>Standalone trays: ${standaloneTrays}</div>
+                    `;
+                    
+                    // Visualize the hierarchy
+                    visualizeHierarchy(rankItems, trayHierarchy, trayItems);
+                    
+                } catch (error) {
+                    showError('Error processing Excel file: ' + error.message);
+                    debugOutput.innerHTML += `<p class="error-message">Error: ${error.stack}</p>`;
+                }
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading the file.');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showError(message) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = `<p class="error-message">${message}</p>`;
+        }
+
+        function processRankData(sheetData) {
+            const items = [];
+            const gradeHeader = findHeader(sheetData[0], "Grade") || Object.keys(sheetData[0])[2]; // Default to column C
+            
+            sheetData.forEach(row => {
+                const grade = String(row[gradeHeader] || '').trim();
+                if (!grade) return;
+                
+                // Determine rank
+                const rankInfo = determineRank(grade);
+                
+                items.push({
+                    name: grade,
+                    rank: rankInfo.rank,
+                    rankGroup: rankInfo.group,
+                    rankClass: rankInfo.class
+                });
+            });
+            
+            return items;
+        }
+
+        function processTrayData(sheetData) {
+            const items = [];
+            const trayHeader = Object.keys(sheetData[0])[0]; // Column A
+            
+            sheetData.forEach(row => {
+                const trayName = String(row[trayHeader] || '').trim();
+                if (!trayName) return;
+                
+                // Enhanced rank detection
+                const rankInfo = detectRankFromTrayName(trayName);
+                const baseName = extractBaseTrayName(trayName, rankInfo);
+                
+                items.push({
+                    name: trayName,
+                    baseName: baseName,
+                    rank: rankInfo.rank,
+                    rankGroup: rankInfo.group,
+                    rankClass: rankInfo.class
+                });
+            });
+            
+            return items;
+        }
+
+        function detectRankFromTrayName(trayName) {
+            // Check for all possible rank indicators
+            for (const [group, patterns] of Object.entries(RANK_PATTERNS)) {
+                for (const pattern of patterns) {
+                    if (pattern.test(trayName)) {
+                        // Extract the specific rank indicator found
+                        const match = trayName.match(pattern);
+                        const rankIndicator = match ? match[0] : group;
+                        
+                        return {
+                            rank: rankIndicator,
+                            group: group,
+                            class: RANK_CLASSES[group]
+                        };
+                    }
+                }
+            }
+            
+            // Default to generic tray if no rank indicator found
+            return {
+                rank: '',
+                group: 'Tray',
+                class: 'tray'
+            };
+        }
+
+        function extractBaseTrayName(trayName, rankInfo) {
+            // Remove rank indicators to get base tray name
+            if (!rankInfo.rank) return trayName;
+            
+            // Create a regex that matches the rank indicator with optional prefixes/suffixes
+            const rankPattern = new RegExp(
+                `\\s*[-_]?\\s*${escapeRegExp(rankInfo.rank)}\\s*[-_]?\\s*$`, 
+                'i'
+            );
+            
+            return trayName.replace(rankPattern, '').trim();
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function determineRank(name) {
+            // Check if name matches any specific rank codes
+            for (const [group, patterns] of Object.entries(RANK_PATTERNS)) {
+                for (const pattern of patterns) {
+                    if (pattern.test(name)) {
+                        // Extract the specific rank indicator found
+                        const match = name.match(pattern);
+                        const rankIndicator = match ? match[0] : group;
+                        
+                        return {
+                            rank: rankIndicator,
+                            group: group,
+                            class: RANK_CLASSES[group]
+                        };
+                    }
+                }
+            }
+            
+            // Default to Other Police
+            return {
+                rank: 'Unknown',
+                group: 'Other Police',
+                class: 'other-police'
+            };
+        }
+
+        function buildTrayHierarchy(trays) {
+            const hierarchy = {
+                'Constable': [],
+                'Sergeant': [],
+                'Inspector': [],
+                'Chief Inspector': [],
+                'Other Police': [],
+                'Standalone Trays': []
+            };
+
+            // Group trays by base name first
+            const traysByBaseName = {};
+            trays.forEach(tray => {
+                if (!tray.baseName) return;
+                
+                if (!traysByBaseName[tray.baseName]) {
+                    traysByBaseName[tray.baseName] = [];
+                }
+                traysByBaseName[tray.baseName].push(tray);
+            });
+
+            // Organize into hierarchy
+            Object.entries(traysByBaseName).forEach(([baseName, trays]) => {
+                // Check if this is a hierarchical group (multiple ranks for same base)
+                const uniqueRanks = new Set(trays.map(t => t.rankGroup));
+                
+                if (uniqueRanks.size > 1) {
+                    // Add to each rank group
+                    trays.forEach(tray => {
+                        hierarchy[tray.rankGroup].push(tray);
+                    });
+                } else {
+                    // Add to standalone trays
+                    hierarchy['Standalone Trays'].push(...trays);
+                }
+            });
+
+            return hierarchy;
+        }
+
+        function groupItemsByRank(items) {
+            const grouped = {};
+            
+            // Initialize groups
+            for (const group of Object.keys(RANK_PATTERNS)) {
+                grouped[group] = {
+                    name: group,
+                    class: RANK_CLASSES[group],
+                    items: []
+                };
+            }
+            
+            // Group items
+            items.forEach(item => {
+                if (grouped[item.rankGroup]) {
+                    grouped[item.rankGroup].items.push(item);
+                } else {
+                    grouped['Other Police'].items.push(item);
+                }
+            });
+            
+            return grouped;
+        }
+
+        function findHeader(row, headerName) {
+            if (!row) return null;
+            const lowerHeader = headerName.toLowerCase();
+            return Object.keys(row).find(key => key.toLowerCase().includes(lowerHeader));
+        }
+
+        function visualizeHierarchy(rankItems, trayHierarchy, allTrays) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = '';
+            
+            // Create rank sections first
+            const rankSection = document.createElement('div');
+            rankSection.innerHTML = '<h4>Rank Items</h4>';
+            
+            const rankGroups = groupItemsByRank(rankItems);
+            Object.entries(rankGroups).forEach(([group, data]) => {
+                if (data.items.length === 0) return;
+                
+                const section = document.createElement('div');
+                section.className = 'rank-section';
+                
+                const title = document.createElement('div');
+                title.className = 'rank-title';
+                title.textContent = `${group} (${data.items.length})`;
+                section.appendChild(title);
+                
+                const groupContainer = document.createElement('div');
+                groupContainer.className = 'rank-group';
+                
+                data.items.forEach(item => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = `rank-item ${item.rankClass || RANK_CLASSES[group]}`;
+                    itemElement.textContent = item.name;
+                    groupContainer.appendChild(itemElement);
+                });
+                
+                section.appendChild(groupContainer);
+                rankSection.appendChild(section);
+            });
+            
+            container.appendChild(rankSection);
+            
+            // Create tray hierarchy sections
+            const traySection = document.createElement('div');
+            traySection.innerHTML = '<h4 class="mt-4">Tray Hierarchy</h4>';
+            container.appendChild(traySection);
+            
+            // Show hierarchical trays first
+            Object.entries(trayHierarchy).forEach(([group, trays]) => {
+                if (trays.length === 0 || group === 'Standalone Trays') return;
+                
+                const section = document.createElement('div');
+                section.className = 'rank-section';
+                
+                const title = document.createElement('div');
+                title.className = 'rank-title';
+                title.textContent = `${group} Trays (${trays.length})`;
+                section.appendChild(title);
+                
+                const groupContainer = document.createElement('div');
+                groupContainer.className = 'rank-group';
+                
+                trays.forEach(tray => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = `rank-item ${tray.rankClass || RANK_CLASSES[group]}`;
+                    itemElement.textContent = tray.name;
+                    groupContainer.appendChild(itemElement);
+                });
+                
+                section.appendChild(groupContainer);
+                traySection.appendChild(section);
+            });
+            
+            // Show standalone trays
+            if (trayHierarchy['Standalone Trays']?.length > 0) {
+                const section = document.createElement('div');
+                section.className = 'rank-section';
+                
+                const title = document.createElement('div');
+                title.className = 'rank-title';
+                title.textContent = `Standalone Trays (${trayHierarchy['Standalone Trays'].length})`;
+                section.appendChild(title);
+                
+                const groupContainer = document.createElement('div');
+                groupContainer.className = 'rank-group';
+                
+                trayHierarchy['Standalone Trays'].forEach(tray => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = `rank-item ${tray.rankClass || 'tray'}`;
+                    itemElement.textContent = tray.name;
+                    groupContainer.appendChild(itemElement);
+                });
+                
+                section.appendChild(groupContainer);
+                traySection.appendChild(section);
+            }
+        }
+
+        function searchHierarchy() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (!searchTerm) return;
+            
+            const container = document.getElementById('visualization');
+            const items = container.querySelectorAll('.rank-item');
+            
+            // First reset all highlights
+            items.forEach(item => {
+                item.style.border = '';
+                item.style.fontWeight = '';
+            });
+            
+            // Find and highlight matches
+            let found = false;
+            items.forEach(item => {
+                const itemText = item.textContent.toLowerCase();
+                if (itemText.includes(searchTerm)) {
+                    item.style.border = '2px solid yellow';
+                    item.style.fontWeight = 'bold';
+                    found = true;
+                }
+            });
+            
+            if (!found) {
+                alert('No matches found for: ' + searchTerm);
+            }
+        }
+    </script>
+</body>
+</html>
