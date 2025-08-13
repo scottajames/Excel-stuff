@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tray & Rank Hierarchy Visualizer</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    body { background-color: #f8f9fa; padding-bottom: 50px; }
+    #visualization { min-height: 500px; border: 1px dashed #ccc; border-radius: 5px; padding: 20px; background-color: white; }
+    .node { padding: 8px 12px; border-radius: 4px; margin: 5px 0; display: inline-block; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s; }
+    .node:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .staff { background-color: #59a14f; color: white; }
+    .constable { background-color: #4e79a7; color: white; }
+    .sergeant { background-color: #f28e2b; color: white; }
+    .inspector { background-color: #e15759; color: white; }
+    .chief-inspector { background-color: #b07aa1; color: white; }
+    .other-police { background-color: #76b7b2; color: white; }
+    .tray { background-color: #8c564b; color: white; }
+    .children { margin-left: 20px; border-left: 2px solid #ddd; padding-left: 10px; }
+    .tray-chain .node::before { content: ""; position: absolute; left: -10px; top: 50%; width: 10px; height: 2px; background-color: #ccc; }
+    .tray-name { font-weight: bold; margin-bottom: 5px; cursor: pointer; }
+    #dropZone { border: 3px dashed #999; padding: 40px; text-align: center; font-size: 1.2rem; color: #555; border-radius: 10px; background-color: #fafafa; cursor: pointer; transition: all 0.3s; }
+    #dropZone.dragover { background-color: #e0f7fa; border-color: #00796b; color: #00796b; }
+    #loadingIndicator { display: none; text-align: center; margin: 20px 0; }
+    .spinner-border { width: 3rem; height: 3rem; }
+    .error-message { color: #dc3545; font-weight: bold; margin-top: 10px; }
+    .collapsed .children { display: none; }
+    .toggle-icon { margin-right: 8px; }
+    .empty-state { text-align: center; padding: 40px; color: #6c757d; }
+</style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="mb-4">Tray & Rank Hierarchy Visualizer</h1>
+    <div class="alert alert-info">
+        <h5>📋 How to Use</h5>
+        <ol>
+            <li><strong>Find your Excel file</strong> containing tray data.</li>
+            <li><strong>Drag & drop</strong> it into the box below <em>or</em> click to select.</li>
+            <li>Wait a moment — results will load automatically!</li>
+        </ol>
+    </div>
+
+    <div id="dropZone">
+        <div id="dropZoneContent">
+            <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+            <p>📂 Drag & drop Excel file here or click to select</p>
+        </div>
+    </div>
+    <div id="errorMessage" class="error-message"></div>
+
+    <div id="loadingIndicator">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Processing your file...</p>
+    </div>
+
+    <div id="fileStats" class="mt-3"></div>
+    <div id="visualization" class="mt-4">
+        <div class="empty-state">
+            <i class="fas fa-file-excel fa-3x mb-3"></i>
+            <p>No data yet. Upload an Excel file to see the hierarchy visualization.</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const RANK_ORDER = [
+    "G","Y","F","O","T","X",
+    "Constable","E","K1","W","I",
+    "Sergeant","D","K2","N","P","Q",
+    "Inspector","C","M","V",
+    "Chief Inspector","B","J","L","U","A","H","S","B1","BB1",
+    "Other Police"
+];
+
+const RANK_PATTERNS = {
+    "Staff": [/^G$/i,/^Y$/i,/^F$/i,/^O$/i,/^T$/i,/^X$/i],
+    "Constable": [/Constable/i,/^E$/i,/^K1$/i,/^W$/i,/^I$/i,/PC\b/i,/CSgt/i],
+    "Sergeant": [/Sergeant/i,/^D$/i,/^K2$/i,/^N$/i,/^P$/i,/^Q$/i,/Sgt/i,/DS\b/i,/PS\b/i],
+    "Inspector": [/Inspector/i,/^C$/i,/^M$/i,/^V$/i,/Insp/i,/DI\b/i],
+    "Chief Inspector": [/Chief Inspector/i,/^B$/i,/^J$/i,/^L$/i,/^U$/i,/^A$/i,/^H$/i,/^S$/i,/^B1$/i,/^BB1$/i,/CI\b/i],
+    "Other Police": [/Superintendent/i,/Supt/i,/Chief Super/i]
+};
+
+const RANK_CLASSES = {
+    "Staff": "staff",
+    "Constable": "constable",
+    "Sergeant": "sergeant",
+    "Inspector": "inspector",
+    "Chief Inspector": "chief-inspector",
+    "Other Police": "other-police",
+    "Tray": "tray"
+};
+
+let trayItems = [];
+const dropZone = document.getElementById('dropZone');
+const loadingIndicator = document.getElementById('loadingIndicator');
+const errorMessage = document.getElementById('errorMessage');
+const visualization = document.getElementById('visualization');
+
+// Handle click to open file dialog
+dropZone.addEventListener('click', () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.xlsx,.xls';
+    fileInput.onchange = () => {
+        if (fileInput.files.length > 0) {
+            handleFile(fileInput.files[0]);
+        }
+    };
+    fileInput.click();
+});
+
+// Handle drag over
+dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+
+// Handle drag leave
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+// Handle drop
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+    }
+});
+
+function showLoading() {
+    loadingIndicator.style.display = 'block';
+    visualization.innerHTML = '';
+    errorMessage.textContent = '';
+}
+
+function hideLoading() {
+    loadingIndicator.style.display = 'none';
+}
+
+function showError(message) {
+    errorMessage.textContent = message;
+    visualization.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-exclamation-triangle fa-3x mb-3 text-danger"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+function handleFile(file) {
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+        showError("⚠️ Please upload an Excel file (.xlsx or .xls)");
+        return;
+    }
+
+    showLoading();
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            // Validate sheet count
+            if (workbook.SheetNames.length < 2) {
+                showError("⚠️ This Excel file doesn't have the required second sheet.");
+                return;
+            }
+            
+            const sheet2 = workbook.Sheets[workbook.SheetNames[1]];
+            const sheet2Data = XLSX.utils.sheet_to_json(sheet2);
+            
+            // Validate data
+            if (!sheet2Data.length) {
+                showError("⚠️ The second sheet is empty.");
+                return;
+            }
+            
+            trayItems = processTrayData(sheet2Data);
+            document.getElementById('fileStats').innerHTML = `<strong>Total trays:</strong> ${trayItems.length}`;
+            visualizeHierarchy(trayItems);
+            
+        } catch (err) {
+            showError("⚠️ Error reading the file: " + err.message);
+            console.error(err);
+        } finally {
+            hideLoading();
+        }
+    };
+    
+    reader.onerror = function() {
+        showError("⚠️ Error reading the file. Please try again.");
+        hideLoading();
+    };
+    
+    reader.readAsArrayBuffer(file);
+}
+
+function processTrayData(sheetData) {
+    const items = [];
+    const trayHeader = Object.keys(sheetData[0])[0];
+    
+    sheetData.forEach(row => {
+        const trayName = String(row[trayHeader] || '').trim();
+        if (!trayName) return;
+        
+        const rankInfo = detectRankFromTrayName(trayName);
+        const baseName = extractBaseTrayName(trayName, rankInfo);
+        
+        items.push({ 
+            name: trayName, 
+            baseName, 
+            rank: rankInfo.rank, 
+            rankGroup: rankInfo.group, 
+            rankClass: rankInfo.class 
+        });
+    });
+    
+    return items;
+}
+
+function detectRankFromTrayName(trayName) {
+    for (const [group, patterns] of Object.entries(RANK_PATTERNS)) {
+        for (const pattern of patterns) {
+            const match = trayName.match(pattern);
+            if (match) {
+                return { 
+                    rank: match[0], 
+                    group, 
+                    class: RANK_CLASSES[group] 
+                };
+            }
+        }
+    }
+    return { 
+        rank: '', 
+        group: 'Tray', 
+        class: 'tray' 
+    };
+}
+
+function extractBaseTrayName(trayName, rankInfo) {
+    if (!rankInfo.rank) return trayName;
+    const rankPattern = new RegExp(`\\s*[-_]?\\s*${escapeRegExp(rankInfo.rank)}\\s*[-_]?\\s*$`, 'i');
+    return trayName.replace(rankPattern, '').trim();
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildTrayChains(trays) {
+    const traysByBase = {};
+    
+    trays.forEach(tray => {
+        if (!tray.baseName) return;
+        if (!traysByBase[tray.baseName]) traysByBase[tray.baseName] = [];
+        traysByBase[tray.baseName].push(tray);
+    });
+    
+    const chains = [];
+    for (const [baseName, traysList] of Object.entries(traysByBase)) {
+        traysList.sort((a, b) => RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank));
+        chains.push({ baseName, chain: traysList });
+    }
+    
+    return chains;
+}
+
+function renderTrayChain(chain) {
+    if (!chain.length) return null;
+    
+    const node = document.createElement('div');
+    node.className = `node ${chain[0].rankClass}`;
+    node.textContent = chain[0].name;
+    
+    if (chain.length > 1) {
+        const childrenDiv = document.createElement('div');
+        childrenDiv.className = 'children';
+        const childNode = renderTrayChain(chain.slice(1));
+        if (childNode) childrenDiv.appendChild(childNode);
+        node.appendChild(childrenDiv);
+    }
+    
+    return node;
+}
+
+function visualizeHierarchy(trayItems) {
+    const container = document.getElementById('visualization');
+    
+    if (!trayItems.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-file-excel fa-3x mb-3"></i>
+                <p>No valid tray data found in the uploaded file.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    const trayChains = buildTrayChains(trayItems);
+    
+    trayChains.forEach(({ baseName, chain }) => {
+        const baseContainer = document.createElement('div');
+        baseContainer.className = 'tray-chain mb-3';
+        
+        const title = document.createElement('div');
+        title.className = 'tray-name';
+        
+        // Add toggle icon if there are children
+        if (chain.length > 1) {
+            const toggleIcon = document.createElement('i');
+            toggleIcon.className = 'toggle-icon fas fa-chevron-down';
+            title.appendChild(toggleIcon);
+        }
+        
+        title.textContent = baseName;
+        
+        // Add click handler for toggling
+        if (chain.length > 1) {
+            title.addEventListener('click', function() {
+                const wasCollapsed = baseContainer.classList.contains('collapsed');
+                const icon = this.querySelector('.toggle-icon');
+                
+                if (wasCollapsed) {
+                    baseContainer.classList.remove('collapsed');
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down');
+                } else {
+                    baseContainer.classList.add('collapsed');
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-right');
+                }
+            });
+        }
+        
+        baseContainer.appendChild(title);
+        const chainNode = renderTrayChain(chain);
+        baseContainer.appendChild(chainNode);
+        container.appendChild(baseContainer);
+    });
+}
+</script>
+</body>
+</html>
