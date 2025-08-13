@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Tray Hierarchy Visualizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding-bottom: 50px;
+        }
+
+        #visualization {
+            min-height: 500px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .node {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px;
+            display: inline-block;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .constable {
+            background-color: #4e79a7;
+            color: white;
+        }
+
+        .sergeant {
+            background-color: #f28e2b;
+            color: white;
+        }
+
+        .inspector {
+            background-color: #e15759;
+            color: white;
+        }
+
+        .other {
+            background-color: #76b7b2;
+            color: white;
+        }
+
+        .tray {
+            background-color: #59a14f;
+            color: white;
+        }
+
+        .legend-item {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .debug-info {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .node-count {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-left: 5px;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .collapsed .children {
+            display: none;
+        }
+
+        .expand-collapse {
+            font-size: 0.8em;
+            margin-left: 10px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .user-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            margin-left: 8px;
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .children {
+            margin-left: 20px;
+            border-left: 2px solid #ddd;
+            padding-left: 10px;
+        }
+
+        .node-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .node-title {
+            display: flex;
+            align-items: center;
+        }
+
+        .node-info {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-left: 10px;
+        }
+
+        .progress {
+            height: 5px;
+            margin-top: 5px;
+            background-color: rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            background-color: rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Work Tray Hierarchy Visualizer</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Upload Excel File</h5>
+                <input type="file" id="excelFile" class="form-control" accept=".xlsx, .xls">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="debugCheck">
+                    <label class="form-check-label" for="debugCheck">
+                        Show debug information
+                    </label>
+                </div>
+                <button id="processBtn" class="btn btn-primary mt-3">Process File</button>
+                <div id="fileStats" class="stats"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Hierarchy Visualization</h5>
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search trays or users...">
+                    <div class="d-flex mt-2">
+                        <button id="searchBtn" class="btn btn-secondary me-2">Search</button>
+                        <button id="expandAll" class="btn btn-sm btn-outline-secondary me-2">Expand All</button>
+                        <button id="collapseAll" class="btn btn-sm btn-outline-secondary me-2">Collapse All</button>
+                        <button id="showUsers" class="btn btn-sm btn-outline-secondary">Show Users Only</button>
+                    </div>
+                </div>
+                <div id="visualization" class="mt-3">
+                    <p>Upload an Excel file to see the hierarchy visualization.</p>
+                </div>
+                <div id="debugOutput" class="debug-info" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Legend</h5>
+                <div class="legend-item"><span class="legend-color tray"></span> Work Tray</div>
+                <div class="legend-item"><span class="legend-color constable"></span> Constable (No suffix)</div>
+                <div class="legend-item"><span class="legend-color sergeant"></span> Sergeant (DS/Sgt/PS suffix)</div>
+                <div class="legend-item"><span class="legend-color inspector"></span> Inspector (DI/Insp suffix)</div>
+                <div class="legend-item"><span class="legend-color other"></span> Other Ranks</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Global variables
+        let allNodes = {};
+        let allLinks = [];
+        let currentHierarchy = [];
+        let userData = [];
+        let trayData = [];
+        
+        document.getElementById('processBtn').addEventListener('click', processExcelFile);
+        document.getElementById('debugCheck').addEventListener('change', function() {
+            document.getElementById('debugOutput').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('searchBtn').addEventListener('click', searchHierarchy);
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') searchHierarchy();
+        });
+        document.getElementById('expandAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('collapsed');
+                const expandSpan = node.querySelector('.expand-collapse');
+                if (expandSpan) expandSpan.textContent = '[-]';
+            });
+        });
+        document.getElementById('collapseAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                if (node.querySelector('.children')) {
+                    node.classList.add('collapsed');
+                    const expandSpan = node.querySelector('.expand-collapse');
+                    if (expandSpan) expandSpan.textContent = '[+]';
+                }
+            });
+        });
+        document.getElementById('showUsers').addEventListener('click', function() {
+            const searchTerm = 'user:';
+            document.getElementById('searchInput').value = searchTerm;
+            searchHierarchy();
+        });
+
+        function processExcelFile() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.innerHTML = '';
+            
+            if (!file) {
+                showError('Please select an Excel file first.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Debug: Show sheet names
+                    debugOutput.innerHTML += `<p>Sheets found: ${workbook.SheetNames.join(', ')}</p>`;
+                    
+                    // Try to find Sheet1 (Trays) and Sheet2 (Users)
+                    const sheetNames = workbook.SheetNames.map(name => name.toLowerCase());
+                    const traySheetIndex = sheetNames.findIndex(name => name.includes('tray') || name.includes('sheet1') || name.includes('sheet 1'));
+                    const userSheetIndex = sheetNames.findIndex(name => name.includes('user') || name.includes('sheet2') || name.includes('sheet 2'));
+                    
+                    if (traySheetIndex === -1 || userSheetIndex === -1) {
+                        showError('Could not find both Tray and User sheets in the Excel file.');
+                        debugOutput.innerHTML += `<p>Sheet names found: ${workbook.SheetNames.join(', ')}</p>`;
+                        return;
+                    }
+                    
+                    const traySheet = workbook.Sheets[workbook.SheetNames[traySheetIndex]];
+                    const userSheet = workbook.Sheets[workbook.SheetNames[userSheetIndex]];
+                    
+                    trayData = XLSX.utils.sheet_to_json(traySheet);
+                    userData = XLSX.utils.sheet_to_json(userSheet);
+                    
+                    debugOutput.innerHTML += `<p>Tray sheet first row: ${JSON.stringify(trayData[0])}</p>`;
+                    debugOutput.innerHTML += `<p>User sheet first row: ${JSON.stringify(userData[0])}</p>`;
+                    debugOutput.innerHTML += `<p>Tray sheet has ${trayData.length} rows, User sheet has ${userData.length} rows</p>`;
+                    
+                    // Create hierarchy data from tray sheet
+                    const hierarchyData = createHierarchyFromTraySheet(trayData);
+                    debugOutput.innerHTML += `<p>Found ${Object.keys(allNodes).length} unique nodes and ${allLinks.length} relationships</p>`;
+                    
+                    if (hierarchyData.length === 0) {
+                        showError('No hierarchy relationships found in Tray sheet. Please check for "Worktray - DB Value" (child) and "Parent - DB Value" (parent) columns.');
+                        return;
+                    }
+                    
+                    // Process user data and attach to hierarchy
+                    processUserData(userData, hierarchyData);
+                    debugOutput.innerHTML += `<p>Processed ${userData.length} users</p>`;
+                    
+                    // Store the current hierarchy
+                    currentHierarchy = hierarchyData;
+                    
+                    // Update stats
+                    const totalUsers = Object.values(allNodes).reduce((sum, node) => sum + (node.users ? node.users.length : 0), 0);
+                    document.getElementById('fileStats').innerHTML = `
+                        <div>Total trays: ${Object.keys(allNodes).length}</div>
+                        <div>Relationships: ${allLinks.length}</div>
+                        <div>Root trays: ${hierarchyData.length}</div>
+                        <div>Total users: ${totalUsers}</div>
+                    `;
+                    
+                    // Visualize the hierarchy
+                    visualizeHierarchy(hierarchyData);
+                    
+                } catch (error) {
+                    showError('Error processing Excel file: ' + error.message);
+                    debugOutput.innerHTML += `<p class="error-message">Error: ${error.stack}</p>`;
+                }
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading the file.');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showError(message) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = `<p class="error-message">${message}</p>`;
+        }
+
+        function createHierarchyFromTraySheet(trayData) {
+            allNodes = {};
+            allLinks = [];
+            
+            // Find the correct headers
+            const childHeader = findHeader(trayData[0], "Worktray - DB Value");
+            const parentHeader = findHeader(trayData[0], "Parent - DB Value");
+            
+            if (!childHeader || !parentHeader) {
+                return [];
+            }
+            
+            // First pass: create all nodes (work trays)
+            trayData.forEach(row => {
+                const child = row[childHeader];
+                const parent = row[parentHeader];
+                
+                if (child !== undefined && child !== null) {
+                    const childStr = String(child).trim();
+                    if (!allNodes[childStr]) {
+                        allNodes[childStr] = {
+                            id: childStr,
+                            type: 'tray',
+                            users: [],
+                            rank: 'tray',
+                            children: []
+                        };
+                    }
+                }
+                
+                if (parent !== undefined && parent !== null) {
+                    const parentStr = String(parent).trim();
+                    if (!allNodes[parentStr]) {
+                        allNodes[parentStr] = {
+                            id: parentStr,
+                            type: 'tray',
+                            users: [],
+                            rank: 'tray',
+                            children: []
+                        };
+                    }
+                }
+            });
+            
+            // Second pass: create all relationships
+            trayData.forEach(row => {
+                const child = row[childHeader];
+                const parent = row[parentHeader];
+                
+                if (child !== undefined && child !== null && parent !== undefined && parent !== null) {
+                    const childStr = String(child).trim();
+                    const parentStr = String(parent).trim();
+                    
+                    allLinks.push({
+                        source: parentStr,
+                        target: childStr
+                    });
+                    
+                    // Add child reference to parent
+                    if (allNodes[parentStr] && allNodes[childStr]) {
+                        allNodes[parentStr].children.push(allNodes[childStr]);
+                    }
+                }
+            });
+            
+            // Find root nodes (nodes with no parents)
+            const nodeIds = Object.keys(allNodes);
+            const rootNodes = nodeIds.filter(id => {
+                return !allLinks.some(link => link.target === id);
+            });
+            
+            return rootNodes.map(root => allNodes[root]);
+        }
+
+        function processUserData(userData, hierarchyData) {
+            // Find user tray assignment column
+            const userTrayHeader = findHeader(userData[0], "Tray");
+            const userNameHeader = findHeader(userData[0], "Name") || findHeader(userData[0], "User");
+            
+            if (!userTrayHeader || !userNameHeader) {
+                console.warn("Could not find user tray assignment or name columns");
+                return;
+            }
+            
+            // Process each user
+            userData.forEach(user => {
+                const trayName = String(user[userTrayHeader] || '').trim();
+                const userName = String(user[userNameHeader] || '').trim();
+                
+                if (!trayName || !userName) return;
+                
+                // Determine user rank
+                let rank = 'constable';
+                if (/(DS|Sgt|PS)/i.test(userName)) {
+                    rank = 'sergeant';
+                } else if (/(DI|Insp)/i.test(userName)) {
+                    rank = 'inspector';
+                }
+                
+                // Add user to tray
+                if (allNodes[trayName]) {
+                    if (!allNodes[trayName].users) {
+                        allNodes[trayName].users = [];
+                    }
+                    allNodes[trayName].users.push({
+                        name: userName,
+                        rank: rank
+                    });
+                }
+            });
+            
+            // Calculate user counts for each tray (including children)
+            function calculateUserCounts(node) {
+                let totalUsers = node.users ? node.users.length : 0;
+                
+                if (node.children) {
+                    node.children.forEach(child => {
+                        totalUsers += calculateUserCounts(child);
+                    });
+                }
+                
+                node.totalUsers = totalUsers;
+                return totalUsers;
+            }
+            
+            hierarchyData.forEach(root => calculateUserCounts(root));
+        }
+
+        function findHeader(row, headerName) {
+            if (!row) return null;
+            const lowerHeader = headerName.toLowerCase();
+            return Object.keys(row).find(key => key.toLowerCase().includes(lowerHeader));
+        }
+
+        function visualizeHierarchy(data) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="error-message">No hierarchy data found.</p>';
+                return;
+            }
+            
+            // Function to create node element
+            function createNodeElement(item) {
+                const node = document.createElement('div');
+                const rankClass = item.rank || 'other';
+                node.className = `node ${rankClass}`;
+                
+                // Create node header
+                const nodeHeader = document.createElement('div');
+                nodeHeader.className = 'node-header';
+                
+                // Create title section
+                const titleSection = document.createElement('div');
+                titleSection.className = 'node-title';
+                
+                // Add the name
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = item.id;
+                titleSection.appendChild(nameSpan);
+                
+                // Add user count badge if this is a tray
+                if (item.type === 'tray' && item.totalUsers > 0) {
+                    const userBadge = document.createElement('span');
+                    userBadge.className = 'user-badge';
+                    userBadge.textContent = `${item.totalUsers} user${item.totalUsers !== 1 ? 's' : ''}`;
+                    titleSection.appendChild(userBadge);
+                }
+                
+                nodeHeader.appendChild(titleSection);
+                
+                // Add expand/collapse control if there are children or users
+                if (item.children?.length > 0 || item.users?.length > 0) {
+                    const expandSpan = document.createElement('span');
+                    expandSpan.className = 'expand-collapse';
+                    expandSpan.textContent = '[+]';
+                    expandSpan.onclick = function(e) {
+                        e.stopPropagation();
+                        node.classList.toggle('collapsed');
+                        expandSpan.textContent = node.classList.contains('collapsed') ? '[+]' : '[-]';
+                    };
+                    nodeHeader.appendChild(expandSpan);
+                }
+                
+                node.appendChild(nodeHeader);
+                
+                // Add user distribution visualization for trays
+                if (item.type === 'tray' && item.users?.length > 0) {
+                    const rankCounts = {
+                        constable: 0,
+                        sergeant: 0,
+                        inspector: 0,
+                        other: 0
+                    };
+                    
+                    item.users.forEach(user => {
+                        rankCounts[user.rank] = (rankCounts[user.rank] || 0) + 1;
+                    });
+                    
+                    const totalUsers = item.users.length;
+                    const progress = document.createElement('div');
+                    progress.className = 'progress';
+                    
+                    ['inspector', 'sergeant', 'constable', 'other'].forEach(rank => {
+                        if (rankCounts[rank] > 0) {
+                            const percent = (rankCounts[rank] / totalUsers) * 100;
+                            const bar = document.createElement('div');
+                            bar.className = `progress-bar ${rank}`;
+                            bar.style.width = `${percent}%`;
+                            bar.title = `${rankCounts[rank]} ${rank}s`;
+                            progress.appendChild(bar);
+                        }
+                    });
+                    
+                    node.appendChild(progress);
+                }
+                
+                // Create children container
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'children';
+                
+                // Add users first
+                if (item.users?.length > 0) {
+                    item.users.forEach(user => {
+                        const userNode = document.createElement('div');
+                        userNode.className = `node ${user.rank} user-node`;
+                        
+                        const userHeader = document.createElement('div');
+                        userHeader.className = 'node-header';
+                        
+                        const userNameSpan = document.createElement('span');
+                        userNameSpan.textContent = user.name;
+                        userHeader.appendChild(userNameSpan);
+                        
+                        userNode.appendChild(userHeader);
+                        childrenContainer.appendChild(userNode);
+                    });
+                }
+                
+                // Add child trays
+                if (item.children?.length > 0) {
+                    item.children.forEach(child => {
+                        childrenContainer.appendChild(createNodeElement(child));
+                    });
+                }
+                
+                // Only add children container if there are children or users
+                if (childrenContainer.children.length > 0) {
+                    node.appendChild(childrenContainer);
+                    node.classList.add('collapsed');
+                }
+                
+                // Add click handler to toggle children
+                node.onclick = function(e) {
+                    if (e.target.tagName !== 'SPAN' || !e.target.classList.contains('expand-collapse')) {
+                        if (node.querySelector('.children')) {
+                            node.classList.toggle('collapsed');
+                            const expandSpan = node.querySelector('.expand-collapse');
+                            if (expandSpan) {
+                                expandSpan.textContent = node.classList.contains('collapsed') ? '[+]' : '[-]';
+                            }
+                        }
+                    }
+                };
+                
+                return node;
+            }
+            
+            // Create and append all root nodes
+            data.forEach(root => {
+                container.appendChild(createNodeElement(root));
+            });
+        }
+
+        function searchHierarchy() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (!searchTerm) return;
+            
+            const container = document.getElementById('visualization');
+            const nodes = container.querySelectorAll('.node');
+            
+            // First reset all highlights
+            nodes.forEach(node => {
+                node.style.border = 'none';
+                node.style.borderLeft = '';
+            });
+            
+            // Special case: show only users
+            if (searchTerm.startsWith('user:')) {
+                const userSearch = searchTerm.substring(5).trim();
+                
+                nodes.forEach(node => {
+                    if (node.classList.contains('user-node')) {
+                        const nodeText = node.textContent.toLowerCase();
+                        if (userSearch === '' || nodeText.includes(userSearch)) {
+                            node.style.borderLeft = '3px solid gold';
+                            // Expand parents to make it visible
+                            let parent = node.parentElement;
+                            while (parent && parent.classList.contains('children')) {
+                                parent = parent.parentElement;
+                                if (parent.classList.contains('node')) {
+                                    parent.classList.remove('collapsed');
+                                    const expandSpan = parent.querySelector('.expand-collapse');
+                                    if (expandSpan) expandSpan.textContent = '[-]';
+                                }
+                            }
+                        }
+                    } else {
+                        node.style.display = node.classList.contains('user-node') ? 'block' : 'none';
+                    }
+                });
+                
+                return;
+            }
+            
+            // Normal search
+            let found = false;
+            nodes.forEach(node => {
+                const nodeText = node.textContent.toLowerCase();
+                if (nodeText.includes(searchTerm)) {
+                    node.style.border = '2px solid yellow';
+                    // Expand parents to make it visible
+                    let parent = node.parentElement;
+                    while (parent && parent.classList.contains('children')) {
+                        parent = parent.parentElement;
+                        if (parent.classList.contains('node')) {
+                            parent.classList.remove('collapsed');
+                            const expandSpan = parent.querySelector('.expand-collapse');
+                            if (expandSpan) expandSpan.textContent = '[-]';
+                        }
+                    }
+                    found = true;
+                }
+            });
+            
+            if (!found) {
+                alert('No matches found for: ' + searchTerm);
+            }
+        }
+    </script>
+</body>
+</html>
