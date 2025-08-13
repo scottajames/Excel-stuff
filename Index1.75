@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Tray Hierarchy Visualizer</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Upload Excel File</h5>
+                <input type="file" id="excelFile" class="form-control" accept=".xlsx, .xls">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="debugCheck">
+                    <label class="form-check-label" for="debugCheck">
+                        Show debug information
+                    </label>
+                </div>
+                <button id="processBtn" class="btn btn-primary mt-3">Process File</button>
+                <div id="fileStats" class="stats"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Tray Visualization</h5>
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search trays...">
+                    <button id="searchBtn" class="btn btn-secondary mt-2">Search</button>
+                    <button id="expandAll" class="btn btn-sm btn-outline-secondary mt-2">Expand All</button>
+                    <button id="collapseAll" class="btn btn-sm btn-outline-secondary mt-2">Collapse All</button>
+                </div>
+                <div id="visualization" class="mt-3">
+                    <p>Upload an Excel file to see the tray hierarchy visualization.</p>
+                </div>
+                <div id="debugOutput" class="debug-info" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Legend</h5>
+                <div class="legend-item"><span class="legend-color constable"></span> Constable (No suffix)</div>
+                <div class="legend-item"><span class="legend-color sergeant"></span> Sergeant (DS/Sgt/PS suffix)</div>
+                <div class="legend-item"><span class="legend-color inspector"></span> Inspector (DI/Insp suffix)</div>
+                <div class="legend-item"><span class="legend-color unused"></span> Unused Trays</div>
+                <div class="legend-item"><span class="legend-color other"></span> Other Ranks</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Global variables
+        let allNodes = {};
+        let allLinks = [];
+        let currentHierarchy = [];
+        let unusedTrays = [];
+        let trayUserCountMap = {};
+
+        document.getElementById('processBtn').addEventListener('click', processExcelFile);
+        document.getElementById('debugCheck').addEventListener('change', function() {
+            document.getElementById('debugOutput').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('searchBtn').addEventListener('click', searchHierarchy);
+        document.getElementById('searchInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') searchHierarchy();
+        });
+        document.getElementById('expandAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('collapsed');
+                const toggle = node.querySelector('.toggle-children');
+                if (toggle) toggle.textContent = '▼';
+            });
+        });
+        document.getElementById('collapseAll').addEventListener('click', function() {
+            document.querySelectorAll('.node').forEach(node => {
+                if (node.querySelector('.children')) {
+                    node.classList.add('collapsed');
+                    const toggle = node.querySelector('.toggle-children');
+                    if (toggle) toggle.textContent = '▶';
+                }
+            });
+        });
+
+        function processExcelFile() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.innerHTML = '';
+            
+            if (!file) {
+                showError('Please select an Excel file first.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Debug: Show sheet names
+                    debugOutput.innerHTML += `<p>Sheets found: ${workbook.SheetNames.join(', ')}</p>`;
+                    
+                    // Try to find Sheet1 and Sheet2
+                    const sheetNames = workbook.SheetNames.map(name => name.toLowerCase());
+                    const sheet1Index = sheetNames.findIndex(name => name.includes('sheet1') || name.includes('sheet 1'));
+                    const sheet2Index = sheetNames.findIndex(name => name.includes('sheet2') || name.includes('sheet 2'));
+                    
+                    if (sheet1Index === -1 || sheet2Index === -1) {
+                        showError('Could not find both Sheet1 and Sheet2 in the Excel file.');
+                        return;
+                    }
+                    
+                    const sheet1 = workbook.Sheets[workbook.SheetNames[sheet1Index]];
+                    const sheet2 = workbook.Sheets[workbook.SheetNames[sheet2Index]];
+                    
+                    const sheet1Json = XLSX.utils.sheet_to_json(sheet1);
+                    const sheet2Json = XLSX.utils.sheet_to_json(sheet2);
+                    
+                    debugOutput.innerHTML += `<p>Sheet1 first row: ${JSON.stringify(sheet1Json[0])}</p>`;
+                    debugOutput.innerHTML += `<p>Sheet2 first row: ${JSON.stringify(sheet2Json[0])}</p>`;
+
+                    // Count users per tray from Sheet1
+                    trayUserCountMap = buildTrayUserCount(sheet1Json);
+
+                    // Process all trays from Sheet2
+                    const allTraysFromSheet2 = new Set();
+                    const columnAKey = Object.keys(sheet2Json[0] || {})[0] || 'A';
+                    sheet2Json.forEach(row => {
+                        const tray = row[columnAKey];
+                        if (tray !== undefined && tray !== null) {
+                            allTraysFromSheet2.add(String(tray).trim());
+                        }
+                    });
+                    
+                    // Create hierarchy data
+                    const hierarchyData = createHierarchyFromSheet1(sheet1Json, allTraysFromSheet2);
+                    
+                    // Create rank map from Sheet2
+                    const rankMap = createRankMapFromSheet2(sheet2Json);
+
+                    // Apply ranks & user counts
+                    applyRanksAndUserCounts(hierarchyData, rankMap, trayUserCountMap);
+
+                    // Sum total user counts
+                    hierarchyData.forEach(root => sumUserCounts(root));
+
+                    currentHierarchy = hierarchyData;
+
+                    // Update stats
+                    document.getElementById('fileStats').innerHTML = `
+                        <div>Total trays: ${allTraysFromSheet2.size}</div>
+                        <div>Linked trays: ${Object.keys(allNodes).length}</div>
+                        <div>Unused trays: ${unusedTrays.length}</div>
+                        <div>Relationships: ${allLinks.length}</div>
+                        <div>Root nodes: ${hierarchyData.length}</div>
+                    `;
+                    
+                    visualizeHierarchy(hierarchyData);
+                    
+                } catch (error) {
+                    showError('Error processing Excel file: ' + error.message);
+                    debugOutput.innerHTML += `<p class="error-message">Error: ${error.stack}</p>`;
+                }
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading the file.');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showError(message) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = `<p class="error-message">${message}</p>`;
+        }
+
+        function buildTrayUserCount(sheet1Data) {
+            const countMap = {};
+            const trayHeader = findHeader(sheet1Data[0], "Worktray - DB Value");
+            sheet1Data.forEach(row => {
+                const tray = row[trayHeader];
+                if (tray) {
+                    const trayStr = String(tray).trim();
+                    countMap[trayStr] = (countMap[trayStr] || 0) + 1;
+                }
+            });
+            return countMap;
+        }
+
+        function createHierarchyFromSheet1(sheet1Data, allTraysFromSheet2) {
+            allNodes = {};
+            allLinks = [];
+            unusedTrays = [];
+            const uniqueLinks = new Set();
+            
+            const childHeader = findHeader(sheet1Data[0], "Worktray - DB Value");
+            const parentHeader = findHeader(sheet1Data[0], "Parent - DB Value");
+            
+            if (!childHeader || !parentHeader) {
+                return [];
+            }
+            
+            sheet1Data.forEach(row => {
+                const child = row[childHeader];
+                const parent = row[parentHeader];
+                
+                if (child) {
+                    const childStr = String(child).trim();
+                    if (!allNodes[childStr]) {
+                        allNodes[childStr] = { id: childStr, rank: 'constable', isUsed: true };
+                    }
+                }
+                
+                if (parent) {
+                    const parentStr = String(parent).trim();
+                    if (!allNodes[parentStr]) {
+                        allNodes[parentStr] = { id: parentStr, rank: 'constable', isUsed: true };
+                    }
+                }
+            });
+            
+            sheet1Data.forEach(row => {
+                const child = row[childHeader];
+                const parent = row[parentHeader];
+                if (child && parent) {
+                    const childStr = String(child).trim();
+                    const parentStr = String(parent).trim();
+                    const linkKey = `${parentStr}->${childStr}`;
+                    if (!uniqueLinks.has(linkKey)) {
+                        uniqueLinks.add(linkKey);
+                        allLinks.push({ source: parentStr, target: childStr });
+                    }
+                }
+            });
+            
+            allTraysFromSheet2.forEach(tray => {
+                if (!allNodes[tray]) {
+                    unusedTrays.push({ id: tray, rank: 'unused', isUsed: false, userCount: 0, totalUserCount: 0 });
+                }
+            });
+            
+            const rootNodes = Object.keys(allNodes).filter(id => !allLinks.some(link => link.target === id));
+            
+            const seenNodes = new Set();
+            function buildHierarchy(id) {
+                if (seenNodes.has(id)) return null;
+                seenNodes.add(id);
+                const node = allNodes[id];
+                const childrenLinks = allLinks.filter(link => link.source === id);
+                childrenLinks.sort((a, b) => a.target.localeCompare(b.target));
+                const children = [];
+                childrenLinks.forEach(link => {
+                    const childNode = buildHierarchy(link.target);
+                    if (childNode) children.push(childNode);
+                });
+                return { ...node, children: children.length ? children : null, userCount: 0, totalUserCount: 0 };
+            }
+            rootNodes.sort((a, b) => a.localeCompare(b));
+            return rootNodes.map(root => buildHierarchy(root)).filter(Boolean);
+        }
+
+        function createRankMapFromSheet2(sheet2Data) {
+            const rankMap = {};
+            const columnAKey = Object.keys(sheet2Data[0] || {})[0] || 'A';
+            sheet2Data.forEach(row => {
+                const key = row[columnAKey];
+                if (!key) return;
+                const keyStr = String(key).trim();
+                if (/(DS|Sgt|PS)/i.test(keyStr)) {
+                    rankMap[keyStr] = 'sergeant';
+                } else if (/(DI|Insp)/i.test(keyStr)) {
+                    rankMap[keyStr] = 'inspector';
+                } else {
+                    rankMap[keyStr] = 'constable';
+                }
+            });
+            return rankMap;
+        }
+
+        function applyRanksAndUserCounts(hierarchyData, rankMap, userCountMap) {
+            function apply(node) {
+                if (rankMap[node.id]) node.rank = rankMap[node.id];
+                node.userCount = userCountMap[node.id] || 0;
+                if (node.children) node.children.forEach(child => apply(child));
+            }
+            hierarchyData.forEach(root => apply(root));
+        }
+
+        function sumUserCounts(node) {
+            let total = node.userCount || 0;
+            if (node.children && node.children.length > 0) {
+                node.children.forEach(child => {
+                    total += sumUserCounts(child);
+                });
+            }
+            node.totalUserCount = total;
+            return total;
+        }
+
+        function findHeader(row, headerName) {
+            if (!row) return null;
+            const lowerHeader = headerName.toLowerCase();
+            return Object.keys(row).find(key => key.toLowerCase().includes(lowerHeader));
+        }
+
+        function visualizeHierarchy(data) {
+            const container = document.getElementById('visualization');
+            container.innerHTML = '';
+            if (data.length === 0 && unusedTrays.length === 0) {
+                container.innerHTML = '<p class="error-message">No tray data found.</p>';
+                return;
+            }
+            function createNodeElement(item) {
+                const node = document.createElement('div');
+                const rankClass = item.rank || 'other';
+                node.className = `node ${rankClass}`;
+                const nodeHeader = document.createElement('div');
+                nodeHeader.className = 'node-header';
+                if (item.children) {
+                    const toggle = document.createElement('span');
+                    toggle.className = 'toggle-children';
+                    toggle.textContent = '▶';
+                    nodeHeader.appendChild(toggle);
+                } else {
+                    const spacer = document.createElement('span');
+                    spacer.className = 'toggle-children';
+                    spacer.style.visibility = 'hidden';
+                    spacer.textContent = '▶';
+                    nodeHeader.appendChild(spacer);
+                }
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = `${item.id} (${item.userCount} direct / ${item.totalUserCount} total)`;
+                nodeHeader.appendChild(nameSpan);
+                node.appendChild(nodeHeader);
+                if (item.children) {
+                    const childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'children';
+                    item.children.sort((a, b) => a.id.localeCompare(b.id));
+                    item.children.forEach(child => {
+                        childrenContainer.appendChild(createNodeElement(child));
+                    });
+                    node.appendChild(childrenContainer);
+                    node.classList.add('collapsed');
+                }
+                node.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('toggle-children')) {
+                        node.classList.toggle('collapsed');
+                        e.target.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
+                        e.stopPropagation();
+                    } else if (e.target === nodeHeader || e.target === nameSpan) {
+                        node.classList.toggle('collapsed');
+                        const toggle = node.querySelector('.toggle-children');
+                        if (toggle) toggle.textContent = node.classList.contains('collapsed') ? '▶' : '▼';
+                    }
+                });
+                return node;
+            }
+            if (data.length > 0) {
+                const linkedTitle = document.createElement('div');
+                linkedTitle.className = 'section-title';
+                linkedTitle.textContent = 'Linked Trays (Hierarchy)';
+                container.appendChild(linkedTitle);
+                data.forEach(root => {
+                    container.appendChild(createNodeElement(root));
+                });
+            }
+            if (unusedTrays.length > 0) {
+                const unusedTitle = document.createElement('div');
+                unusedTitle.className = 'section-title';
+                unusedTitle.textContent = 'Unused Trays';
+                container.appendChild(unusedTitle);
+                const unusedContainer = document.createElement('div');
+                unusedContainer.className = 'unused-container';
+                unusedTrays.sort((a, b) => a.id.localeCompare(b.id));
+                unusedTrays.forEach(tray => {
+                    unusedContainer.appendChild(createNodeElement(tray));
+                });
+                container.appendChild(unusedContainer);
+            }
+        }
+
+        function searchHierarchy() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (!searchTerm) return;
+            const container = document.getElementById('visualization');
+            const nodes = container.querySelectorAll('.node');
+            nodes.forEach(node => {
+                node.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+            });
+            let found = false;
+            nodes.forEach(node => {
+                const nodeText = node.textContent.toLowerCase();
+                if (nodeText.includes(searchTerm)) {
+                    node.style.boxShadow = '0 0 0 2px yellow';
+                    let parent = node.parentElement;
+                    while (parent && parent.classList.contains('node')) {
+                        parent.classList.remove('collapsed');
+                        const toggle = parent.querySelector('.toggle-children');
+                        if (toggle) toggle.textContent = '▼';
+                        parent = parent.parentElement;
+                    }
+                    found = true;
+                }
+            });
+            if (!found) {
+                alert('No matches found for: ' + searchTerm);
+            }
+        }
+    </script>
+</body>
+</html>
