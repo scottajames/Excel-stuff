@@ -1,3 +1,5 @@
+Option Explicit
+
 Sub RefreshAllData()
     ' MASTER REFRESH BUTTON - Does everything in one click
     Dim startTime As Double
@@ -12,10 +14,16 @@ Sub RefreshAllData()
     On Error GoTo ErrorHandler
     
     Dim wsHome As Worksheet, wsHR As Worksheet, wsHE As Worksheet, wsUnit As Worksheet
-    Set wsHome = ThisWorkbook.Sheets("Home")
-    Set wsHR = ThisWorkbook.Sheets("HR_Feed")
-    Set wsHE = ThisWorkbook.Sheets("HE_Feed")
-    Set wsUnit = ThisWorkbook.Sheets("Unit")
+    Set wsHome = SafeSheet("Home")
+    Set wsHR = SafeSheet("HR_Feed")
+    Set wsHE = SafeSheet("HE_Feed")
+    Set wsUnit = SafeSheet("Unit")
+    
+    If wsHome Is Nothing Or wsHR Is Nothing Or wsHE Is Nothing Or wsUnit Is Nothing Then
+        MsgBox "One or more required sheets are missing!" & vbCrLf & _
+               "Check sheet names: Home, HR_Feed, HE_Feed, Unit", vbCritical, "Error"
+        GoTo Cleanup
+    End If
     
     ' Clear previous results
     wsHome.Cells.Clear
@@ -66,10 +74,23 @@ ErrorHandler:
     Resume Cleanup
 End Sub
 
+' -----------------------
+' HELPER: Safe sheet lookup
+' -----------------------
+Private Function SafeSheet(sName As String) As Worksheet
+    On Error Resume Next
+    Set SafeSheet = ThisWorkbook.Sheets(sName)
+    On Error GoTo 0
+End Function
+
+' -----------------------
+' STEP 1: Refresh all connections
+' -----------------------
 Private Sub RefreshAllConnections()
     Dim refreshCount As Integer: refreshCount = 0
     Dim conn As WorkbookConnection
     Dim qt As QueryTable
+    Dim ws As Worksheet
     
     ' Refresh all workbook connections
     For Each conn In ThisWorkbook.Connections
@@ -81,13 +102,15 @@ Private Sub RefreshAllConnections()
         On Error GoTo 0
     Next conn
     
-    ' Refresh all query tables
-    For Each qt In ThisWorkbook.QueryTables
-        On Error Resume Next
-        qt.Refresh BackgroundQuery:=False
-        If Err.Number = 0 Then refreshCount = refreshCount + 1
-        On Error GoTo 0
-    Next qt
+    ' Refresh all query tables (old-style) on all sheets
+    For Each ws In ThisWorkbook.Worksheets
+        For Each qt In ws.QueryTables
+            On Error Resume Next
+            qt.Refresh BackgroundQuery:=False
+            If Err.Number = 0 Then refreshCount = refreshCount + 1
+            On Error GoTo 0
+        Next qt
+    Next ws
     
     ' Refresh data model if available
     On Error Resume Next
@@ -96,6 +119,9 @@ Private Sub RefreshAllConnections()
     On Error GoTo 0
 End Sub
 
+' -----------------------
+' STEP 2: Unit usage data
+' -----------------------
 Private Sub GetUnitUsageData(wsHome As Worksheet, wsHR As Worksheet, wsUnit As Worksheet)
     Dim dictInUse As Object, dictAllUnits As Object
     Set dictInUse = CreateObject("Scripting.Dictionary")
@@ -144,6 +170,9 @@ Private Sub GetUnitUsageData(wsHome As Worksheet, wsHR As Worksheet, wsUnit As W
     Set dictAllUnits = Nothing
 End Sub
 
+' -----------------------
+' STEP 3: Employee validation
+' -----------------------
 Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHE As Worksheet, wsHR As Worksheet)
     ' Set up headers
     wsHome.Range("G1").Value = "EMPLOYEE VALIDATION RESULTS"
@@ -204,7 +233,12 @@ Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHE As Worksheet, ws
     Next i
 End Sub
 
+' -----------------------
+' STEP 4: Formatting
+' -----------------------
 Private Sub FormatAllResults(wsHome As Worksheet)
+    Dim i As Long, lastRow As Long
+    
     ' Format unit usage section
     With wsHome.Range("D1:E1")
         .Font.Bold = True
@@ -237,7 +271,6 @@ Private Sub FormatAllResults(wsHome As Worksheet)
     End With
     
     ' Color code validation results
-    Dim lastRow As Long
     lastRow = wsHome.Cells(wsHome.Rows.Count, "H").End(xlUp).Row
     For i = 3 To lastRow
         If wsHome.Cells(i, 8).Value = "VALID" Then
