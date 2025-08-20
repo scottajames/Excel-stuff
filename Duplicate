@@ -13,15 +13,14 @@ Sub RefreshAllData()
     
     On Error GoTo ErrorHandler
     
-    Dim wsHome As Worksheet, wsHR As Worksheet, wsHE As Worksheet, wsUnit As Worksheet
+    Dim wsHome As Worksheet, wsHR As Worksheet, wsUnit As Worksheet
     Set wsHome = SafeSheet("Home")
     Set wsHR = SafeSheet("HR_Feed")
-    Set wsHE = SafeSheet("HE_Feed")
     Set wsUnit = SafeSheet("Unit")
     
-    If wsHome Is Nothing Or wsHR Is Nothing Or wsHE Is Nothing Or wsUnit Is Nothing Then
+    If wsHome Is Nothing Or wsHR Is Nothing Or wsUnit Is Nothing Then
         MsgBox "One or more required sheets are missing!" & vbCrLf & _
-               "Check sheet names: Home, HR_Feed, HE_Feed, Unit", vbCritical, "Error"
+               "Check sheet names: Home, HR_Feed, Unit", vbCritical, "Error"
         GoTo Cleanup
     End If
     
@@ -40,9 +39,9 @@ Sub RefreshAllData()
     Application.StatusBar = "Step 2/4: Analyzing unit usage..."
     GetUnitUsageData wsHome, wsHR, wsUnit
     
-    ' STEP 3: Get employee validation data
+    ' STEP 3: Get employee validation data (Now uses HR_Feed instead of HE_Feed)
     Application.StatusBar = "Step 3/4: Validating employee data..."
-    GetEmployeeValidationData wsHome, wsHE, wsHR
+    GetEmployeeValidationData wsHome, wsHR
     
     ' STEP 4: Format everything
     Application.StatusBar = "Step 4/4: Formatting results..."
@@ -171,9 +170,9 @@ Private Sub GetUnitUsageData(wsHome As Worksheet, wsHR As Worksheet, wsUnit As W
 End Sub
 
 ' -----------------------
-' STEP 3: Employee validation
+' STEP 3: Employee validation data (CORRECTED - Uses only HR_Feed)
 ' -----------------------
-Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHE As Worksheet, wsHR As Worksheet)
+Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHR As Worksheet)
     ' Set up headers
     wsHome.Range("G1").Value = "EMPLOYEE VALIDATION RESULTS"
     wsHome.Range("G2").Value = "Employee Name"
@@ -183,18 +182,17 @@ Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHE As Worksheet, ws
     wsHome.Range("K2").Value = "Work Tray"
     wsHome.Range("L2").Value = "Has Data"
     
-    Dim lastRowHE As Long, lastRowHR As Long, i As Long, j As Long
-    lastRowHE = wsHE.Cells(wsHE.Rows.Count, "A").End(xlUp).Row
+    Dim lastRowHR As Long, i As Long, j As Long
     lastRowHR = wsHR.Cells(wsHR.Rows.Count, "A").End(xlUp).Row
     
     Dim resultRow As Long: resultRow = 3
     Dim givenName As String, supervisor As String, workTray As String
     Dim foundInHR As Boolean, foundSupervisor As Boolean, foundWorkTray As Boolean, hasData As Boolean
     
-    For i = 2 To lastRowHE
-        givenName = Trim(wsHE.Cells(i, 6).Value & " " & wsHE.Cells(i, 7).Value)
-        supervisor = Trim(wsHE.Cells(i, 21).Value)
-        workTray = Trim(wsHE.Cells(i, 26).Value)
+    For i = 2 To lastRowHR
+        givenName = Trim(wsHR.Cells(i, 6).Value & " " & wsHR.Cells(i, 7).Value)
+        supervisor = Trim(wsHR.Cells(i, 21).Value)
+        workTray = Trim(wsHR.Cells(i, 26).Value)
         
         ' Reset flags
         foundInHR = False
@@ -202,7 +200,7 @@ Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHE As Worksheet, ws
         foundWorkTray = False
         hasData = False
         
-        ' Check HR database for matches
+        ' Check HR database for matches (checking against itself)
         For j = 2 To lastRowHR
             If InStr(1, CStr(wsHR.Cells(j, 1).Value), givenName, vbTextCompare) > 0 Then foundInHR = True
             If InStr(1, CStr(wsHR.Cells(j, 1).Value), supervisor, vbTextCompare) > 0 Then foundSupervisor = True
@@ -211,7 +209,7 @@ Private Sub GetEmployeeValidationData(wsHome As Worksheet, wsHE As Worksheet, ws
         
         ' Check columns H-Q for any data
         For j = 8 To 17 ' Columns H to Q
-            If wsHE.Cells(i, j).Value <> "" Then
+            If wsHR.Cells(i, j).Value <> "" Then
                 hasData = True
                 Exit For
             End If
