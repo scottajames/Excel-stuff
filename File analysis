@@ -3,22 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-File Comparison & Monitoring</title>
+    <title>File Comparison Tool</title>
     <style>
-        :root {
-            --primary: #4361ee;
-            --secondary: #3a0ca3;
-            --success: #4cc9f0;
-            --warning: #f72585;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --gray: #6c757d;
-        }
-        
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
@@ -30,255 +20,190 @@
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            background-color: rgba(255, 255, 255, 0.97);
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 20px;
             overflow: hidden;
         }
         
         header {
-            background: linear-gradient(90deg, #4b6cb7, #182848);
-            color: white;
-            padding: 25px;
             text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
         }
         
         h1 {
-            font-size: 2.5rem;
+            color: #2c3e50;
             margin-bottom: 10px;
+            font-size: 2.5rem;
         }
         
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
+        .description {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
         }
         
-        .main-content {
+        .upload-section {
             display: flex;
             flex-wrap: wrap;
-            padding: 20px;
             gap: 20px;
+            margin-bottom: 30px;
         }
         
-        .panel {
+        .upload-box {
             flex: 1;
             min-width: 300px;
-            background: white;
-            border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
         }
         
-        .panel h2 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #eee;
+        .upload-box:hover {
+            background: #e8f4fc;
+            border-color: #2980b9;
+        }
+        
+        .upload-box h3 {
+            margin-bottom: 15px;
+            color: #3498db;
         }
         
         .file-input {
-            margin-bottom: 15px;
+            margin: 15px 0;
         }
         
-        .file-input label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #34495e;
-        }
-        
-        .file-input input, .file-input select {
+        input[type="file"] {
             width: 100%;
             padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
         
-        .file-input input:focus, .file-input select:focus {
-            border-color: #3498db;
-            outline: none;
-        }
-        
-        .time-range {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            align-items: center;
-        }
-        
-        .time-range input {
-            flex: 1;
-        }
-        
-        button {
+        .btn {
             background: #3498db;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 12px 24px;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 1rem;
             font-weight: 600;
-            transition: background 0.3s;
-            width: 100%;
-            margin-top: 10px;
+            transition: background 0.3s ease;
+            margin: 10px 5px;
         }
         
-        button:hover {
+        .btn:hover {
             background: #2980b9;
         }
         
-        .secondary-btn {
-            background: #6c757d;
+        .btn-compare {
+            background: #2ecc71;
         }
         
-        .secondary-btn:hover {
-            background: #5a6268;
+        .btn-compare:hover {
+            background: #27ae60;
         }
         
-        .results {
-            margin-top: 20px;
+        .btn-clear {
+            background: #e74c3c;
+        }
+        
+        .btn-clear:hover {
+            background: #c0392b;
+        }
+        
+        .results-section {
+            margin-top: 30px;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .results-content {
+            display: none;
+        }
+        
+        .comparison-result {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .match {
+            border-left: 5px solid #2ecc71;
+        }
+        
+        .diff {
+            border-left: 5px solid #e74c3c;
+        }
+        
+        .file-content {
+            white-space: pre-wrap;
+            background: white;
             padding: 15px;
             border-radius: 5px;
-            background-color: #f8f9fa;
-            min-height: 150px;
-        }
-        
-        .error-log {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
+            border: 1px solid #ddd;
             max-height: 300px;
             overflow-y: auto;
-        }
-        
-        .error-entry {
-            padding: 10px;
-            border-left: 4px solid #e74c3c;
-            margin-bottom: 10px;
-            background-color: #fff;
-            border-radius: 0 5px 5px 0;
-        }
-        
-        .error-date {
-            font-weight: 600;
-            color: #e74c3c;
-        }
-        
-        .error-message {
-            margin-top: 5px;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-exists {
-            background-color: #2ecc71;
-        }
-        
-        .status-missing {
-            background-color: #e74c3c;
-        }
-        
-        .status-match {
-            background-color: #2ecc71;
-        }
-        
-        .status-different {
-            background-color: #f39c12;
-        }
-        
-        .file-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
             margin-top: 15px;
         }
         
-        .file-card {
-            background: white;
-            border-radius: 8px;
+        .error-section {
+            background: #ffeaa7;
             padding: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #3498db;
-        }
-        
-        .file-card.processed {
-            border-left-color: #2ecc71;
-        }
-        
-        .file-card.error {
-            border-left-color: #e74c3c;
-        }
-        
-        .file-card.ignored {
-            border-left-color: #95a5a6;
-            opacity: 0.7;
-        }
-        
-        .file-card h4 {
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-        
-        .file-card p {
-            margin: 5px 0;
-            font-size: 0.9rem;
-        }
-        
-        .weekly-report {
+            border-radius: 5px;
             margin-top: 20px;
+            border-left: 5px solid #fdcb6e;
         }
         
-        .report-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
+        .history-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .history-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 5px solid #3498db;
         }
         
         footer {
             text-align: center;
-            padding: 20px;
-            background: #f8f9fa;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
             color: #7f8c8d;
-            margin-top: 20px;
-        }
-        
-        .file-pattern {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .file-example {
-            background-color: #f0f8ff;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-            font-family: monospace;
-            font-size: 0.9rem;
         }
         
         @media (max-width: 768px) {
-            .main-content {
+            .upload-section {
                 flex-direction: column;
             }
             
-            .time-range {
-                flex-direction: column;
-            }
-            
-            .file-grid {
-                grid-template-columns: 1fr;
+            .upload-box {
+                width: 100%;
             }
         }
     </style>
@@ -286,166 +211,256 @@
 <body>
     <div class="container">
         <header>
-            <h1>Multi-File Comparison & Monitoring</h1>
-            <p class="subtitle">Handle 4 file types with dynamic names and timestamps</p>
+            <h1>File Comparison Tool</h1>
+            <p class="description">
+                Compare files between your PC and the server. This tool helps identify differences and displays error messages from server files.
+                All processing happens in your browser - no data is sent to any server.
+            </p>
         </header>
         
-        <div class="main-content">
-            <div class="panel">
-                <h2>File Comparison</h2>
+        <section class="upload-section">
+            <div class="upload-box">
+                <h3>Your PC File</h3>
+                <p>Select the file from your local computer</p>
                 <div class="file-input">
-                    <label for="source-folder">Source Folder:</label>
-                    <input type="text" id="source-folder" placeholder="e.g., C:\Source\Files" value="C:\Source\Files">
-                    <div class="file-pattern">Files should match pattern: type_YYYYMMDD_HHMM.txt</div>
+                    <input type="file" id="pc-file" accept=".txt,.log,.csv,.json">
                 </div>
-                
-                <div class="file-input">
-                    <label for="target-folder">Target Folder:</label>
-                    <input type="text" id="target-folder" placeholder="e.g., D:\Target\Files" value="D:\Target\Files">
-                    <div class="file-pattern">Files should match pattern: type_YYYYMMDD_HHMM.txt</div>
-                </div>
-                
-                <div class="file-input">
-                    <label for="time-range">Check files between:</label>
-                    <div class="time-range">
-                        <input type="time" id="start-time" value="00:00">
-                        <span>to</span>
-                        <input type="time" id="end-time" value="23:59">
-                    </div>
-                </div>
-                
-                <button id="compare-btn">Compare Files</button>
-                
-                <div class="results">
-                    <h3>Comparison Results:</h3>
-                    <div id="comparison-result">No comparison performed yet</div>
-                </div>
+                <div id="pc-file-info"></div>
             </div>
             
-            <!-- Other panels unchanged (File Status, Error Log Monitor, etc.) -->
+            <div class="upload-box">
+                <h3>Server File</h3>
+                <p>Select the file from the server</p>
+                <div class="file-input">
+                    <input type="file" id="server-file" accept=".txt,.log,.csv,.json">
+                </div>
+                <div id="server-file-info"></div>
+            </div>
+        </section>
+        
+        <div style="text-align: center;">
+            <button id="compare-btn" class="btn btn-compare">Compare Files</button>
+            <button id="clear-btn" class="btn btn-clear">Clear All</button>
         </div>
+        
+        <section class="results-section">
+            <div class="results-header">
+                <h2>Comparison Results</h2>
+            </div>
+            <div id="results-content" class="results-content">
+                <div id="comparison-result" class="comparison-result"></div>
+                
+                <div class="file-display">
+                    <h3>File Contents</h3>
+                    <div class="file-content" id="pc-content"></div>
+                    <div class="file-content" id="server-content"></div>
+                </div>
+                
+                <div id="error-section" class="error-section" style="display: none;">
+                    <h3>Error Messages from Server File</h3>
+                    <div id="error-content"></div>
+                </div>
+            </div>
+        </section>
+        
+        <section class="history-section">
+            <h2>Comparison History</h2>
+            <p>Recent comparisons (stored for one week):</p>
+            <div id="history-list"></div>
+        </section>
+        
+        <footer>
+            <p>This tool works entirely in your browser. No data is uploaded to any server.</p>
+            <p>All comparison history is stored locally and will be cleared after one week.</p>
+        </footer>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const pcFileInput = document.getElementById('pc-file');
+            const serverFileInput = document.getElementById('server-file');
             const compareBtn = document.getElementById('compare-btn');
-
-            // Mock file system for demonstration
-            const mockFileSystem = {
-                'C:\\Source\\Files': {
-                    'data_20231115_0930.txt': 'Customer data...',
-                    'processed_20231115_0945.txt': 'Processed data...',
-                },
-                'D:\\Target\\Files': {
-                    'data_20231115_1000.txt': 'Customer data...',
-                    'processed_20231115_1015.txt': 'Processed data...',
+            const clearBtn = document.getElementById('clear-btn');
+            const resultsContent = document.getElementById('results-content');
+            const comparisonResult = document.getElementById('comparison-result');
+            const pcContent = document.getElementById('pc-content');
+            const serverContent = document.getElementById('server-content');
+            const errorSection = document.getElementById('error-section');
+            const errorContent = document.getElementById('error-content');
+            const historyList = document.getElementById('history-list');
+            const pcFileInfo = document.getElementById('pc-file-info');
+            const serverFileInfo = document.getElementById('server-file-info');
+            
+            let pcFile = null;
+            let serverFile = null;
+            
+            // Load history from localStorage
+            loadHistory();
+            
+            // Event listeners for file inputs
+            pcFileInput.addEventListener('change', function(e) {
+                if (this.files.length > 0) {
+                    pcFile = this.files[0];
+                    pcFileInfo.textContent = `Selected: ${pcFile.name} (${formatFileSize(pcFile.size)})`;
                 }
-            };
-
+            });
+            
+            serverFileInput.addEventListener('change', function(e) {
+                if (this.files.length > 0) {
+                    serverFile = this.files[0];
+                    serverFileInfo.textContent = `Selected: ${serverFile.name} (${formatFileSize(serverFile.size)})`;
+                }
+            });
+            
+            // Compare button click handler
             compareBtn.addEventListener('click', function() {
-                const sourceFolder = document.getElementById('source-folder').value;
-                const targetFolder = document.getElementById('target-folder').value;
-                const startTime = document.getElementById('start-time').value;
-                const endTime = document.getElementById('end-time').value;
-
-                if (!mockFileSystem[sourceFolder] || !mockFileSystem[targetFolder]) {
-                    document.getElementById('comparison-result').innerHTML = '<p>Invalid folders</p>';
+                if (!pcFile || !serverFile) {
+                    alert('Please select both files to compare.');
                     return;
                 }
-
-                const sourceFiles = mockFileSystem[sourceFolder];
-                const targetFiles = mockFileSystem[targetFolder];
-
-                const startTimeMin = timeToMinutes(startTime);
-                const endTimeMin = timeToMinutes(endTime);
-                const TOLERANCE_MINUTES = 60;
-
-                let resultHTML = '';
-                let matchCount = 0;
-
-                for (const [sourceName, sourceContent] of Object.entries(sourceFiles)) {
-                    if (sourceName.includes('failed_') || sourceName.includes('error_')) continue;
-
-                    const sourceTime = extractTimeFromFilename(sourceName);
-                    const sourceDate = extractDateFromFilename(sourceName);
-                    const sourceType = extractFileType(sourceName);
-
-                    if (sourceTime && isTimeInRange(sourceTime, startTimeMin, endTimeMin)) {
-                        let bestMatch = null;
-                        let smallestDiff = Infinity;
-
-                        for (const [targetName, targetContent] of Object.entries(targetFiles)) {
-                            if (targetName.includes('failed_')) continue;
-
-                            const targetTime = extractTimeFromFilename(targetName);
-                            const targetDate = extractDateFromFilename(targetName);
-                            const targetType = extractFileType(targetName);
-
-                            if (targetDate === sourceDate && targetType === sourceType && targetTime) {
-                                const diff = Math.abs(sourceTime - targetTime);
-                                if (diff <= TOLERANCE_MINUTES && diff < smallestDiff) {
-                                    bestMatch = { name: targetName, content: targetContent, diff };
-                                    smallestDiff = diff;
-                                }
-                            }
-                        }
-
-                        if (bestMatch) {
-                            matchCount++;
-                            const contentMatch = sourceContent === bestMatch.content;
-                            resultHTML += `
-                                <div style="margin: 15px 0; padding: 10px; background: #f0f8ff; border-radius: 5px;">
-                                    <p><strong>Source:</strong> ${sourceName} (${formatTime(sourceTime)})</p>
-                                    <p><strong>Target:</strong> ${bestMatch.name} (${formatTime(sourceTime + bestMatch.diff)})</p>
-                                    <p><strong>Time Difference:</strong> ${bestMatch.diff} minutes</p>
-                                    <p><strong>Content Match:</strong> <span style="color: ${contentMatch ? 'green' : 'orange'}">${contentMatch ? 'Yes' : 'No'}</span></p>
-                                </div>
-                            `;
-                        } else {
-                            resultHTML += `<p>No match for ${sourceName}</p>`;
-                        }
-                    }
-                }
-
-                if (matchCount === 0) {
-                    resultHTML = '<p>No matches found</p>';
-                }
-
-                document.getElementById('comparison-result').innerHTML = resultHTML;
+                
+                const pcReader = new FileReader();
+                const serverReader = new FileReader();
+                
+                pcReader.onload = function(e) {
+                    const pcText = e.target.result;
+                    
+                    serverReader.onload = function(e) {
+                        const serverText = e.target.result;
+                        
+                        // Compare files
+                        compareFiles(pcText, serverText, pcFile.name, serverFile.name);
+                    };
+                    
+                    serverReader.readAsText(serverFile);
+                };
+                
+                pcReader.readAsText(pcFile);
             });
-
-            function timeToMinutes(timeStr) {
-                const [h, m] = timeStr.split(':').map(Number);
-                return h * 60 + m;
+            
+            // Clear button click handler
+            clearBtn.addEventListener('click', function() {
+                pcFileInput.value = '';
+                serverFileInput.value = '';
+                pcFile = null;
+                serverFile = null;
+                pcFileInfo.textContent = '';
+                serverFileInfo.textContent = '';
+                resultsContent.style.display = 'none';
+                pcContent.textContent = '';
+                serverContent.textContent = '';
+                errorSection.style.display = 'none';
+            });
+            
+            // Function to compare files
+            function compareFiles(pcText, serverText, pcFileName, serverFileName) {
+                const isMatch = pcText === serverText;
+                
+                // Display results
+                resultsContent.style.display = 'block';
+                
+                if (isMatch) {
+                    comparisonResult.className = 'comparison-result match';
+                    comparisonResult.innerHTML = `
+                        <h3>Files Match!</h3>
+                        <p>The files are identical.</p>
+                    `;
+                } else {
+                    comparisonResult.className = 'comparison-result diff';
+                    comparisonResult.innerHTML = `
+                        <h3>Files Don't Match</h3>
+                        <p>The files have differences.</p>
+                    `;
+                }
+                
+                // Display file contents with differences highlighted
+                pcContent.textContent = pcText;
+                serverContent.textContent = serverText;
+                
+                // Check for error messages in server file (simple simulation)
+                const errorMessages = extractErrorMessages(serverText);
+                if (errorMessages.length > 0) {
+                    errorSection.style.display = 'block';
+                    errorContent.innerHTML = errorMessages.map(msg => 
+                        `<div class="error-message">${msg}</div>`
+                    ).join('');
+                } else {
+                    errorSection.style.display = 'none';
+                }
+                
+                // Save to history
+                saveToHistory({
+                    date: new Date().toISOString(),
+                    pcFile: pcFileName,
+                    serverFile: serverFileName,
+                    match: isMatch,
+                    errorCount: errorMessages.length
+                });
+                
+                // Reload history
+                loadHistory();
             }
-
-            function extractTimeFromFilename(filename) {
-                const match = filename.match(/_(\d{4})\./);
-                if (!match) return null;
-                const hh = parseInt(match[1].slice(0, 2));
-                const mm = parseInt(match[1].slice(2, 4));
-                return hh * 60 + mm;
+            
+            // Function to extract error messages (simulated)
+            function extractErrorMessages(text) {
+                const errors = [];
+                const lines = text.split('\n');
+                
+                for (const line of lines) {
+                    if (line.toLowerCase().includes('error') || 
+                        line.toLowerCase().includes('fail') ||
+                        line.toLowerCase().includes('exception')) {
+                        errors.push(line);
+                    }
+                    
+                    // Limit to 10 most relevant error lines
+                    if (errors.length >= 10) break;
+                }
+                
+                return errors;
             }
-
-            function extractDateFromFilename(filename) {
-                const match = filename.match(/_(\d{8})_/);
-                return match ? match[1] : null;
+            
+            // Function to save comparison to history
+            function saveToHistory(comparison) {
+                let history = JSON.parse(localStorage.getItem('fileComparisonHistory') || '[]');
+                
+                // Add new comparison
+                history.push(comparison);
+                
+                // Keep only last week's data
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                
+                history = history.filter(item => new Date(item.date) > oneWeekAgo);
+                
+                // Save back to localStorage
+                localStorage.setItem('fileComparisonHistory', JSON.stringify(history));
             }
-
-            function extractFileType(filename) {
-                if (filename.startsWith('data_')) return 'data';
-                if (filename.startsWith('processed_')) return 'processed';
-                return 'unknown';
+            
+            // Function to load history from localStorage
+            function loadHistory() {
+                const history = JSON.parse(localStorage.getItem('fileComparisonHistory') || '[]');
+                
+                if (history.length === 0) {
+                    historyList.innerHTML = '<p>No comparison history yet.</p>';
+                    return;
+                }
+                
+                historyList.innerHTML = history.map(item => `
+                    <div class="history-item">
+                        <strong>${new Date(item.date).toLocaleString()}</strong><br>
+                        PC: ${item.pcFile} | Server: ${item.serverFile}<br>
+                        Status: ${item.match ? 'Match' : 'Different'} | 
+                        Errors: ${item.errorCount}
+                    </div>
+                `).join('');
             }
-
-            function isTimeInRange(t, start, end) {
-                return t >= start && t <= end;
-            }
-
-            function formatTime(minutes) {
-                const h = Math.floor(minutes / 60);
-                const m = minutes % 60;
-                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            
+            // Helper function to format file size
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' bytes';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                else return (bytes / 1048576).toFixed(1) + ' MB';
             }
         });
     </script>
