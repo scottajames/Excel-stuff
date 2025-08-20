@@ -1,133 +1,205 @@
+Sub RefreshAll()
+    ' Main procedure to run everything
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    On Error GoTo ErrorHandler
+    
+    ' Clear existing data on Home sheet (except headers and buttons)
+    ClearHomeSheet
+    
+    ' Refresh all data queries first
+    RefreshAllDataQueries
+    
+    ' Run both tracking functions
+    TrackUnitUsage
+    CheckEmployeeData
+    
+    ' Format the Home sheet
+    FormatHomeSheet
+    
+    ' Update status
+    ThisWorkbook.Sheets("Home").Range("A1").Value = "All data refreshed successfully!"
+    ThisWorkbook.Sheets("Home").Range("A1").Font.Color = RGB(0, 128, 0) ' Green
+    
+    MsgBox "All data refreshed and processed successfully!" & vbCrLf & _
+           "Results are displayed on the Home sheet.", vbInformation, "Complete"
+    
+Cleanup:
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    Exit Sub
+    
+ErrorHandler:
+    ThisWorkbook.Sheets("Home").Range("A1").Value = "Error during refresh!"
+    ThisWorkbook.Sheets("Home").Range("A1").Font.Color = RGB(255, 0, 0)
+    MsgBox "Error: " & Err.Description, vbCritical, "Error"
+    Resume Cleanup
+End Sub
+
+Sub ClearHomeSheet()
+    Dim wsHome As Worksheet
+    Set wsHome = ThisWorkbook.Sheets("Home")
+    
+    ' Clear all data except row 1 (status) and any buttons/shapes
+    If wsHome.Rows.Count > 1 Then
+        wsHome.Range("A2:Z" & wsHome.Rows.Count).ClearContents
+        wsHome.Range("A2:Z" & wsHome.Rows.Count).ClearFormats
+    End If
+    
+    ' Set initial status
+    wsHome.Range("A1").Value = "Preparing to refresh data..."
+    wsHome.Range("A1").Font.Color = RGB(0, 0, 255) ' Blue
+End Sub
+
+Sub RefreshAllDataQueries()
+    Dim wsHome As Worksheet
+    Dim qt As QueryTable
+    Dim conn As WorkbookConnection
+    Dim refreshCount As Integer
+    
+    Set wsHome = ThisWorkbook.Sheets("Home")
+    refreshCount = 0
+    
+    ' Update status
+    wsHome.Range("A1").Value = "Refreshing data queries..."
+    wsHome.Range("A1").Font.Color = RGB(255, 165, 0) ' Orange
+    DoEvents
+    
+    ' Refresh all query tables in entire workbook
+    For Each qt In ThisWorkbook.QueryTables
+        qt.Refresh BackgroundQuery:=False
+        refreshCount = refreshCount + 1
+    Next qt
+    
+    ' Refresh all workbook connections
+    For Each conn In ThisWorkbook.Connections
+        If conn.Type = xlConnectionTypeOLEDB Or conn.Type = xlConnectionTypeODBC Then
+            On Error Resume Next
+            conn.Refresh
+            If Err.Number = 0 Then refreshCount = refreshCount + 1
+            On Error GoTo 0
+        End If
+    Next conn
+    
+    ' Refresh data model if exists
+    On Error Resume Next
+    ThisWorkbook.Model.Refresh
+    If Err.Number = 0 Then refreshCount = refreshCount + 1
+    On Error GoTo 0
+    
+    wsHome.Range("A1").Value = "Data queries refreshed (" & refreshCount & " items)"
+End Sub
+
 Sub TrackUnitUsage()
-    Dim wsHR As Worksheet, wsUnit As Worksheet, wsOutput As Worksheet
+    Dim wsHR As Worksheet, wsUnit As Worksheet, wsHome As Worksheet
     Dim dictInUse As Object, dictAllUnits As Object
     Dim lastRowHR As Long, lastRowUnit As Long, i As Long
     Dim cellValue As Variant
     Dim inUseCount As Long, notInUseCount As Long
     Dim outputRow As Long
     
-    ' Create dictionaries to track units
+    Set wsHome = ThisWorkbook.Sheets("Home")
+    Set wsHR = ThisWorkbook.Sheets("HR_Feed")
+    Set wsUnit = ThisWorkbook.Sheets("Unit")
+    
+    ' Update status
+    wsHome.Range("A1").Value = "Tracking unit usage..."
+    DoEvents
+    
     Set dictInUse = CreateObject("Scripting.Dictionary")
     Set dictAllUnits = CreateObject("Scripting.Dictionary")
     
-    ' Set worksheets
-    Set wsHR = ThisWorkbook.Sheets("HR_Feed")
-    Set wsUnit = ThisWorkbook.Sheets("Unit")
-    Set wsOutput = ThisWorkbook.Sheets("Sheet1") ' Change to your output sheet name
-    
-    ' Find last rows
-    lastRowHR = wsHR.Cells(wsHR.Rows.Count, "Z").End(xlUp).Row
+    ' Get all units from Unit sheet
     lastRowUnit = wsUnit.Cells(wsUnit.Rows.Count, "A").End(xlUp).Row
-    
-    ' Collect all units from Unit sheet
-    For i = 2 To lastRowUnit ' Assuming row 1 is header
-        cellValue = wsUnit.Cells(i, 1).Value
-        If Not IsEmpty(cellValue) And cellValue <> "" Then
-            dictAllUnits(CStr(cellValue)) = True
-        End If
+    For i = 2 To lastRowUnit
+        cellValue = Trim(wsUnit.Cells(i, 1).Value)
+        If cellValue <> "" Then dictAllUnits(cellValue) = True
     Next i
     
-    ' Check HR_Feed columns Z and AB for units in use
-    For i = 2 To lastRowHR ' Assuming row 1 is header
-        ' Check column Z
-        cellValue = wsHR.Cells(i, 26).Value ' Column Z is 26
-        If Not IsEmpty(cellValue) And cellValue <> "" Then
-            dictInUse(CStr(cellValue)) = True
-        End If
+    ' Check HR_Feed for units in use
+    lastRowHR = wsHR.Cells(wsHR.Rows.Count, "Z").End(xlUp).Row
+    For i = 2 To lastRowHR
+        ' Column Z
+        cellValue = Trim(wsHR.Cells(i, 26).Value)
+        If cellValue <> "" Then dictInUse(cellValue) = True
         
-        ' Check column AB
-        cellValue = wsHR.Cells(i, 28).Value ' Column AB is 28
-        If Not IsEmpty(cellValue) And cellValue <> "" Then
-            dictInUse(CStr(cellValue)) = True
-        End If
+        ' Column AB
+        cellValue = Trim(wsHR.Cells(i, 28).Value)
+        If cellValue <> "" Then dictInUse(cellValue) = True
     Next i
     
     ' Calculate counts
     inUseCount = dictInUse.Count
     notInUseCount = dictAllUnits.Count - inUseCount
     
-    ' Display counts in D1 and E1
-    wsOutput.Range("D1").Value = inUseCount
-    wsOutput.Range("E1").Value = notInUseCount
+    ' Output to Home sheet - Column D and E
+    wsHome.Range("D1").Value = inUseCount
+    wsHome.Range("E1").Value = notInUseCount
+    wsHome.Range("D2").Value = "UNITS IN USE"
+    wsHome.Range("E2").Value = "UNITS NOT IN USE"
     
-    ' Add headers
-    wsOutput.Range("D2").Value = "Units In Use"
-    wsOutput.Range("E2").Value = "Units Not In Use"
-    
-    ' Clear previous data below headers
-    wsOutput.Range("D3:D" & wsOutput.Rows.Count).ClearContents
-    wsOutput.Range("E3:E" & wsOutput.Rows.Count).ClearContents
-    
-    ' List units in use (starting from D3)
+    ' List units in use (Column D)
     outputRow = 3
     For Each cellValue In dictInUse.Keys
-        wsOutput.Cells(outputRow, 4).Value = cellValue ' Column D
+        wsHome.Cells(outputRow, 4).Value = cellValue
         outputRow = outputRow + 1
     Next cellValue
     
-    ' List units not in use (starting from E3)
+    ' List units not in use (Column E)
     outputRow = 3
     For Each cellValue In dictAllUnits.Keys
         If Not dictInUse.Exists(cellValue) Then
-            wsOutput.Cells(outputRow, 5).Value = cellValue ' Column E
+            wsHome.Cells(outputRow, 5).Value = cellValue
             outputRow = outputRow + 1
         End If
     Next cellValue
     
-    ' Sort both lists alphabetically
-    With wsOutput
-        .Range("D3:D" & .Cells(.Rows.Count, "D").End(xlUp).Row).Sort Key1:=.Range("D3"), Order1:=xlAscending
-        .Range("E3:E" & .Cells(.Rows.Count, "E").End(xlUp).Row).Sort Key1:=.Range("E3"), Order1:=xlAscending
-    End With
-    
-    ' Formatting
-    With wsOutput
-        .Range("D1:E1").Font.Bold = True
-        .Range("D2:E2").Font.Bold = True
-        .Range("D1:E1").Interior.Color = RGB(200, 200, 200)
-        .Range("D2:E2").Interior.Color = RGB(200, 200, 200)
-    End With
-    
-    MsgBox "Unit tracking completed!" & vbCrLf & _
-           "Units in use: " & inUseCount & vbCrLf & _
-           "Units not in use: " & notInUseCount, vbInformation
-    
-    ' Clean up
-    Set dictInUse = Nothing
-    Set dictAllUnits = Nothing
-    Set wsHR = Nothing
-    Set wsUnit = Nothing
-    Set wsOutput = Nothing
+    ' Sort lists
+    If wsHome.Cells(wsHome.Rows.Count, "D").End(xlUp).Row > 2 Then
+        wsHome.Range("D3:D" & wsHome.Cells(wsHome.Rows.Count, "D").End(xlUp).Row).Sort Key1:=wsHome.Range("D3"), Order1:=xlAscending
+    End If
+    If wsHome.Cells(wsHome.Rows.Count, "E").End(xlUp).Row > 2 Then
+        wsHome.Range("E3:E" & wsHome.Cells(wsHome.Rows.Count, "E").End(xlUp).Row).Sort Key1:=wsHome.Range("E3"), Order1:=xlAscending
+    End If
 End Sub
 
 Sub CheckEmployeeData()
-    Dim wsHE As Worksheet, wsHR As Worksheet, wsOutput As Worksheet
+    Dim wsHE As Worksheet, wsHR As Worksheet, wsHome As Worksheet
     Dim lastRowHE As Long, lastRowHR As Long, i As Long, j As Long
     Dim givenName As String, supervisorName As String, workTray As String
     Dim foundInHR As Boolean, foundSupervisor As Boolean, foundWorkTray As Boolean
     Dim hasData As Boolean
     Dim resultRow As Long
     
-    ' Set worksheets
+    Set wsHome = ThisWorkbook.Sheets("Home")
     Set wsHE = ThisWorkbook.Sheets("HE_Feed")
     Set wsHR = ThisWorkbook.Sheets("HR_Feed")
-    Set wsOutput = ThisWorkbook.Sheets("Sheet1") ' Change to your output sheet name
     
-    ' Find last rows
+    ' Update status
+    wsHome.Range("A1").Value = "Checking employee data..."
+    DoEvents
+    
     lastRowHE = wsHE.Cells(wsHE.Rows.Count, "A").End(xlUp).Row
     lastRowHR = wsHR.Cells(wsHR.Rows.Count, "A").End(xlUp).Row
     
-    ' Clear previous results
-    wsOutput.Range("F3:F" & wsOutput.Rows.Count).ClearContents
-    wsOutput.Range("F2").Value = "Employee Check Results"
-    wsOutput.Range("F2").Font.Bold = True
+    ' Set up headers on Home sheet - Column F onwards
+    wsHome.Range("F1").Value = "EMPLOYEE VALIDATION RESULTS"
+    wsHome.Range("F2").Value = "Employee Name"
+    wsHome.Range("G2").Value = "Status"
+    wsHome.Range("H2").Value = "HR Match"
+    wsHome.Range("I2").Value = "Supervisor"
+    wsHome.Range("J2").Value = "Work Tray"
+    wsHome.Range("K2").Value = "Has Data"
     
-    ' Check each employee in HE_Feed
-    For i = 2 To lastRowHE ' Assuming row 1 is header
-        ' Get employee data
-        givenName = CStr(wsHE.Cells(i, 6).Value) & CStr(wsHE.Cells(i, 7).Value) ' Columns F & G
-        supervisorName = CStr(wsHE.Cells(i, 21).Value) ' Column U
-        workTray = CStr(wsHE.Cells(i, 26).Value) ' Column Z
+    resultRow = 3
+    
+    For i = 2 To lastRowHE
+        givenName = Trim(wsHE.Cells(i, 6).Value & " " & wsHE.Cells(i, 7).Value)
+        supervisorName = Trim(wsHE.Cells(i, 21).Value)
+        workTray = Trim(wsHE.Cells(i, 26).Value)
         
         ' Reset flags
         foundInHR = False
@@ -135,66 +207,88 @@ Sub CheckEmployeeData()
         foundWorkTray = False
         hasData = False
         
-        ' Check if given name exists in HR_Feed
+        ' Check HR existence
         For j = 2 To lastRowHR
-            If InStr(1, CStr(wsHR.Cells(j, 1).Value), givenName, vbTextCompare) > 0 Then
-                foundInHR = True
-                Exit For
-            End If
+            If InStr(1, wsHR.Cells(j, 1).Value, givenName, vbTextCompare) > 0 Then foundInHR = True
+            If InStr(1, wsHR.Cells(j, 1).Value, supervisorName, vbTextCompare) > 0 Then foundSupervisor = True
+            If wsHR.Cells(j, 1).Value = workTray Then foundWorkTray = True
         Next j
         
-        ' Check if supervisor exists in HR_Feed
-        For j = 2 To lastRowHR
-            If InStr(1, CStr(wsHR.Cells(j, 1).Value), supervisorName, vbTextCompare) > 0 Then
-                foundSupervisor = True
-                Exit For
-            End If
-        Next j
-        
-        ' Check if work tray exists in HR_Feed
-        For j = 2 To lastRowHR
-            If CStr(wsHR.Cells(j, 1).Value) = workTray Then
-                foundWorkTray = True
-                Exit For
-            End If
-        Next j
-        
-        ' Check columns Q, P, O, N, M, L, K, J, I, H for data
-        For j = 18 To 27 Step -1 ' Columns H to Q (18 to 27)
-            If Not IsEmpty(wsHE.Cells(i, j).Value) And wsHE.Cells(i, j).Value <> "" Then
+        ' Check columns H-Q for data
+        For j = 8 To 17 ' Columns H to Q
+            If wsHE.Cells(i, j).Value <> "" Then
                 hasData = True
                 Exit For
             End If
         Next j
         
-        ' Display result
-        resultRow = i + 1 ' Offset for header
-        If foundInHR And foundSupervisor And foundWorkTray And hasData Then
-            wsOutput.Cells(resultRow, 6).Value = "VALID - " & givenName
-            wsOutput.Cells(resultRow, 6).Interior.Color = RGB(146, 208, 80) ' Green
-        Else
-            wsOutput.Cells(resultRow, 6).Value = "INVALID - " & givenName
-            wsOutput.Cells(resultRow, 6).Interior.Color = RGB(255, 199, 206) ' Red
-            
-            ' Add reasons
-            If Not foundInHR Then wsOutput.Cells(resultRow, 7).Value = "Name not in HR"
-            If Not foundSupervisor Then wsOutput.Cells(resultRow, 8).Value = "Supervisor not in HR"
-            If Not foundWorkTray Then wsOutput.Cells(resultRow, 9).Value = "Work tray not in HR"
-            If Not hasData Then wsOutput.Cells(resultRow, 10).Value = "No data in columns H-Q"
-        End If
+        ' Output results to Home sheet
+        wsHome.Cells(resultRow, 6).Value = givenName ' Column F
+        wsHome.Cells(resultRow, 7).Value = IIf(foundInHR And foundSupervisor And foundWorkTray And hasData, "VALID", "INVALID") ' Column G
+        wsHome.Cells(resultRow, 8).Value = IIf(foundInHR, "✓", "✗") ' Column H
+        wsHome.Cells(resultRow, 9).Value = IIf(foundSupervisor, "✓", "✗") ' Column I
+        wsHome.Cells(resultRow, 10).Value = IIf(foundWorkTray, "✓", "✗") ' Column J
+        wsHome.Cells(resultRow, 11).Value = IIf(hasData, "✓", "✗") ' Column K
+        
+        resultRow = resultRow + 1
     Next i
-    
-    MsgBox "Employee data check completed!", vbInformation
-    
-    ' Clean up
-    Set wsHE = Nothing
-    Set wsHR = Nothing
-    Set wsOutput = Nothing
 End Sub
 
-Sub RunAllChecks()
-    ' Run both checks
-    TrackUnitUsage
-    CheckEmployeeData
-    MsgBox "All checks completed successfully!", vbInformation
+Sub FormatHomeSheet()
+    Dim wsHome As Worksheet
+    Set wsHome = ThisWorkbook.Sheets("Home")
+    
+    ' Format headers
+    With wsHome.Range("D1:E1")
+        .Font.Bold = True
+        .Font.Size = 14
+        .Interior.Color = RGB(200, 200, 200)
+        .HorizontalAlignment = xlCenter
+    End With
+    
+    With wsHome.Range("D2:E2")
+        .Font.Bold = True
+        .Interior.Color = RGB(180, 180, 180)
+        .HorizontalAlignment = xlCenter
+    End With
+    
+    With wsHome.Range("F1:K1")
+        .Font.Bold = True
+        .Font.Size = 12
+        .Interior.Color = RGB(200, 200, 200)
+        .HorizontalAlignment = xlCenter
+        .Merge
+    End With
+    
+    With wsHome.Range("F2:K2")
+        .Font.Bold = True
+        .Interior.Color = RGB(180, 180, 180)
+        .HorizontalAlignment = xlCenter
+    End With
+    
+    ' Auto-fit columns
+    wsHome.Columns("D:K").AutoFit
+    
+    ' Add borders
+    With wsHome.Range("D2:E" & wsHome.Cells(wsHome.Rows.Count, "D").End(xlUp).Row)
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With wsHome.Range("F2:K" & wsHome.Cells(wsHome.Rows.Count, "F").End(xlUp).Row)
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    ' Color code validation results
+    Dim lastRow As Long
+    lastRow = wsHome.Cells(wsHome.Rows.Count, "G").End(xlUp).Row
+    
+    For i = 3 To lastRow
+        If wsHome.Cells(i, 7).Value = "VALID" Then
+            wsHome.Cells(i, 7).Interior.Color = RGB(146, 208, 80) ' Green
+        Else
+            wsHome.Cells(i, 7).Interior.Color = RGB(255, 199, 206) ' Red
+        End If
+    Next i
 End Sub
