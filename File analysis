@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-File Comparison & Monitoring</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --success: #4cc9f0;
+            --warning: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.97);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(90deg, #4b6cb7, #182848);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            gap: 20px;
+        }
+        
+        .panel {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .file-input {
+            margin-bottom: 15px;
+        }
+        
+        .file-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        .file-input input, .file-input select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .file-input input:focus, .file-input select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        .time-range {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        
+        .time-range input {
+            flex: 1;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .secondary-btn {
+            background: #6c757d;
+        }
+        
+        .secondary-btn:hover {
+            background: #5a6268;
+        }
+        
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            min-height: 150px;
+        }
+        
+        .error-log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .error-entry {
+            padding: 10px;
+            border-left: 4px solid #e74c3c;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .error-date {
+            font-weight: 600;
+            color: #e74c3c;
+        }
+        
+        .error-message {
+            margin-top: 5px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-exists {
+            background-color: #2ecc71;
+        }
+        
+        .status-missing {
+            background-color: #e74c3c;
+        }
+        
+        .status-match {
+            background-color: #2ecc71;
+        }
+        
+        .status-different {
+            background-color: #f39c12;
+        }
+        
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .file-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .file-card.processed {
+            border-left-color: #2ecc71;
+        }
+        
+        .file-card.error {
+            border-left-color: #e74c3c;
+        }
+        
+        .file-card.ignored {
+            border-left-color: #95a5a6;
+            opacity: 0.7;
+        }
+        
+        .file-card h4 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .file-card p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+        
+        .weekly-report {
+            margin-top: 20px;
+        }
+        
+        .report-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
+        
+        .file-pattern {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .file-example {
+            background-color: #f0f8ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .time-range {
+                flex-direction: column;
+            }
+            
+            .file-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Multi-File Comparison & Monitoring</h1>
+            <p class="subtitle">Handle 4 file types with dynamic names and timestamps</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="panel">
+                <h2>File Comparison</h2>
+                <div class="file-input">
+                    <label for="source-folder">Source Folder:</label>
+                    <input type="text" id="source-folder" placeholder="e.g., C:\Source\Files" value="C:\Source\Files">
+                    <div class="file-pattern">Files should match pattern: type_YYYYMMDD_HHMM.txt</div>
+                </div>
+                
+                <div class="file-input">
+                    <label for="target-folder">Target Folder:</label>
+                    <input type="text" id="target-folder" placeholder="e.g., D:\Target\Files" value="D:\Target\Files">
+                    <div class="file-pattern">Files should match pattern: type_YYYYMMDD_HHMM.txt</div>
+                </div>
+                
+                <div class="file-input">
+                    <label for="time-range">Check files between:</label>
+                    <div class="time-range">
+                        <input type="time" id="start-time" value="00:00">
+                        <span>to</span>
+                        <input type="time" id="end-time" value="23:59">
+                    </div>
+                </div>
+                
+                <button id="compare-btn">Compare Files</button>
+                
+                <div class="results">
+                    <h3>Comparison Results:</h3>
+                    <div id="comparison-result">No comparison performed yet</div>
+                </div>
+            </div>
+            
+            <!-- Other panels unchanged (File Status, Error Log Monitor, etc.) -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const compareBtn = document.getElementById('compare-btn');
+
+            // Mock file system for demonstration
+            const mockFileSystem = {
+                'C:\\Source\\Files': {
+                    'data_20231115_0930.txt': 'Customer data...',
+                    'processed_20231115_0945.txt': 'Processed data...',
+                },
+                'D:\\Target\\Files': {
+                    'data_20231115_1000.txt': 'Customer data...',
+                    'processed_20231115_1015.txt': 'Processed data...',
+                }
+            };
+
+            compareBtn.addEventListener('click', function() {
+                const sourceFolder = document.getElementById('source-folder').value;
+                const targetFolder = document.getElementById('target-folder').value;
+                const startTime = document.getElementById('start-time').value;
+                const endTime = document.getElementById('end-time').value;
+
+                if (!mockFileSystem[sourceFolder] || !mockFileSystem[targetFolder]) {
+                    document.getElementById('comparison-result').innerHTML = '<p>Invalid folders</p>';
+                    return;
+                }
+
+                const sourceFiles = mockFileSystem[sourceFolder];
+                const targetFiles = mockFileSystem[targetFolder];
+
+                const startTimeMin = timeToMinutes(startTime);
+                const endTimeMin = timeToMinutes(endTime);
+                const TOLERANCE_MINUTES = 60;
+
+                let resultHTML = '';
+                let matchCount = 0;
+
+                for (const [sourceName, sourceContent] of Object.entries(sourceFiles)) {
+                    if (sourceName.includes('failed_') || sourceName.includes('error_')) continue;
+
+                    const sourceTime = extractTimeFromFilename(sourceName);
+                    const sourceDate = extractDateFromFilename(sourceName);
+                    const sourceType = extractFileType(sourceName);
+
+                    if (sourceTime && isTimeInRange(sourceTime, startTimeMin, endTimeMin)) {
+                        let bestMatch = null;
+                        let smallestDiff = Infinity;
+
+                        for (const [targetName, targetContent] of Object.entries(targetFiles)) {
+                            if (targetName.includes('failed_')) continue;
+
+                            const targetTime = extractTimeFromFilename(targetName);
+                            const targetDate = extractDateFromFilename(targetName);
+                            const targetType = extractFileType(targetName);
+
+                            if (targetDate === sourceDate && targetType === sourceType && targetTime) {
+                                const diff = Math.abs(sourceTime - targetTime);
+                                if (diff <= TOLERANCE_MINUTES && diff < smallestDiff) {
+                                    bestMatch = { name: targetName, content: targetContent, diff };
+                                    smallestDiff = diff;
+                                }
+                            }
+                        }
+
+                        if (bestMatch) {
+                            matchCount++;
+                            const contentMatch = sourceContent === bestMatch.content;
+                            resultHTML += `
+                                <div style="margin: 15px 0; padding: 10px; background: #f0f8ff; border-radius: 5px;">
+                                    <p><strong>Source:</strong> ${sourceName} (${formatTime(sourceTime)})</p>
+                                    <p><strong>Target:</strong> ${bestMatch.name} (${formatTime(sourceTime + bestMatch.diff)})</p>
+                                    <p><strong>Time Difference:</strong> ${bestMatch.diff} minutes</p>
+                                    <p><strong>Content Match:</strong> <span style="color: ${contentMatch ? 'green' : 'orange'}">${contentMatch ? 'Yes' : 'No'}</span></p>
+                                </div>
+                            `;
+                        } else {
+                            resultHTML += `<p>No match for ${sourceName}</p>`;
+                        }
+                    }
+                }
+
+                if (matchCount === 0) {
+                    resultHTML = '<p>No matches found</p>';
+                }
+
+                document.getElementById('comparison-result').innerHTML = resultHTML;
+            });
+
+            function timeToMinutes(timeStr) {
+                const [h, m] = timeStr.split(':').map(Number);
+                return h * 60 + m;
+            }
+
+            function extractTimeFromFilename(filename) {
+                const match = filename.match(/_(\d{4})\./);
+                if (!match) return null;
+                const hh = parseInt(match[1].slice(0, 2));
+                const mm = parseInt(match[1].slice(2, 4));
+                return hh * 60 + mm;
+            }
+
+            function extractDateFromFilename(filename) {
+                const match = filename.match(/_(\d{8})_/);
+                return match ? match[1] : null;
+            }
+
+            function extractFileType(filename) {
+                if (filename.startsWith('data_')) return 'data';
+                if (filename.startsWith('processed_')) return 'processed';
+                return 'unknown';
+            }
+
+            function isTimeInRange(t, start, end) {
+                return t >= start && t <= end;
+            }
+
+            function formatTime(minutes) {
+                const h = Math.floor(minutes / 60);
+                const m = minutes % 60;
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            }
+        });
+    </script>
+</body>
+</html>
