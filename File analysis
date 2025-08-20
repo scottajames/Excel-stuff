@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live File Comparison Tool</title>
+    <title>Weekly File Comparison Tool</title>
     <style>
         * {
             box-sizing: border-box;
@@ -50,76 +50,13 @@
             line-height: 1.6;
         }
         
-        .config-section {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .config-box {
-            flex: 1;
-            min-width: 300px;
-            padding: 20px;
-            border: 2px solid #3498db;
+        .week-info {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f4fc;
             border-radius: 8px;
-            background: #f8f9fa;
-        }
-        
-        .config-box h3 {
-            margin-bottom: 15px;
-            color: #3498db;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
             font-weight: 600;
-        }
-        
-        input[type="text"], input[type="number"], select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-        
-        .btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: background 0.3s ease;
-            margin: 10px 5px;
-        }
-        
-        .btn:hover {
-            background: #2980b9;
-        }
-        
-        .btn-start {
-            background: #2ecc71;
-        }
-        
-        .btn-start:hover {
-            background: #27ae60;
-        }
-        
-        .btn-stop {
-            background: #e74c3c;
-        }
-        
-        .btn-stop:hover {
-            background: #c0392b;
         }
         
         .status-section {
@@ -205,6 +142,29 @@
             border-left: 5px solid #fdcb6e;
         }
         
+        .file-list {
+            margin: 20px 0;
+        }
+        
+        .file-item {
+            padding: 10px 15px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 5px solid #3498db;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-missing {
+            border-left: 5px solid #e74c3c;
+        }
+        
+        .file-new {
+            border-left: 5px solid #2ecc71;
+        }
+        
         .history-section {
             margin-top: 40px;
             padding: 20px;
@@ -261,12 +221,13 @@
         }
         
         @media (max-width: 768px) {
-            .config-section {
+            .status-header {
                 flex-direction: column;
+                align-items: flex-start;
             }
             
-            .config-box {
-                width: 100%;
+            .status-indicator {
+                margin-top: 10px;
             }
         }
     </style>
@@ -274,50 +235,23 @@
 <body>
     <div class="container">
         <header>
-            <h1>Live File Comparison Tool</h1>
+            <h1>Weekly File Comparison Tool</h1>
             <p class="description">
-                This tool automatically monitors and compares files between your PC and the server at regular intervals.
-                It detects differences and error messages without manual intervention.
+                This tool automatically checks for differences between your PC and server files for the current week.
+                It detects missing files, content differences, and error messages without any manual input.
             </p>
         </header>
         
-        <section class="config-section">
-            <div class="config-box">
-                <h3>PC File Configuration</h3>
-                <div class="form-group">
-                    <label for="pc-file-path">PC File Path (simulated)</label>
-                    <input type="text" id="pc-file-path" value="C:/DailyReports/report.txt">
-                </div>
-                <div class="form-group">
-                    <label for="pc-check-interval">Check Interval (minutes)</label>
-                    <input type="number" id="pc-check-interval" value="15" min="5">
-                </div>
-            </div>
-            
-            <div class="config-box">
-                <h3>Server Configuration</h3>
-                <div class="form-group">
-                    <label for="server-url">Server URL (simulated)</label>
-                    <input type="text" id="server-url" value="https://server.com/reports/daily.txt">
-                </div>
-                <div class="form-group">
-                    <label for="server-check-interval">Check Interval (minutes)</label>
-                    <input type="number" id="server-check-interval" value="30" min="5">
-                </div>
-            </div>
-        </section>
-        
-        <div style="text-align: center;">
-            <button id="start-btn" class="btn btn-start">Start Monitoring</button>
-            <button id="stop-btn" class="btn btn-stop">Stop Monitoring</button>
+        <div class="week-info">
+            <h3>Checking files for the week of <span id="week-range"></span></h3>
         </div>
         
         <section class="status-section">
             <div class="status-header">
-                <h2>Monitoring Status</h2>
-                <span id="status-indicator" class="status-indicator status-inactive">INACTIVE</span>
+                <h2>Comparison Status</h2>
+                <span id="status-indicator" class="status-indicator status-active">CHECKING...</span>
             </div>
-            <div id="status-message">Monitoring is not active. Click "Start Monitoring" to begin.</div>
+            <div id="status-message">Scanning files for the current week...</div>
         </section>
         
         <section class="results-section">
@@ -326,31 +260,30 @@
             </div>
             <div id="results-content">
                 <div id="comparison-result" class="comparison-result">
-                    <p>No comparisons have been made yet. Results will appear here once monitoring starts.</p>
+                    <p>Scanning files... Please wait.</p>
                 </div>
                 
-                <div class="file-display" style="display: none;">
-                    <h3>File Contents</h3>
-                    <div class="file-content" id="pc-content"></div>
-                    <div class="file-content" id="server-content"></div>
+                <div id="file-differences" class="file-list" style="display: none;">
+                    <h3>File Differences</h3>
+                    <div id="file-diff-list"></div>
                 </div>
                 
                 <div id="error-section" class="error-section" style="display: none;">
-                    <h3>Error Messages from Server File</h3>
+                    <h3>Error Messages from Server Files</h3>
                     <div id="error-content"></div>
                 </div>
             </div>
         </section>
         
         <section class="history-section">
-            <h2>Comparison History</h2>
-            <p>Recent comparisons (stored for one week):</p>
-            <div id="history-list"></div>
+            <h2>Weekly Summary</h2>
+            <p>File status for each day of the week:</p>
+            <div id="weekly-summary"></div>
         </section>
         
         <footer>
             <p>This tool works entirely in your browser. No data is uploaded to any server.</p>
-            <p>All comparison history is stored locally and will be cleared after one week.</p>
+            <p>All file information is reset at the end of each week.</p>
         </footer>
     </div>
 
@@ -358,143 +291,202 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const startBtn = document.getElementById('start-btn');
-            const stopBtn = document.getElementById('stop-btn');
             const statusIndicator = document.getElementById('status-indicator');
             const statusMessage = document.getElementById('status-message');
             const comparisonResult = document.getElementById('comparison-result');
-            const pcContent = document.getElementById('pc-content');
-            const serverContent = document.getElementById('server-content');
             const errorSection = document.getElementById('error-section');
             const errorContent = document.getElementById('error-content');
-            const historyList = document.getElementById('history-list');
+            const fileDifferences = document.getElementById('file-differences');
+            const fileDiffList = document.getElementById('file-diff-list');
+            const weekRange = document.getElementById('week-range');
+            const weeklySummary = document.getElementById('weekly-summary');
             const notification = document.getElementById('notification');
             
-            let monitoringInterval = null;
-            let pcCheckInterval = null;
-            let serverCheckInterval = null;
-            let isMonitoring = false;
+            // Set week range
+            const currentDate = new Date();
+            const currentDay = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - currentDay);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
             
-            // Sample file contents for simulation
-            const samplePCFiles = [
-                "Daily Report - 2023-11-01\nSuccess: 4\nFailed: 0\nErrors: None",
-                "Daily Report - 2023-11-02\nSuccess: 3\nFailed: 1\nErrors: None",
-                "Daily Report - 2023-11-03\nSuccess: 4\nFailed: 0\nErrors: None",
-                "Daily Report - 2023-11-04\nSuccess: 2\nFailed: 2\nErrors: None"
-            ];
+            weekRange.textContent = `${formatDate(startOfWeek)} to ${formatDate(endOfWeek)}`;
             
-            const sampleServerFiles = [
-                "Daily Report - 2023-11-01\nSuccess: 4\nFailed: 0\nErrors: None",
-                "Daily Report - 2023-11-02\nSuccess: 3\nFailed: 1\nErrors: Connection timeout on record #4",
-                "Daily Report - 2023-11-03\nSuccess: 4\nFailed: 0\nErrors: None\nAdditional: Server maintenance completed",
-                "Daily Report - 2023-11-04\nSuccess: 2\nFailed: 2\nErrors: Invalid format on record #3, Database error on record #4"
-            ];
+            // Sample file data for simulation
+            const generateFileData = () => {
+                const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const pcFiles = {};
+                const serverFiles = {};
+                
+                // Generate files for each day of the week
+                days.forEach((day, index) => {
+                    const date = new Date(startOfWeek);
+                    date.setDate(startOfWeek.getDate() + index);
+                    
+                    if (date > currentDate) return; // Don't generate future files
+                    
+                    const dateStr = formatDate(date);
+                    
+                    // PC files (up to 4 per day)
+                    const pcCount = Math.floor(Math.random() * 5); // 0-4 files
+                    pcFiles[day] = [];
+                    
+                    for (let i = 1; i <= pcCount; i++) {
+                        pcFiles[day].push({
+                            name: `report_${dateStr}_${i}.txt`,
+                            content: `Daily Report - ${dateStr}\nFile: ${i}/${pcCount}\nSuccess: ${Math.floor(Math.random() * 5)}\nFailed: ${Math.floor(Math.random() * 2)}\nErrors: None`,
+                            timestamp: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8 + Math.floor(Math.random() * 8)) // Random time between 8am-4pm
+                        });
+                    }
+                    
+                    // Server files (may have more files, including failures)
+                    const serverCount = pcCount + Math.floor(Math.random() * 3); // Same or more files
+                    serverFiles[day] = [];
+                    
+                    for (let i = 1; i <= serverCount; i++) {
+                        const hasError = Math.random() > 0.7; // 30% chance of error
+                        const errorMsg = hasError ? `ERROR: Failed to process record ${i}` : 'None';
+                        
+                        serverFiles[day].push({
+                            name: `report_${dateStr}_${i}.txt`,
+                            content: `Daily Report - ${dateStr}\nFile: ${i}/${serverCount}\nSuccess: ${Math.floor(Math.random() * 5)}\nFailed: ${Math.floor(Math.random() * 3)}\nErrors: ${errorMsg}`,
+                            timestamp: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8 + Math.floor(Math.random() * 10)) // Random time between 8am-6pm
+                        });
+                    }
+                });
+                
+                return { pcFiles, serverFiles };
+            };
             
-            // Load history from localStorage
-            loadHistory();
+            // Start comparison
+            setTimeout(() => {
+                compareWeeklyFiles();
+            }, 1500);
             
-            // Start monitoring
-            startBtn.addEventListener('click', function() {
-                if (isMonitoring) return;
+            // Function to compare files for the week
+            function compareWeeklyFiles() {
+                statusIndicator.textContent = 'SCANNING';
+                statusMessage.textContent = 'Comparing files for the current week...';
                 
-                const pcInterval = document.getElementById('pc-check-interval').value * 60000;
-                const serverInterval = document.getElementById('server-check-interval').value * 60000;
+                const { pcFiles, serverFiles } = generateFileData();
                 
-                // Update status
-                statusIndicator.className = 'status-indicator status-active';
-                statusIndicator.textContent = 'ACTIVE';
-                statusMessage.textContent = 'Monitoring active. Next check in ' + (pcInterval/60000) + ' minutes.';
+                let missingFiles = 0;
+                let differentFiles = 0;
+                let errorMessages = [];
                 
-                isMonitoring = true;
-                showNotification('Monitoring started successfully', 'success');
+                // Compare files for each day
+                Object.keys(pcFiles).forEach(day => {
+                    const pcDayFiles = pcFiles[day];
+                    const serverDayFiles = serverFiles[day] || [];
+                    
+                    // Check for files in PC but not in server
+                    pcDayFiles.forEach(pcFile => {
+                        const serverFile = serverDayFiles.find(f => f.name === pcFile.name);
+                        
+                        if (!serverFile) {
+                            missingFiles++;
+                            fileDiffList.innerHTML += `
+                                <div class="file-item file-missing">
+                                    <div>${pcFile.name} - Missing on server</div>
+                                    <div>${formatTime(pcFile.timestamp)}</div>
+                                </div>
+                            `;
+                        } else if (pcFile.content !== serverFile.content) {
+                            differentFiles++;
+                            fileDiffList.innerHTML += `
+                                <div class="file-item">
+                                    <div>${pcFile.name} - Content differs</div>
+                                    <div>PC: ${formatTime(pcFile.timestamp)} | Server: ${formatTime(serverFile.timestamp)}</div>
+                                </div>
+                            `;
+                            
+                            // Check for error messages
+                            const errors = extractErrorMessages(serverFile.content);
+                            if (errors.length > 0) {
+                                errorMessages.push(...errors.map(e => `${pcFile.name}: ${e}`));
+                            }
+                        }
+                    });
+                    
+                    // Check for files in server but not in PC
+                    serverDayFiles.forEach(serverFile => {
+                        const pcFile = pcDayFiles.find(f => f.name === serverFile.name);
+                        
+                        if (!pcFile) {
+                            fileDiffList.innerHTML += `
+                                <div class="file-item file-new">
+                                    <div>${serverFile.name} - Only on server</div>
+                                    <div>${formatTime(serverFile.timestamp)}</div>
+                                </div>
+                            `;
+                            
+                            // Check for error messages
+                            const errors = extractErrorMessages(serverFile.content);
+                            if (errors.length > 0) {
+                                errorMessages.push(...errors.map(e => `${serverFile.name}: ${e}`));
+                            }
+                        }
+                    });
+                });
                 
-                // Perform initial check
-                checkFiles();
-                
-                // Set up interval checks
-                pcCheckInterval = setInterval(checkFiles, pcInterval);
-                serverCheckInterval = setInterval(checkFiles, serverInterval);
-            });
-            
-            // Stop monitoring
-            stopBtn.addEventListener('click', function() {
-                if (!isMonitoring) return;
-                
-                clearInterval(pcCheckInterval);
-                clearInterval(serverCheckInterval);
-                
-                // Update status
-                statusIndicator.className = 'status-indicator status-inactive';
-                statusIndicator.textContent = 'INACTIVE';
-                statusMessage.textContent = 'Monitoring is not active. Click "Start Monitoring" to begin.';
-                
-                isMonitoring = false;
-                showNotification('Monitoring stopped', 'warning');
-            });
-            
-            // Function to check files
-            function checkFiles() {
-                // Simulate file retrieval - in a real scenario, you would fetch actual files
-                const randomPCIndex = Math.floor(Math.random() * samplePCFiles.length);
-                const randomServerIndex = Math.floor(Math.random() * sampleServerFiles.length);
-                
-                const pcText = samplePCFiles[randomPCIndex];
-                const serverText = sampleServerFiles[randomServerIndex];
-                
-                // Compare files
-                compareFiles(pcText, serverText);
-                
-                // Update status message
-                const nextCheck = document.getElementById('pc-check-interval').value;
-                statusMessage.textContent = `Last checked: ${new Date().toLocaleTimeString()}. Next check in ${nextCheck} minutes.`;
-            }
-            
-            // Function to compare files
-            function compareFiles(pcText, serverText) {
-                const isMatch = pcText === serverText;
-                
-                if (isMatch) {
+                // Display results
+                if (missingFiles === 0 && differentFiles === 0) {
                     comparisonResult.className = 'comparison-result match';
                     comparisonResult.innerHTML = `
-                        <h3>Files Match!</h3>
-                        <p>The files are identical as of ${new Date().toLocaleTimeString()}.</p>
+                        <h3>All Files Match!</h3>
+                        <p>All PC and server files are synchronized for this week.</p>
                     `;
+                    showNotification('All files are synchronized!', 'success');
                 } else {
                     comparisonResult.className = 'comparison-result diff';
                     comparisonResult.innerHTML = `
-                        <h3>Files Don't Match</h3>
-                        <p>Differences detected at ${new Date().toLocaleTimeString()}.</p>
+                        <h3>File Differences Found</h3>
+                        <p>Found ${missingFiles} missing files and ${differentFiles} files with differences.</p>
                     `;
-                    
-                    // Show notification if files don't match
-                    showNotification('Files do not match!', 'error');
+                    fileDifferences.style.display = 'block';
+                    showNotification('File differences detected!', 'error');
                 }
                 
-                // Display file contents
-                document.querySelector('.file-display').style.display = 'block';
-                pcContent.textContent = pcText;
-                serverContent.textContent = serverText;
-                
-                // Check for error messages in server file
-                const errorMessages = extractErrorMessages(serverText);
+                // Display error messages if any
                 if (errorMessages.length > 0) {
                     errorSection.style.display = 'block';
                     errorContent.innerHTML = errorMessages.map(msg => 
                         `<div class="error-message">${msg}</div>`
                     ).join('');
-                } else {
-                    errorSection.style.display = 'none';
                 }
                 
-                // Save to history
-                saveToHistory({
-                    date: new Date().toISOString(),
-                    match: isMatch,
-                    errorCount: errorMessages.length
+                // Update status
+                statusIndicator.textContent = 'COMPLETED';
+                statusIndicator.className = 'status-indicator ' + 
+                    (missingFiles === 0 && differentFiles === 0 ? 'status-active' : 'status-error');
+                
+                statusMessage.textContent = `Scan completed at ${new Date().toLocaleTimeString()}. 
+                    Found ${missingFiles} missing files and ${differentFiles} files with differences.`;
+                
+                // Generate weekly summary
+                generateWeeklySummary(pcFiles, serverFiles);
+            }
+            
+            // Function to generate weekly summary
+            function generateWeeklySummary(pcFiles, serverFiles) {
+                const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                let summaryHTML = '';
+                
+                days.forEach(day => {
+                    if (day in pcFiles || day in serverFiles) {
+                        const pcCount = pcFiles[day] ? pcFiles[day].length : 0;
+                        const serverCount = serverFiles[day] ? serverFiles[day].length : 0;
+                        
+                        summaryHTML += `
+                            <div class="history-item">
+                                <strong>${day.charAt(0).toUpperCase() + day.slice(1)}</strong><br>
+                                PC Files: ${pcCount} | Server Files: ${serverCount}
+                            </div>
+                        `;
+                    }
                 });
                 
-                // Reload history
-                loadHistory();
+                weeklySummary.innerHTML = summaryHTML;
             }
             
             // Function to extract error messages
@@ -508,52 +500,11 @@
                         line.toLowerCase().includes('timeout') ||
                         line.toLowerCase().includes('invalid') ||
                         line.toLowerCase().includes('exception')) {
-                        errors.push(line);
+                        errors.push(line.trim());
                     }
-                    
-                    // Limit to 10 most relevant error lines
-                    if (errors.length >= 10) break;
                 }
                 
                 return errors;
-            }
-            
-            // Function to save comparison to history
-            function saveToHistory(comparison) {
-                let history = JSON.parse(localStorage.getItem('fileComparisonHistory') || '[]');
-                
-                // Add new comparison
-                history.push(comparison);
-                
-                // Keep only last week's data
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                
-                history = history.filter(item => new Date(item.date) > oneWeekAgo);
-                
-                // Save back to localStorage
-                localStorage.setItem('fileComparisonHistory', JSON.stringify(history));
-            }
-            
-            // Function to load history from localStorage
-            function loadHistory() {
-                const history = JSON.parse(localStorage.getItem('fileComparisonHistory') || '[]');
-                
-                if (history.length === 0) {
-                    historyList.innerHTML = '<p>No comparison history yet.</p>';
-                    return;
-                }
-                
-                // Show latest first
-                history.sort((a, b) => new Date(b.date) - new Date(a.date));
-                
-                historyList.innerHTML = history.map(item => `
-                    <div class="history-item">
-                        <strong>${new Date(item.date).toLocaleString()}</strong><br>
-                        Status: ${item.match ? 'Match' : 'Different'} | 
-                        Errors: ${item.errorCount}
-                    </div>
-                `).join('');
             }
             
             // Function to show notifications
@@ -577,9 +528,22 @@
                 }, 5000);
             }
             
-            // Simulate initial state
-            statusIndicator.className = 'status-indicator status-inactive';
-            statusIndicator.textContent = 'INACTIVE';
+            // Helper function to format date
+            function formatDate(date) {
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                });
+            }
+            
+            // Helper function to format time
+            function formatTime(date) {
+                return date.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+            }
         });
     </script>
 </body>
