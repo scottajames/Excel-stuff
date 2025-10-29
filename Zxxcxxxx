@@ -1,0 +1,87 @@
+Sub ImportColumnsWithConditions()
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim needsDefault As Boolean
+    
+    Set ws1 = ThisWorkbook.Sheets("MAPPING")
+    Set ws2 = ThisWorkbook.Sheets("OUTPUT")
+    
+    Application.ScreenUpdating = False
+    
+    ' Find last row with data in Sheet2 (starting from row 2)
+    lastRow = ws2.Cells(ws2.Rows.Count, "A").End(xlUp).Row
+    If lastRow < 2 Then lastRow = 2 ' Ensure we at least process row 2
+    
+    ' Clear previous data in target columns (A, D, E, I, J) starting from row 2
+    ws1.Range("A2:A" & lastRow).ClearContents
+    ws1.Range("D2:D" & lastRow).ClearContents
+    ws1.Range("E2:E" & lastRow).ClearContents
+    ws1.Range("I2:I" & lastRow).ClearContents
+    ws1.Range("J2:J" & lastRow).ClearContents
+    
+    ' Import data starting from row 2
+    For i = 2 To lastRow
+        needsDefault = False
+        
+        ' Column A in Sheet1: Import from Column A in Sheet2
+        If ws2.Cells(i, 1).Value <> "" Then
+            ws1.Cells(i, 1).Value = ws2.Cells(i, 1).Value
+        End If
+        
+        ' Column D in Sheet1: Takes from Column P in Sheet2
+        If ws2.Cells(i, 16).Value <> "" Then
+            ws1.Cells(i, 4).Value = ws2.Cells(i, 16).Value
+            needsDefault = True
+        End If
+        
+        ' Column E in Sheet1: Takes from Column J in Sheet2
+        If ws2.Cells(i, 10).Value <> "" Then
+            ws1.Cells(i, 5).Value = ws2.Cells(i, 10).Value
+            needsDefault = True
+        End If
+        
+        ' Column F and G remain blank (no action needed)
+        
+        ' Column I in Sheet1: Default value if any data is found
+        
+        ' Column J in Sheet1: Searches Sheet2 columns I, H, G, F, E until filled
+        If ws2.Cells(i, 9).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 9).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 8).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 8).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 7).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 7).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 6).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 6).Value
+            needsDefault = True
+        ElseIf ws2.Cells(i, 5).Value <> "" Then
+            ws1.Cells(i, 10).Value = ws2.Cells(i, 5).Value
+            needsDefault = True
+        End If
+        
+        ' Set default values if any of D, E, or J have text
+        If needsDefault Then
+            ' Only set the default values in the specific columns that need them
+            ws1.Cells(i, 8).Value = "Y"
+            ws1.Cells(i, 9).Value = "XXC_CONNECT_ORG_AND_GRADE"
+            
+            ' If Column A is empty, set the default value, otherwise keep the imported value
+            If ws1.Cells(i, 1).Value = "" Then
+                ws1.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT"
+            End If
+        Else
+            ' Clear these columns if none of D,E,J have text
+            ' But don't clear Column A if it has imported data
+            If ws1.Cells(i, 1).Value = "XXC_MPS_CONNECT_DEFAULTUNIT" Then
+                ws1.Cells(i, 1).ClearContents
+            End If
+            ws1.Cells(i, 9).ClearContents
+        End If
+    Next i
+    
+    Application.ScreenUpdating = True
+    MsgBox "Data imported successfully! Processed " & (lastRow - 1) & " rows.", vbInformation
+End Sub
