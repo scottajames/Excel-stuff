@@ -1,0 +1,61 @@
+=IFERROR(UNIQUE(FILTER(Table6[Position to Map]&" | "&Table6[Grade/Rank],Table6[Grade/Rank]<>"")),"Add values to 1 Connect Inputs Sheet")
+
+=XLOOKUP(A2#,DefaultUnit!K:K,DefaultUnit!D:D,"No existing mapping",0,1)
+
+=LET(
+vals,C2:INDEX(C:C, MATCH(2, 1/(A:A<>""))),
+x, IF((vals<>0)*(vals<>"NO ACCESS"),XLOOKUP(vals,'4 Unit'!B:B,'4 Unit'!D:D,"Please add value to tab: 4 Unit"),""),
+IF(x=0,"No Description",x)
+)
+
+=LET(
+vals,C2:INDEX(C:C, MATCH(2, 1/(A:A<>""))),
+x, IF((vals<>0)*(vals<>"NO ACCESS"),XLOOKUP(vals,'4 Unit'!$B:$B,'4 Unit'!$A:$A,"Please add value to tab: 4 Unit"),""),
+IF(x=0,"NEW",x)
+)
+
+=LET(
+vals,C2:INDEX(C:C, MATCH(2, 1/(A:A<>""))),
+IF((vals<>0)*(vals<>"NO ACCESS"),IF(LEN(vals)>40,"ERROR: WORKTRAY TOO LONG - "&LEN(vals),"PASS"),"")
+)
+
+=LET(x, C2:INDEX(C:C, MATCH(2, 1/(A:A<>""))),
+y, IF((x<>0)*(x<>"NO ACCESS"),COUNTIF('4 Unit'!U:U,x&"*(DUT)"),""),
+IFS(y="","",y>0,"Found DUT",y=0,"No DUT Found"))
+
+=LET(
+vals,A2:INDEX(A:A, MATCH(2, 1/(A:A<>""))),
+COUNTIFS('3 Security Mapping'!I:I,TEXTBEFORE(vals," | ",),'3 Security Mapping'!J:J,TEXTAFTER(vals," | "))
+)
+
+=LET(
+vals,C2:INDEX(C:C, MATCH(2, 1/(A:A<>""))),
+x, IF(((vals<>0)*(vals<>"NO ACCESS")),XLOOKUP(vals&"PARENT",'5 Unit Relation'!$C2:$C100000&'5 Unit Relation'!$D2:$D100000,'5 Unit Relation'!$E2:$E100000,"No Parent",0,1),""),
+IF(x=0,"Missing Parent",x)
+)
+
+=LET(
+vals,I2:INDEX(I:I, MATCH(2, 1/(A:A<>""))),
+x, IF((vals<>""),XLOOKUP(vals,'4 Unit'!$B:$B,'4 Unit'!$D:$D,"No Description"),""),
+IF(x=0,"No Description",x)
+)
+
+=LET(x, I2:INDEX(I:I, MATCH(2, 1/(A:A<>""))),
+y, IF(x<>"",COUNTIF('4 Unit'!U:U,x&"*(DUT)"),""),
+IFS(y=1,"Found DUT",y=0,"No DUT Found",y="",""))
+
+=UNIQUE(FILTER('2 Tray Mappings'!C:C,'2 Tray Mappings'!E:E="NEW","No new Units"))
+
+=IF(G2:INDEX(G:G,COUNTA(G:G)<>"","01","")
+
+=XLOOKUP(FILTER(I2:I1048576&"",G2:G1048576<>""),'Data Validation Values'!N:N,'Data Validation Values'!M:M,"",0,1)
+
+=UNIQUE(FILTER('2 Tray Mappings'!C:C,'2 Tray Mappings'!E:E="NEW","No new units"))
+
+=UNIQUE(FILTER('2 Tray Mappings'!C:C,'2 Tray Mappings'!E:E="NEW","No new units"))
+
+=IF(A2:INDEX(A:A,COUNTA(A:A))<>"","MET CONNECT USER","")
+
+=UNIQUE(FILTER('2 Tray Mappings'!C:C,'2 Tray Mappings'!E:E="NEW","No new units"))
+=IF(A2:INDEX(A:A,COUNTA(A:A))<>"","01","")
+
