@@ -1,0 +1,73 @@
+let
+    // Start with Table6 as base
+    Source = Table6_Source,
+    
+    //=== FORMULA 1: UNIQUE + FILTER ===//
+    #"Filtered Blank Grades" = Table.SelectRows(Source, each [Grade/Rank] <> null and [Grade/Rank] <> ""),
+    #"Added PositionGrade" = Table.AddColumn(#"Filtered Blank Grades", "PositionGrade", each [Position to Map] & " | " & [Grade/Rank]),
+    
+    //=== FORMULA 2: XLOOKUP REPLACEMENT ===//
+    #"Merged DefaultUnit" = Table.NestedJoin(#"Added PositionGrade", {"PositionGrade"}, DefaultUnit, {"K"}, "DefaultUnit", JoinKind.LeftOuter),
+    #"Expanded DefaultUnit" = Table.ExpandTableColumn(#"Merged DefaultUnit", "DefaultUnit", {"D"}, {"ExistingMapping"}),
+    #"Set Mapping Status" = Table.AddColumn(#"Expanded DefaultUnit", "MappingStatus", each if [ExistingMapping] = null then "No existing mapping" else [ExistingMapping]),
+    
+    //=== FORMULA 3: DESCRIPTION LOOKUP ===//
+    #"Merged Unit4 Desc" = Table.NestedJoin(#"Set Mapping Status", {"Grade/Rank"}, Unit4, {"B"}, "Unit4_Desc", JoinKind.LeftOuter),
+    #"Expanded Unit4 Desc" = Table.ExpandTableColumn(#"Merged Unit4 Desc", "Unit4_Desc", {"D"}, {"UnitDescription"}),
+    #"Set Desc Status" = Table.AddColumn(#"Expanded Unit4 Desc", "DescriptionStatus", each 
+        if [Grade/Rank] = "NO ACCESS" or [Grade/Rank] = "0" or [Grade/Rank] = null then ""
+        else if [UnitDescription] = null then "Please add value to tab: 4 Unit" 
+        else if [UnitDescription] = "0" then "No Description" 
+        else [UnitDescription]),
+    
+    //=== FORMULA 4: UNIT CODE LOOKUP ===//
+    #"Expanded Unit4 Code" = Table.ExpandTableColumn(#"Merged Unit4 Desc", "Unit4_Desc", {"A"}, {"UnitCode"}),
+    #"Set Code Status" = Table.AddColumn(#"Expanded Unit4 Code", "CodeStatus", each 
+        if [Grade/Rank] = "NO ACCESS" or [Grade/Rank] = "0" or [Grade/Rank] = null then ""
+        else if [UnitCode] = null then "NEW" 
+        else [UnitCode]),
+    
+    //=== FORMULA 5: LENGTH VALIDATION ===//
+    #"Added Length Check" = Table.AddColumn(#"Set Code Status", "LengthStatus", each 
+        if [Grade/Rank] = "NO ACCESS" or [Grade/Rank] = "0" or [Grade/Rank] = null then ""
+        else if Text.Length([Grade/Rank]) > 40 then "ERROR: WORKTRAY TOO LONG - " & Text.Length([Grade/Rank]) 
+        else "PASS"),
+    
+    //=== FORMULA 6: SECURITY COUNT ===//
+    #"Split PositionGrade" = Table.SplitColumn(#"Added Length Check", "PositionGrade", Splitter.SplitTextByDelimiter(" | ", QuoteStyle.Csv), {"PositionPart", "GradePart"}),
+    #"Merged Security" = Table.NestedJoin(#"Split PositionGrade", {"PositionPart", "GradePart"}, SecurityMapping, {"I", "J"}, "Security", JoinKind.LeftOuter),
+    #"Added Security Count" = Table.AddColumn(#"Merged Security", "SecurityCount", each Table.RowCount([Security])),
+    #"Removed Security Column" = Table.RemoveColumns(#"Added Security Count",{"Security"}),
+    
+    //=== FORMULA 8: PARENT LOOKUP ===//
+    #"Added Parent Key" = Table.AddColumn(#"Removed Security Column", "ParentKey", each [Grade/Rank] & "PARENT"),
+    #"Merged UnitRelation" = Table.NestedJoin(#"Added Parent Key", {"ParentKey"}, UnitRelation, {"C"}, "UnitRelation", JoinKind.LeftOuter),
+    #"Expanded UnitRelation" = Table.ExpandTableColumn(#"Merged UnitRelation", "UnitRelation", {"E"}, {"Parent"}),
+    #"Set Parent Status" = Table.AddColumn(#"Expanded UnitRelation", "ParentStatus", each 
+        if [Grade/Rank] = "NO ACCESS" or [Grade/Rank] = "0" or [Grade/Rank] = null then ""
+        else if [Parent] = null then "Missing Parent" 
+        else [Parent]),
+    
+    //=== FORMULA 9: SECOND DESCRIPTION LOOKUP ===//
+    #"Merged Unit4 Desc2" = Table.NestedJoin(#"Set Parent Status", {"Grade/Rank"}, Unit4, {"B"}, "Unit4_Desc2", JoinKind.LeftOuter),
+    #"Expanded Unit4 Desc2" = Table.ExpandTableColumn(#"Merged Unit4 Desc2", "Unit4_Desc2", {"D"}, {"SecondDescription"}),
+    #"Set Second Desc" = Table.AddColumn(#"Expanded Unit4 Desc2", "SecondDescStatus", each 
+        if [Grade/Rank] = "" or [Grade/Rank] = null then ""
+        else if [SecondDescription] = null then "No Description" 
+        else if [SecondDescription] = "0" then "No Description" 
+        else [SecondDescription]),
+    
+    //=== FORMULA 10: DUT CHECK ===//
+    #"Added DUT Check" = Table.AddColumn(#"Set Second Desc", "DUTStatus", each 
+        if [Grade/Rank] = "" or [Grade/Rank] = null then ""
+        else if [UnitCode] = null then ""
+        else "DUT Check Needed"), // This would need custom logic for actual DUT lookup
+    
+    //=== FORMULA 12 & 15: CONDITIONAL FLAGS ===//
+    #"Added User Flag" = Table.AddColumn(#"Added DUT Check", "UserFlag", each if [PositionPart] <> null and [PositionPart] <> "" then "MET CONNECT USER" else null),
+    #"Added 01 Flag" = Table.AddColumn(#"Added User Flag", "ZeroOneFlag", each if [ExistingMapping] <> null and [ExistingMapping] <> "" then "01" else null),
+    
+    //=== CLEAN UP COLUMNS ===//
+    #"Removed Helper Columns" = Table.RemoveColumns(#"Added 01 Flag",{"ParentKey", "Unit4_Desc2", "SecondDescription", "UnitDescription", "UnitCode", "ExistingMapping"})
+in
+    #"Removed Helper Columns"
