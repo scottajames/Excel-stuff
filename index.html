@@ -1,119 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PSOP Connect - Upload & Generate</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PSOP Connect - Excel Transformer with Preview</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
 <style>
-body{font-family:Calibri,sans-serif;background:#f5f5f5;margin:0;padding:20px;color:#222}
-.container{max-width:1000px;margin:0 auto}
-h1{font-size:22px;margin-bottom:10px;color:#217346}
-.upload-area{border:2px dashed #217346;padding:30px;text-align:center;border-radius:6px;cursor:pointer;background:white;font-size:16px;margin-bottom:12px}
-.upload-area:hover{background:#e6f9e6}
-button{padding:10px 14px;border:none;border-radius:4px;background:#217346;color:#fff;cursor:pointer;font-family:Calibri,sans-serif;font-size:14px}
+body{font-family:Calibri, sans-serif;background:#f5f5f5;margin:0;padding:20px;color:#222}
+.container{max-width:1200px;margin:0 auto}
+h1{font-size:22px;margin-bottom:20px}
+.upload-area{border:2px dashed #217346;padding:40px;text-align:center;background:white;border-radius:6px;color:#217346;cursor:pointer;font-weight:bold;margin-bottom:20px}
+.upload-area:hover{background:#e6f2e6}
+button{padding:10px 14px;border:none;border-radius:4px;background:#217346;color:#fff;cursor:pointer;font-size:16px}
 button:hover{background:#1a5a2f}
+table{border-collapse:collapse;margin-top:20px;width:100%;font-family:Calibri,sans-serif;font-size:14px;table-layout:fixed}
+th,td{border:1px solid #999;padding:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left}
+th{background:#217346;color:#fff;font-weight:bold;text-align:center}
+.preview-section{margin-top:30px}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>PSOP Connect - Upload & Generate</h1>
+<h1>PSOP Connect - Excel Transformer with Preview</h1>
 
-<div class="upload-area" id="uploadArea">
+<div id="uploadArea" class="upload-area">
 Drag & Drop or Click to Upload XLSX
-<input type="file" id="fileInput" accept=".xlsx" style="display:none">
+<input type="file" id="fileInput" accept=".xlsx" style="display:none" />
 </div>
 
-<button onclick="processExcel()">Generate Clean Excel</button>
+<button id="processBtn">Process & Download Excel</button>
+
+<div id="previewContainer" class="preview-section"></div>
 
 <script>
-const uploadArea = document.getElementById('uploadArea');
-const fileInput = document.getElementById('fileInput');
-let uploadedData = [];
+document.addEventListener("DOMContentLoaded", () => {
 
-uploadArea.addEventListener('click', ()=>fileInput.click());
-uploadArea.addEventListener('dragover', e=>{e.preventDefault(); uploadArea.style.background='#e6f9e6';});
-uploadArea.addEventListener('dragleave', ()=>{uploadArea.style.background='white';});
-uploadArea.addEventListener('drop', e=>{e.preventDefault(); uploadArea.style.background='white'; handleFile(e.dataTransfer.files[0]);});
-fileInput.addEventListener('change', e=>handleFile(e.target.files[0]));
+    const uploadArea = document.getElementById("uploadArea");
+    const fileInput = document.getElementById("fileInput");
+    const previewContainer = document.getElementById("previewContainer");
+    let uploadedFile = null;
+    let uploadedRows = [];
 
-function handleFile(file){
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = e=>{
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data,{type:'array'});
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        uploadedData = XLSX.utils.sheet_to_json(sheet,{header:1});
-        alert('Excel uploaded. Click "Generate Clean Excel" to create your output.');
-    };
-    reader.readAsArrayBuffer(file);
-}
+    uploadArea.addEventListener("click", () => fileInput.click());
+    uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.style.background="#e6f2e6"; });
+    uploadArea.addEventListener("dragleave", () => { uploadArea.style.background="white"; });
+    uploadArea.addEventListener("drop", e => { e.preventDefault(); uploadArea.style.background="white"; handleFile(e.dataTransfer.files[0]); });
+    fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
 
-function processExcel(){
-    if(uploadedData.length===0){alert('Please upload an Excel file first.'); return;}
-
-    const headers = uploadedData[0].map(h=>h.trim());
-    const levelCols = ['Level 4 Organisation','Level 5 Portfolio','Level 6 Function','Level 7 Team','Level 8 Sub-Team'];
-    const levelIndexes = levelCols.map(lv => headers.indexOf(lv));
-
-    // DUT Mapping headers
-    const DUT_HEADERS = ["#","Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enables","Context Value","PSOP Organisation"];
-    const SEC_HEADERS = ["#","Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
-    const DUT_CONSTS = {LOOKUP_TYPE:"XXC_MPS_CONNECT_DEFAULTUNIT", ENABLED:"Y", CONTEXT_VALUE:"XXC_CONNECT_ORG_AND_GRADE"};
-    const SEC_CONSTS = {LOOKUP_TYPE:"XXC_MPS_CONNECT_RANK_ORG", ENABLED:"Y", CONTEXT_VALUE:"XXC_CONNECT_ORG_AND_GRADE"};
-
-    let dutData = [DUT_HEADERS];
-    let secData = [SEC_HEADERS];
-
-    for(let i=1;i<uploadedData.length;i++){
-        const row = uploadedData[i];
-        // pick highest non-empty level from 8→4
-        let org='';
-        for(let idx=levelIndexes.length-1; idx>=0; idx--){
-            if(levelIndexes[idx]>=0 && row[levelIndexes[idx]] && row[levelIndexes[idx]].toString().trim()!==''){
-                org = row[levelIndexes[idx]].toString().trim(); break;
-            }
-        }
-
-        // DUT Mapping
-        let dutRow = [
-            i,
-            DUT_CONSTS.LOOKUP_TYPE,
-            row[headers.indexOf('Work Tray Name')]||'',
-            '', // Meaning left blank
-            row[headers.indexOf('Work Tray Name')]?.toString().toUpperCase()||'',
-            row[headers.indexOf('Rank/Band')]||'',
-            '', '', // From, To
-            DUT_CONSTS.ENABLED,
-            DUT_CONSTS.CONTEXT_VALUE,
-            org||'Lowest Level'
-        ];
-        dutData.push(dutRow);
-
-        // Security Roles
-        let secRow = [
-            i,
-            SEC_CONSTS.LOOKUP_TYPE,
-            row[headers.indexOf('Connect Security Role')]||'',
-            '', // Meaning blank
-            row[headers.indexOf('Connect Security Role')]?.toString().toUpperCase()||'SECURITY ROLE',
-            '', '', // From, To
-            SEC_CONSTS.ENABLED,
-            SEC_CONSTS.CONTEXT_VALUE,
-            org||'Lowest Level',
-            row[headers.indexOf('Rank/Band')]||''
-        ];
-        secData.push(secRow);
+    function handleFile(file) {
+        uploadedFile = file;
+        uploadArea.textContent = `File Loaded: ${file.name}`;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval:"" });
+            renderPreview(uploadedRows);
+        };
+        reader.readAsArrayBuffer(uploadedFile);
     }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dutData),'DUT Mapping');
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(secData),'Security Roles');
+    function getHighestNonEmptyLevel(row) {
+        const levels = ["Level 8 Sub-Team","Level 7 Team","Level 6 Function","Level 5 Portfolio","Level 4 Organisation"];
+        for (let lvl of levels) {
+            if (row[lvl] && row[lvl].toString().trim() !== "") return row[lvl].toString().trim();
+        }
+        return "";
+    }
 
-    const timestamp = new Date().toISOString().slice(0,19).replace(/[:]/g,'-');
-    XLSX.writeFile(wb,`PSOP_Connect_${timestamp}.xlsx`);
-}
+    function generateExcelData(rows) {
+        // Sheet 1: DUT Mapping
+        const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
+        const dutData = [dutHeaders];
+
+        // Sheet 2: Security Roles
+        const secHeaders = ["#","Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
+        const secData = [secHeaders];
+
+        rows.forEach((r,i) => {
+            const workTray = (r["Work Tray Name"] || "").toString().trim().toUpperCase();
+            const psopGrade = r["Rank/Band"] || "";
+            const psopOrg = getHighestNonEmptyLevel(r);
+            if(workTray && psopGrade && psopOrg){
+                dutData.push([
+                    "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, psopGrade, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
+                ]);
+
+                const roleRaw = (r["Connect Security Role"] || "").toString().trim();
+                if(roleRaw){
+                    const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
+                    secData.push([
+                        i+1,"XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    ]);
+                }
+            }
+        });
+
+        return { dutData, secData };
+    }
+
+    function renderPreview(rows) {
+        const { dutData, secData } = generateExcelData(rows);
+        let html = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+        dutData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+        html += `</tbody></table>`;
+
+        html += `<h2>Security Roles Preview</h2><table><thead><tr>${secData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+        secData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+        html += `</tbody></table>`;
+
+        previewContainer.innerHTML = html;
+    }
+
+    document.getElementById("processBtn").addEventListener("click", () => {
+        if(!uploadedFile || uploadedRows.length===0){ alert("Please upload a file first."); return; }
+        const { dutData, secData } = generateExcelData(uploadedRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dutData), "DUT Mapping");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(secData), "Security Roles");
+        const timestamp = new Date().toISOString().slice(0,19).replace(/[:]/g,'-');
+        XLSX.writeFile(wb, `PSOP_Connect_${timestamp}.xlsx`);
+    });
+
+});
 </script>
 </div>
 </body>
