@@ -24,7 +24,7 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
   <h1>MBS - DUT & Security Mapping tool</h1>
 
   <h3>Known errors and how to fix them.</h3>
-  <p><b>Nothing happens when I drag and drop my file:</b> sometimes when you drag and drop it does not work. The best thing to do is reload the page and instead of drag and dropping click on the “Drag &amp; Drop or Click to Upload Excel file” and select the file from your folders instead.</p>
+  <p><b>Nothing happens when I drag and drop my file:</b> sometimes when you drag and drop it does not work. The best thing to do is reload the page and instead of drag and dropping click on the "Drag &amp; Drop or Click to Upload Excel file" and select the file from your folders instead.</p>
   <p><b>It has put the incorrect security mapping:</b> you are still required to look and audit the mappings yourself which is why a preview of what you're going to download is shown. If someone has filled in the sheet wrong in MBS, this tool cannot edit the data; it only shows and formats the data the Excel file has.</p>
   <p><b>It is missing parts or all of the mapping:</b> this tool cannot edit mapping—only format it from the file that is downloaded from MBS. The issue probably isn't the tool but the person who filled in the MBS file.</p>
 <h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
@@ -81,6 +81,83 @@ document.addEventListener("DOMContentLoaded", () => {
         return "";
     }
 
+    function determineWorkTrayName(row) {
+        // Check column S (Connect DUT? or similar - assuming column name indicates DUT access)
+        let dutAccess = "";
+        
+        // Try to find column S by index or by common names
+        const columnNames = Object.keys(row);
+        
+        // Look for common DUT access column names
+        const dutColumnCandidates = [
+            "Connect DUT?", 
+            "DUT Access", 
+            "Access to DUT",
+            "Column S",  // Fallback
+            columnNames[18] // Assuming S is 19th column (0-indexed 18)
+        ];
+        
+        for (const colName of dutColumnCandidates) {
+            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
+                dutAccess = row[colName].toString().trim().toLowerCase();
+                break;
+            }
+        }
+        
+        // Get Work Tray Name
+        let workTray = (row["Work Tray Name"] || "").toString().trim();
+        
+        // Logic based on requirements
+        if (dutAccess === "no") {
+            return "NO ACCESS";
+        } else if (dutAccess === "yes" && !workTray) {
+            return "Require work tray name";
+        } else if (workTray) {
+            return workTray.toUpperCase();
+        } else {
+            return "NO ACCESS"; // Default fallback
+        }
+    }
+
+    function generateRankVariations(rank) {
+        const rankLower = rank.toString().trim().toLowerCase();
+        const variations = [];
+        
+        // Constable variations
+        if (rankLower.includes("constable") || rankLower === "cons") {
+            variations.push("Constable");
+            variations.push("Constable - PEQF");
+            variations.push("Detective Constable");
+            variations.push("New Constable");
+            variations.push("New Detective Constable");
+        }
+        // Sergeant variations
+        else if (rankLower.includes("sergeant") || rankLower === "sgt") {
+            variations.push("Sergeant");
+            variations.push("Detective Sergeant");
+        }
+        // Inspector variations
+        else if (rankLower.includes("inspector") || rankLower === "insp") {
+            variations.push("Inspector");
+            variations.push("Detective Inspector");
+        }
+        
+        return variations;
+    }
+
+    function getGradeMessage(grade) {
+        const psopGrade = grade.toString().trim();
+        
+        // Check if grade contains "Band" followed by a space and a letter
+        const bandPattern = /^Band\s+[A-Za-z]$/i;
+        
+        if (psopGrade && !bandPattern.test(psopGrade)) {
+            return "Officer role will have access";
+        }
+        
+        return psopGrade;
+    }
+
     function generateExcelData(rows) {
         const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
         const dutData = [dutHeaders];
@@ -91,30 +168,54 @@ document.addEventListener("DOMContentLoaded", () => {
         let hasSecurity = false;
 
         rows.forEach((r,i) => {
-            // Trim and format Work Tray Name
-            let workTray = (r["Work Tray Name"] || "").toString().trim();
-            if(!workTray) workTray = "NO ACCESS";
-            workTray = workTray.toUpperCase();
-
-            // Trim PSOP Grade
-            const psopGrade = (r["Rank/Band"] || "").toString().trim();
-
+            // Determine Work Tray Name based on new logic
+            const workTray = determineWorkTrayName(r);
+            
+            // Get PSOP Grade with special handling
+            const rawGrade = (r["Rank/Band"] || "").toString();
+            const psopGrade = getGradeMessage(rawGrade);
+            
+            // Get rank variations if applicable
+            const rankVariations = generateRankVariations(rawGrade);
+            
             // Trim highest org
             const psopOrg = getHighestNonEmptyLevel(r);
 
-            // DUT Mapping row
-            dutData.push([
-                "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, psopGrade, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
-            ]);
+            // If we have rank variations, create multiple rows
+            if (rankVariations.length > 0) {
+                // Create DUT and Security rows for each rank variation
+                rankVariations.forEach(variation => {
+                    // DUT Mapping row for this variation
+                    dutData.push([
+                        "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, variation, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
+                    ]);
 
-            // Security Role row
-            let roleRaw = (r["Connect Security Role"] || "").toString().trim();
-            if(roleRaw){
-                hasSecurity = true;
-                const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
-                secData.push([
-                    "XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    // Security Role row for this variation
+                    let roleRaw = (r["Connect Security Role"] || "").toString().trim();
+                    if(roleRaw){
+                        hasSecurity = true;
+                        const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
+                        secData.push([
+                            "XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
+                        ]);
+                    }
+                });
+            } else {
+                // Original single row logic
+                // DUT Mapping row
+                dutData.push([
+                    "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, psopGrade, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
                 ]);
+
+                // Security Role row
+                let roleRaw = (r["Connect Security Role"] || "").toString().trim();
+                if(roleRaw){
+                    hasSecurity = true;
+                    const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
+                    secData.push([
+                        "XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    ]);
+                }
             }
         });
 
