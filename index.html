@@ -46,6 +46,50 @@ document.addEventListener("DOMContentLoaded", () => {
     const processBtn = document.getElementById("processBtn");
     let uploadedFile = null;
     let uploadedRows = [];
+    
+    // Store valid units from Unit.csv
+    let validUnits = new Set();
+    
+    // Fixed file path to Unit.csv (adjust this path as needed)
+    const UNIT_CSV_PATH = "Unit.csv"; // Update this to the actual path if different
+    
+    // Load Unit.csv on page load
+    function loadUnitCSV() {
+        fetch(UNIT_CSV_PATH)
+            .then(response => {
+                if (!response.ok) {
+                    console.warn("Unit.csv not found or cannot be loaded. Work tray validation will be skipped.");
+                    return null;
+                }
+                return response.text();
+            })
+            .then(data => {
+                if (data) {
+                    // Parse CSV data (simple parsing)
+                    const lines = data.split('\n');
+                    lines.forEach(line => {
+                        if (line.trim()) {
+                            // Get first column (column A)
+                            const columns = line.split(',');
+                            if (columns.length > 0) {
+                                const unit = columns[0].trim().toUpperCase();
+                                if (unit) {
+                                    validUnits.add(unit);
+                                }
+                            }
+                        }
+                    });
+                    console.log(`Loaded ${validUnits.size} valid units from Unit.csv`);
+                }
+            })
+            .catch(error => {
+                console.warn("Error loading Unit.csv:", error);
+                console.warn("Work tray validation will be skipped.");
+            });
+    }
+    
+    // Load Unit.csv when page loads
+    loadUnitCSV();
 
     // VALID SECURITY ROLES LIST
     // These are the valid security roles for column V
@@ -207,7 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "Connect DUT?", 
             "DUT Access", 
             "Access to DUT",
-            "Access To Connect", // Added this based on your description
+            "Access To Connect",
             "Column S",  // Fallback
             columnNames[18] // Assuming S is 19th column (0-indexed 18)
         ];
@@ -269,7 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!matchedValidRole) {
             return { 
                 isValid: false, 
-                formattedRole: "INVALID: " + role.toUpperCase(), 
+                formattedRole: "INVALID SECURITY ROLE", 
                 message: "Not a valid security role", 
                 matchedRole: null 
             };
@@ -331,24 +375,33 @@ document.addEventListener("DOMContentLoaded", () => {
     function getGradeMessage(grade, row) {
         const psopGrade = grade.toString().trim();
         
-        // Check if grade contains "Band" followed by a space and a letter
+        // Check if grade contains "Unbanded" or "Band" followed by a space and a letter
+        const unbandedPattern = /^Unbanded$/i;
         const bandPattern = /^Band\s+[A-Za-z]$/i;
+        
+        // Check if it's an officer rank (not Unbanded and not Band X)
+        const isOfficerRank = !unbandedPattern.test(psopGrade) && !bandPattern.test(psopGrade);
         
         // Get column values
         const dutAccess = getDUTAccessColumnValue(row);
         const workTray = getWorkTrayNameValue(row);
         const securityRole = getSecurityRoleValue(row);
         
-        // Check the new condition: Band + letter, Access To Connect = Yes, has Work Tray Name, but no Security Role
-        if (bandPattern.test(psopGrade) && 
+        // NEW: Check for officer rank with Access To Connect = No OR no Work Tray Name
+        if (isOfficerRank && (dutAccess === "no" || !workTray)) {
+            return "OFFICER ROLES HAVE ACCESS TO CONNECT";
+        }
+        
+        // Check for staff role (Unbanded or Band X) with Access To Connect = Yes, has Work Tray Name, but no Security Role
+        if ((unbandedPattern.test(psopGrade) || bandPattern.test(psopGrade)) && 
             dutAccess === "yes" && 
             workTray && 
             !securityRole) {
-            return "Requires Security Role";
+            return "STAFF REQUIRE A SECURITY ROLE";
         }
         
-        // Original logic for non-band grades
-        if (psopGrade && !bandPattern.test(psopGrade)) {
+        // Original logic for non-band grades that don't meet above conditions
+        if (isOfficerRank) {
             return "Officer role will have access";
         }
         
@@ -433,83 +486,169 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderPreview(rows) {
         const { dutData, secData, hasSecurity } = generateExcelData(rows);
+        
+        // Function to determine cell background color
+        function getCellBackgroundColor(cellValue, rowIndex, cellIndex, originalRow) {
+            if (cellIndex === 3) { // Description column (index 3)
+                const cellVal = cellValue.toString();
+                const workTray = getWorkTrayNameValue(originalRow);
+                const workTrayUpper = workTray.toUpperCase();
+                
+                // Check for OFFICER ROLES HAVE ACCESS TO CONNECT - RED
+                if (cellVal === "OFFICER ROLES HAVE ACCESS TO CONNECT") {
+                    return "#ffcccc"; // Red
+                }
+                
+                // Check for STAFF REQUIRE A SECURITY ROLE - RED
+                if (cellVal === "STAFF REQUIRE A SECURITY ROLE") {
+                    return "#ffcccc"; // Red
+                }
+                
+                // Check for INVALID SECURITY ROLE (in security preview) - RED
+                if (cellIndex === 3 && cellVal === "INVALID SECURITY ROLE") {
+                    return "#ffcccc"; // Red
+                }
+                
+                // Check if work tray exists in Unit.csv - GREEN (only if no red conditions)
+                if (workTray && cellVal !== "NO ACCESS" && cellVal !== "Require work tray name") {
+                    // Check if work tray (capitalized) exists in validUnits
+                    if (validUnits.size > 0 && validUnits.has(workTrayUpper)) {
+                        return "#ccffcc"; // Green
+                    } else if (validUnits.size > 0) {
+                        return "#ffcccc"; // Red - not found in Unit.csv
+                    }
+                }
+            }
+            return ""; // Default no background
+        }
+        
         let html = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-        dutData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+        dutData.slice(1).forEach((row, rowIndex) => { 
+            html += `<tr>`;
+            row.forEach((cell, cellIndex) => {
+                const bgColor = getCellBackgroundColor(cell, rowIndex, cellIndex, rows[rowIndex]);
+                const style = bgColor ? `style="background-color: ${bgColor};"` : '';
+                html += `<td ${style}>${cell}</td>`;
+            });
+            html += `</tr>`;
+        });
         html += `</tbody></table>`;
 
         if(hasSecurity){
             html += `<h2>Security Roles Preview</h2><table><thead><tr>${secData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-            secData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+            secData.slice(1).forEach((row, rowIndex) => { 
+                html += `<tr>`;
+                row.forEach((cell, cellIndex) => {
+                    const bgColor = getCellBackgroundColor(cell, rowIndex, cellIndex, rows[rowIndex]);
+                    const style = bgColor ? `style="background-color: ${bgColor};"` : '';
+                    html += `<td ${style}>${cell}</td>`;
+                });
+                html += `</tr>`;
+            });
             html += `</tbody></table>`;
         }
 
         // Add validation summary
-        const invalidRoles = [];
-        const validRoles = [];
+        const officerAccessIssues = [];
+        const staffSecurityIssues = [];
+        const validWorkTrays = [];
+        const invalidWorkTrays = [];
         
         rows.forEach((r,i) => {
-            const securityRoleRaw = getSecurityRoleValue(r);
-            if (securityRoleRaw) {
-                const validation = validateAndFormatSecurityRole(securityRoleRaw);
-                if (!validation.isValid) {
-                    invalidRoles.push({
-                        row: i + 2, // +2 because Excel rows start at 1 and header is row 1
-                        role: securityRoleRaw,
-                        message: validation.message
-                    });
-                } else {
-                    validRoles.push({
-                        row: i + 2,
-                        input: securityRoleRaw,
-                        matched: validation.matchedRole
-                    });
+            const rawGrade = (r["Rank/Band"] || "").toString();
+            const psopGrade = getGradeMessage(rawGrade, r);
+            const dutAccess = getDUTAccessColumnValue(r);
+            const workTray = getWorkTrayNameValue(r);
+            const workTrayUpper = workTray.toUpperCase();
+            
+            // Check work tray against Unit.csv
+            if (workTray && dutAccess === "yes") {
+                if (validUnits.size > 0) {
+                    if (validUnits.has(workTrayUpper)) {
+                        validWorkTrays.push({
+                            row: i + 2,
+                            workTray: workTray,
+                            match: "Valid unit found in Unit.csv"
+                        });
+                    } else {
+                        invalidWorkTrays.push({
+                            row: i + 2,
+                            workTray: workTray,
+                            match: "NOT FOUND in Unit.csv"
+                        });
+                    }
                 }
+            }
+            
+            // Check for officer access issues
+            if (psopGrade === "OFFICER ROLES HAVE ACCESS TO CONNECT") {
+                officerAccessIssues.push({
+                    row: i + 2,
+                    grade: rawGrade,
+                    dutAccess: dutAccess,
+                    workTray: workTray
+                });
+            }
+            
+            // Check for staff security issues
+            if (psopGrade === "STAFF REQUIRE A SECURITY ROLE") {
+                staffSecurityIssues.push({
+                    row: i + 2,
+                    grade: rawGrade,
+                    dutAccess: dutAccess,
+                    workTray: workTray
+                });
             }
         });
 
-        if (validRoles.length > 0) {
-            html += `<h2 style="color: green;">Valid Security Roles</h2>`;
-            html += `<p>The following security roles are valid:</p>`;
+        if (validWorkTrays.length > 0) {
+            html += `<h2 style="color: green;">Valid Work Trays (Found in Unit.csv)</h2>`;
+            html += `<p>The following work trays are valid units:</p>`;
             html += `<ul>`;
-            validRoles.forEach(item => {
-                // Only show if input was different from matched (case/spacing difference)
-                if (item.input.toUpperCase() !== item.matched) {
-                    html += `<li>Row ${item.row}: "${item.input}" → <strong>${item.matched}</strong></li>`;
-                } else {
-                    html += `<li>Row ${item.row}: <strong>${item.matched}</strong></li>`;
-                }
+            validWorkTrays.forEach(item => {
+                html += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
             });
             html += `</ul>`;
         }
 
-        if (invalidRoles.length > 0) {
-            html += `<h2 style="color: red;">Invalid Security Roles</h2>`;
-            html += `<p>The following security roles are not valid. They must match exactly (ignoring case and spaces/underscores):</p>`;
+        if (invalidWorkTrays.length > 0) {
+            html += `<h2 style="color: red;">Invalid Work Trays (NOT in Unit.csv)</h2>`;
+            html += `<p>The following work trays were NOT found in Unit.csv:</p>`;
             html += `<ul>`;
-            invalidRoles.forEach(item => {
-                html += `<li>Row ${item.row}: "<strong>${item.role}</strong>" - ${item.message}</li>`;
+            invalidWorkTrays.forEach(item => {
+                html += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
             });
             html += `</ul>`;
         }
 
-        // Show valid roles for reference
-        html += `<h3>Valid Security Roles List:</h3>`;
-        html += `<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">`;
-        html += `<p><strong>Note:</strong> Inputs are case-insensitive and spaces/underscores are interchangeable.</p>`;
-        html += `<p><strong>Examples that will match:</strong></p>`;
-        html += `<ul>`;
-        html += `<li>"sys_admin", "SYS_ADMIN", "sys admin", "Sys Admin" → SYS_ADMIN</li>`;
-        html += `<li>"intel", "INTEL", "Intel" → INTEL</li>`;
-        html += `<li>"view and search", "VIEW_AND_SEARCH" → VIEW_AND_SEARCH</li>`;
-        html += `</ul>`;
-        html += `<p><strong>Examples that will NOT match:</strong></p>`;
-        html += `<ul>`;
-        html += `<li>"Met Intel" → Not a valid security role (should be "INTEL")</li>`;
-        html += `<li>"System Admin" → Not a valid security role (should be "SYS_ADMIN")</li>`;
-        html += `<li>"Intel Manager" → Not a valid security role (should be "INTEL_MANAGER")</li>`;
-        html += `</ul>`;
-        html += `<p><strong>Valid roles:</strong> ${VALID_SECURITY_ROLES.join(', ')}</p>`;
-        html += `</div>`;
+        if (officerAccessIssues.length > 0) {
+            html += `<h2 style="color: red;">Officer Access Issues</h2>`;
+            html += `<p>The following officer ranks have Access To Connect = No OR no Work Tray Name:</p>`;
+            html += `<ul>`;
+            officerAccessIssues.forEach(item => {
+                html += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Access To Connect: ${item.dutAccess}, Work Tray Name: ${item.workTray || '(empty)'}</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        if (staffSecurityIssues.length > 0) {
+            html += `<h2 style="color: red;">Staff Security Role Issues</h2>`;
+            html += `<p>The following staff roles (Unbanded or Band X) require a security role:</p>`;
+            html += `<ul>`;
+            staffSecurityIssues.forEach(item => {
+                html += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Has Access To Connect = Yes and Work Tray Name but no Security Role</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        // Add note about Unit.csv
+        if (validUnits.size === 0) {
+            html += `<h3 style="color: orange;">Note: Unit.csv not loaded or empty</h3>`;
+            html += `<p>Work tray validation against Unit.csv is not available. Make sure Unit.csv is in the same directory as this HTML file.</p>`;
+        } else {
+            html += `<h3>Work Tray Validation</h3>`;
+            html += `<p>Work trays are checked against Unit.csv (${validUnits.size} units loaded). Green background indicates a valid unit found in Unit.csv.</p>`;
+        }
 
         previewContainer.innerHTML = html;
     }
