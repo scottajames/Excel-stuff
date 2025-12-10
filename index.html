@@ -47,20 +47,90 @@ document.addEventListener("DOMContentLoaded", () => {
     let uploadedFile = null;
     let uploadedRows = [];
 
-    // VALID SECURITY ROLES LIST - EDIT THESE AS NEEDED
+    // VALID SECURITY ROLES LIST
     // These are the valid security roles for column V
-    // You can edit this list with your actual security roles
     const VALID_SECURITY_ROLES = [
-        "test",           // Example role 1
-        "test2",          // Example role 2  
-        "test3",          // Example role 3
-        "admin",          // Example role 4
-        "viewer",         // Example role 5
-        "editor",         // Example role 6
-        "approver",       // Example role 7
-        "supervisor",     // Example role 8
-        "manager",        // Example role 9
-        "auditor"         // Example role 10
+	"BOLT_ON_1",
+	"BOLT_ON_2",
+	"BOLT_ON_3",
+	"BOLT_ON_4",
+	"BOLT_ON_5",
+	"BOLT_ON_6",
+	"BOLT_ON_7",
+	"BOLT_ON_8",
+	"CONSTABLE",
+	"SGT",
+	"INSP",
+	"C_INSP",
+	"SUPT",
+	"C_SUPT",
+	"COMMDR",
+	"DEP_ASS_COMMIS",
+	"SUPT",
+	"ASS_COMMIS",
+	"DEP_COMMIS",
+	"COMMIS",
+	"MSC_CONS",
+	"MSC_SGT",
+	"MSC_INSP",
+	"MSC_CINSP",
+	"MSC_ASS_CO",
+	"MSC_CO",
+	"SGT_CUST",
+	"HCP",
+	"HCP_FTAC",
+	"CCC",
+	"DDO",
+	"PAO",
+	"PCSO",
+	"INVESTIGATOR",
+	"SUP_INVESTIGATOR",
+	"ANPR",
+	"FCR",
+	"FORENSICS",
+	"INTEL",
+	"INTEL_MANAGER",
+	"INTEL_SIU",
+	"INTEL_SOURCE",
+	"INTEL_ENQUIRY_LOG",
+	"PNCB",
+	"PROPERTY",
+	"PSD",
+	"TDIU",
+	"CMS",
+	"DDM",
+	"CMT",
+	"CPA",
+	"CASE_TRAFFIC",
+	"CJOMS",
+	"MET_INTERNAL",
+	"VIEW_AND_SEARCH",
+	"VIEW_ONLY",
+	"MI",
+	"MOPI",
+	"FLAGS_C2S",
+	"FLAGS_NDH",
+	"FLAGS_NT",
+	"FLAGS_VIEW_USERS",
+	"SEALED_AUDIT",
+	"NO_FIELD_SEC",
+	"COVERT_ACCESS_FLAG",
+	"FLAG_CLOSED_ACCESS",
+	"FLAG_SECURE_ACCESS",
+	"FLAG_TEAM",
+	"SW_ALL_ACCESS",
+	"PMP_ALL_ACCESS",
+	"PMP_USER",
+	"SYS_ADMIN",
+	"SYSADMIN_FULL",
+	"SYSADMIN_DQ1",
+	"SYSADMIN_DQ2",
+	"SYS_ADMIN_DQFULL",
+	"FULL_SYS_ADMIN",
+	"SYSADMIN_CST",
+	"SYSADMIN_CST_FULL",
+	"LOCKED_ADMIN",
+	"SYSADMIN_NEC"
     ];
     
     // Helper function to normalize security roles for comparison
