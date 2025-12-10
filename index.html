@@ -3,397 +3,528 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PSOP Connect - Fixed Version (with new access rules)</title>
-
+<title>PSOP Connect - Excel Transformer with Preview</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
-
 <style>
-body{
-    font-family: Calibri, sans-serif;
-    background: #f5f5f5;
-    margin: 0;
-    padding: 20px;
-    color: #222;
-}
-.container{ max-width: 1200px; margin: 0 auto; }
-h1{ font-size: 22px; margin-bottom: 20px; }
-
-.upload-area, .reference-file-area {
-    border: 2px dashed #217346;
-    padding: 40px;
-    text-align: center;
-    background: white;
-    border-radius: 6px;
-    color: #217346;
-    cursor: pointer;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-.upload-area:hover, .reference-file-area:hover {
-    background: #e6f2e6;
-}
-.hidden-input { display: none; }
-
-button {
-    padding: 10px 14px;
-    border: none;
-    border-radius: 4px;
-    background: #217346;
-    color: #fff;
-    cursor: pointer;
-    font-size: 16px;
-    margin-bottom: 20px;
-    display: none;
-}
-button:hover { background: #1a5a2f; }
-
-table {
-    border-collapse: collapse;
-    margin-top: 20px;
-    width: 100%;
-    font-size: 14px;
-    table-layout: fixed;
-}
-th, td {
-    border: 1px solid #999;
-    padding: 6px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    text-align: left;
-}
-th {
-    background: #217346;
-    color: #fff;
-    font-weight: bold;
-    text-align: center;
-}
-
-.invalid-cell {
-    background-color: #ffcccc !important;
-    color: #cc0000 !important;
-    font-weight: bold;
-}
-.valid-cell {
-    background-color: #ccffcc !important;
-    color: #006600 !important;
-    font-weight: bold;
-}
-
-.preview-section { margin-top: 30px; }
+body{font-family:Calibri, sans-serif;background:#f5f5f5;margin:0;padding:20px;color:#222}
+.container{max-width:1200px;margin:0 auto}
+h1{font-size:22px;margin-bottom:20px}
+.upload-area{border:2px dashed #217346;padding:40px;text-align:center;background:white;border-radius:6px;color:#217346;cursor:pointer;font-weight:bold;margin-bottom:20px}
+.upload-area:hover{background:#e6f2e6}
+button{padding:10px 14px;border:none;border-radius:4px;background:#217346;color:#fff;cursor:pointer;font-size:16px;margin-bottom:20px;display:none;}
+button:hover{background:#1a5a2f}
+table{border-collapse:collapse;margin-top:20px;width:100%;font-family:Calibri,sans-serif;font-size:14px;table-layout:fixed}
+th,td{border:1px solid #999;padding:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left}
+th{background:#217346;color:#fff;font-weight:bold;text-align:center}
+.preview-section{margin-top:30px}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>MBS - DUT & Security Mapping Tool</h1>
-  <h3 style="color:red;">This tool formats data only — it does NOT grant authority for roles.</h3>
+  <h1>MBS - DUT & Security Mapping tool</h1>
 
-  <div id="referenceArea" class="reference-file-area">
-    Drag &amp; Drop or Click to Upload Reference Excel File (Work Tray Names)
-    <input id="referenceInput" class="hidden-input" type="file" accept=".xlsx">
-  </div>
-
-  <div id="uploadArea" class="upload-area">
-    Drag &amp; Drop or Click to Upload MBS Excel File
-    <input id="fileInput" class="hidden-input" type="file" accept=".xlsx">
-  </div>
-
-  <button id="processBtn">Process &amp; Download Excel</button>
-
-  <div id="previewContainer" class="preview-section"></div>
+  <h3>Known errors and how to fix them.</h3>
+  <p><b>Nothing happens when I drag and drop my file:</b> sometimes when you drag and drop it does not work. The best thing to do is reload the page and instead of drag and dropping click on the "Drag &amp; Drop or Click to Upload Excel file" and select the file from your folders instead.</p>
+  <p><b>It has put the incorrect security mapping:</b> you are still required to look and audit the mappings yourself which is why a preview of what you're going to download is shown. If someone has filled in the sheet wrong in MBS, this tool cannot edit the data; it only shows and formats the data the Excel file has.</p>
+  <p><b>It is missing parts or all of the mapping:</b> this tool cannot edit mapping—only format it from the file that is downloaded from MBS. The issue probably isn't the tool but the person who filled in the MBS file.</p>
+<h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
+<div id="uploadArea" class="upload-area">
+Drag & Drop or Click to Upload MBS Excel file
+<input type="file" id="fileInput" accept=".xlsx" style="display:none" />
 </div>
+
+<button id="processBtn">Process & Download Excel</button>
+
+<div id="previewContainer" class="preview-section"></div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-  const COL = {
-    RANK: "H",     // Rank/Band in column H
-    DUT: "S",      // Access To Connect in column S
-    TRAY: "U",     // Work Tray Name in column U
-    SEC: "V"       // Connect Security Role in column V
-  };
+    const uploadArea = document.getElementById("uploadArea");
+    const fileInput = document.getElementById("fileInput");
+    const previewContainer = document.getElementById("previewContainer");
+    const processBtn = document.getElementById("processBtn");
+    let uploadedFile = null;
+    let uploadedRows = [];
 
-  const LEVEL_COLS = [
-    "Level 8 Sub-Team","Level 7 Team","Level 6 Function",
-    "Level 5 Portfolio","Level 4 Organisation"
-  ];
-
-  const VALID_SECURITY_ROLES = Array.from(new Set([
-    "BOLT_ON_1","BOLT_ON_2","BOLT_ON_3","BOLT_ON_4","BOLT_ON_5","BOLT_ON_6","BOLT_ON_7","BOLT_ON_8",
-    "CONSTABLE","SGT","INSP","C_INSP","SUPT","C_SUPT","COMMDR","DEP_ASS_COMMIS","ASS_COMMIS",
-    "DEP_COMMIS","COMMIS","MSC_CONS","MSC_SGT","MSC_INSP","MSC_CINSP","MSC_ASS_CO","MSC_CO",
-    "SGT_CUST","HCP","HCP_FTAC","CCC","DDO","PAO","PCSO","INVESTIGATOR","SUP_INVESTIGATOR",
-    "ANPR","FCR","FORENSICS","INTEL","INTEL_MANAGER","INTEL_SIU","INTEL_SOURCE","INTEL_ENQUIRY_LOG",
-    "PNCB","PROPERTY","PSD","TDIU","CMS","DDM","CMT","CPA","CASE_TRAFFIC","CJOMS","MET_INTERNAL",
-    "VIEW_AND_SEARCH","VIEW_ONLY","MI","MOPI","FLAGS_C2S","FLAGS_NDH","FLAGS_NT","FLAGS_VIEW_USERS",
-    "SEALED_AUDIT","NO_FIELD_SEC","COVERT_ACCESS_FLAG","FLAG_CLOSED_ACCESS","FLAG_SECURE_ACCESS",
-    "FLAG_TEAM","SW_ALL_ACCESS","PMP_ALL_ACCESS","PMP_USER","SYS_ADMIN","SYSADMIN_FULL","SYSADMIN_DQ1",
-    "SYSADMIN_DQ2","SYS_ADMIN_DQFULL","FULL_SYS_ADMIN","SYSADMIN_CST","SYSADMIN_CST_FULL","LOCKED_ADMIN",
-    "SYSADMIN_NEC"
-  ]));
-
-  const NORMALIZED_ROLES = VALID_SECURITY_ROLES.map(r => r.toLowerCase().replace(/_/g," ").trim());
-
-  const referenceArea = document.getElementById("referenceArea");
-  const referenceInput = document.getElementById("referenceInput");
-  const uploadArea = document.getElementById("uploadArea");
-  const fileInput = document.getElementById("fileInput");
-  const processBtn = document.getElementById("processBtn");
-  const previewContainer = document.getElementById("previewContainer");
-
-  let validWorkTrays = new Set();
-  let uploadedRows = [];
-
-  function wireUploadBox(area, input, handler) {
-    area.addEventListener("click", () => input.click());
-    area.addEventListener("dragover", e => { e.preventDefault(); area.style.background="#e6f2e6"; });
-    area.addEventListener("dragleave", () => area.style.background="white");
-    area.addEventListener("drop", e => {
-      e.preventDefault();
-      area.style.background="white";
-      if (e.dataTransfer.files.length) handler(e.dataTransfer.files[0]);
-    });
-    input.addEventListener("change", e => {
-      if (e.target.files.length) handler(e.target.files[0]);
-    });
-  }
-
-  wireUploadBox(referenceArea, referenceInput, handleReferenceFile);
-  wireUploadBox(uploadArea, fileInput, handleMBSFile);
-
-  function readWorkbook(file, cb) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type: "array" });
-      cb(wb);
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  function handleReferenceFile(file) {
-    referenceArea.textContent = "Reference File Loaded: " + file.name;
-    referenceArea.appendChild(referenceInput);
-    readWorkbook(file, wb => {
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-      validWorkTrays.clear();
-      rows.forEach(r => {
-        const val = Object.values(r)[0];
-        if (val) validWorkTrays.add(val.toString().trim().toUpperCase());
-      });
-      if (uploadedRows.length) renderPreview();
-    });
-  }
-
-  function handleMBSFile(file) {
-    uploadArea.textContent = "File Loaded: " + file.name;
-    uploadArea.appendChild(fileInput);
-    readWorkbook(file, wb => {
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-      renderPreview();
-      processBtn.style.display = "inline-block";
-    });
-  }
-
-  function colLetterToIndex(letter) {
-    return XLSX.utils.decode_col(letter);
-  }
-
-  function getValue(row, letter) {
-    const idx = colLetterToIndex(letter);
-    const vals = Object.values(row);
-    return vals[idx] ? vals[idx].toString().trim() : "";
-  }
-
-  function normalizeRole(r) {
-    return r.toLowerCase().replace(/_/g," ").trim();
-  }
-
-  function validateRole(role) {
-    if (!role) return { valid: false, clean: "", raw: "" };
-    const norm = normalizeRole(role);
-    const idx = NORMALIZED_ROLES.indexOf(norm);
-    if (idx === -1) {
-      return { valid: false, clean: "INVALID: " + role.toUpperCase(), raw: role };
+    // VALID SECURITY ROLES LIST
+    // These are the valid security roles for column V
+    const VALID_SECURITY_ROLES = [
+	"BOLT_ON_1",
+	"BOLT_ON_2",
+	"BOLT_ON_3",
+	"BOLT_ON_4",
+	"BOLT_ON_5",
+	"BOLT_ON_6",
+	"BOLT_ON_7",
+	"BOLT_ON_8",
+	"CONSTABLE",
+	"SGT",
+	"INSP",
+	"C_INSP",
+	"SUPT",
+	"C_SUPT",
+	"COMMDR",
+	"DEP_ASS_COMMIS",
+	"SUPT",
+	"ASS_COMMIS",
+	"DEP_COMMIS",
+	"COMMIS",
+	"MSC_CONS",
+	"MSC_SGT",
+	"MSC_INSP",
+	"MSC_CINSP",
+	"MSC_ASS_CO",
+	"MSC_CO",
+	"SGT_CUST",
+	"HCP",
+	"HCP_FTAC",
+	"CCC",
+	"DDO",
+	"PAO",
+	"PCSO",
+	"INVESTIGATOR",
+	"SUP_INVESTIGATOR",
+	"ANPR",
+	"FCR",
+	"FORENSICS",
+	"INTEL",
+	"INTEL_MANAGER",
+	"INTEL_SIU",
+	"INTEL_SOURCE",
+	"INTEL_ENQUIRY_LOG",
+	"PNCB",
+	"PROPERTY",
+	"PSD",
+	"TDIU",
+	"CMS",
+	"DDM",
+	"CMT",
+	"CPA",
+	"CASE_TRAFFIC",
+	"CJOMS",
+	"MET_INTERNAL",
+	"VIEW_AND_SEARCH",
+	"VIEW_ONLY",
+	"MI",
+	"MOPI",
+	"FLAGS_C2S",
+	"FLAGS_NDH",
+	"FLAGS_NT",
+	"FLAGS_VIEW_USERS",
+	"SEALED_AUDIT",
+	"NO_FIELD_SEC",
+	"COVERT_ACCESS_FLAG",
+	"FLAG_CLOSED_ACCESS",
+	"FLAG_SECURE_ACCESS",
+	"FLAG_TEAM",
+	"SW_ALL_ACCESS",
+	"PMP_ALL_ACCESS",
+	"PMP_USER",
+	"SYS_ADMIN",
+	"SYSADMIN_FULL",
+	"SYSADMIN_DQ1",
+	"SYSADMIN_DQ2",
+	"SYS_ADMIN_DQFULL",
+	"FULL_SYS_ADMIN",
+	"SYSADMIN_CST",
+	"SYSADMIN_CST_FULL",
+	"LOCKED_ADMIN",
+	"SYSADMIN_NEC"
+    ];
+    
+    // Create a normalized version of valid roles for comparison
+    const NORMALIZED_VALID_ROLES = VALID_SECURITY_ROLES.map(role => 
+        normalizeSecurityRole(role)
+    );
+    
+    // Helper function to normalize security roles for comparison
+    function normalizeSecurityRole(role) {
+        if (!role) return "";
+        return role.toString()
+            .trim()
+            .toLowerCase()
+            .replace(/_/g, ' ')      // Convert underscores to spaces
+            .replace(/\s+/g, ' ')    // Normalize multiple spaces to single space
+            .trim();
     }
-    return { valid: true, clean: VALID_SECURITY_ROLES[idx], raw: role };
-  }
-
-  function determineWorkTray(row) {
-    const dut = getValue(row, COL.DUT).toLowerCase();
-    const tray = getValue(row, COL.TRAY);
-    if (dut === "no") return "";  // no tray if no access
-    if (tray) return tray.toUpperCase();
-    return "";
-  }
-
-  function highestLevel(row) {
-    for (let lvl of LEVEL_COLS) {
-      if (row[lvl] && row[lvl].toString().trim()) return row[lvl].toString().trim();
+    
+    // Helper function to find matching valid role from input
+    function findMatchingValidRole(inputRole) {
+        if (!inputRole) return null;
+        
+        const normalizedInput = normalizeSecurityRole(inputRole);
+        
+        // Try to find exact match in normalized list
+        const exactMatchIndex = NORMALIZED_VALID_ROLES.indexOf(normalizedInput);
+        if (exactMatchIndex !== -1) {
+            return VALID_SECURITY_ROLES[exactMatchIndex]; // Return original format
+        }
+        
+        return null; // No match found
     }
-    return "";
-  }
 
-  function rankVariations(rank) {
-    const r = rank.toLowerCase();
-    if (r.includes("constable") || r === "cons") {
-      return ["Constable","Constable - PEQF","Detective Constable","New Constable","New Detective Constable"];
-    }
-    if (r.includes("sergeant") || r === "sgt") {
-      return ["Sergeant","Detective Sergeant"];
-    }
-    if (r.includes("inspector") || r === "insp") {
-      return ["Inspector","Detective Inspector"];
-    }
-    return [];
-  }
-
-  function gradeMessage(rank, row) {
-    const dut = getValue(row, COL.DUT).toLowerCase();
-    if (dut === "no") {
-      const rtrim = rank.trim();
-      const isBand = /^band\s*[a-z]$/i.test(rtrim);
-      const isUnbanded = /^unbanded$/i.test(rtrim);
-      if (isBand || isUnbanded) {
-        return "NO ACCESS";
-      } else {
-        return "Officer role will have access to CONNECT";
-      }
-    }
-    // If DUT = Yes, just return rank (or could apply variations)
-    return rank;
-  }
-
-  function renderPreview() {
-    const html = [];
-    html.push("<h2>DUT Mapping Preview</h2>");
-
-    let dutRows = [];
-
-    uploadedRows.forEach(row => {
-      let rank = getValue(row, COL.RANK);
-      let variations = rankVariations(rank);
-      let org = highestLevel(row);
-      let tray = determineWorkTray(row);
-      let gradeMsg = gradeMessage(rank, row);
-
-      if (variations.length && getValue(row, COL.DUT).toLowerCase() !== "no") {
-        variations.forEach(v => {
-          dutRows.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, v, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-        });
-      } else {
-        dutRows.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, gradeMsg, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-      }
+    // Upload handlers
+    uploadArea.addEventListener("click", () => fileInput.click());
+    uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.style.background="#e6f2e6"; });
+    uploadArea.addEventListener("dragleave", () => { uploadArea.style.background="white"; });
+    uploadArea.addEventListener("drop", e => { 
+        e.preventDefault(); 
+        uploadArea.style.background="white"; 
+        if(e.dataTransfer.files && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); 
     });
+    fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
 
-    html.push(`<table><thead><tr>
-      <th>Lookup type</th><th>Code</th><th>Meaning</th><th>Description</th>
-      <th>PSOP Grade</th><th>From</th><th>To</th><th>Enabled</th>
-      <th>Context Value</th><th>PSOP Organisation</th>
-    </tr></thead><tbody>`);
+    function handleFile(file) {
+        uploadedFile = file;
+        uploadArea.textContent = `File Loaded: ${file.name}`;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval:"" });
+            renderPreview(uploadedRows);
+            processBtn.style.display = "inline-block"; // show download button
+        };
+        reader.readAsArrayBuffer(uploadedFile);
+    }
 
-    dutRows.forEach(r => {
-      const tray = r[3];
-      const grade = r[4];
-      let cellClass = "";
+    function getHighestNonEmptyLevel(row) {
+        const levels = ["Level 8 Sub-Team","Level 7 Team","Level 6 Function","Level 5 Portfolio","Level 4 Organisation"];
+        for (let lvl of levels) {
+            if (row[lvl] && row[lvl].toString().trim() !== "") return row[lvl].toString().trim();
+        }
+        return "";
+    }
 
-      if (grade === "NO ACCESS" || grade === "Officer role will have access to CONNECT") {
-        cellClass = "invalid-cell";
-      } else if (tray !== "" && validWorkTrays.size && !validWorkTrays.has(tray)) {
-        cellClass = "invalid-cell";
-      } else if (tray !== "" && validWorkTrays.has(tray)) {
-        cellClass = "valid-cell";
-      }
+    function getDUTAccessColumnValue(row) {
+        // Try to find column S by index or by common names
+        const columnNames = Object.keys(row);
+        
+        // Look for common DUT access column names - column S
+        const dutColumnCandidates = [
+            "Connect DUT?", 
+            "DUT Access", 
+            "Access to DUT",
+            "Access To Connect", // Added this based on your description
+            "Column S",  // Fallback
+            columnNames[18] // Assuming S is 19th column (0-indexed 18)
+        ];
+        
+        for (const colName of dutColumnCandidates) {
+            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
+                return row[colName].toString().trim().toLowerCase();
+            }
+        }
+        
+        return "";
+    }
 
-      html.push("<tr>");
-      r.forEach((c,i) =>
-        html.push(`<td class="${i===3?cellClass:""}">${c}</td>`)
-      );
-      html.push("</tr>");
-    });
+    function getWorkTrayNameValue(row) {
+        // Try to find column U (Work Tray Name)
+        const columnNames = Object.keys(row);
+        
+        // Look for Work Tray Name column - column U
+        const workTrayCandidates = [
+            "Work Tray Name",
+            "Column U",  // Fallback
+            columnNames[20] // Assuming U is 21st column (0-indexed 20)
+        ];
+        
+        for (const colName of workTrayCandidates) {
+            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
+                return row[colName].toString().trim();
+            }
+        }
+        
+        return "";
+    }
 
-    html.push("</tbody></table>");
+    function getSecurityRoleValue(row) {
+        // Try to find column V (Connect Security Role)
+        const columnNames = Object.keys(row);
+        
+        // Look for Security Role column - column V
+        const securityCandidates = [
+            "Connect Security Role",
+            "Column V",  // Fallback
+            columnNames[21] // Assuming V is 22nd column (0-indexed 21)
+        ];
+        
+        for (const colName of securityCandidates) {
+            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
+                return row[colName].toString().trim();
+            }
+        }
+        
+        return "";
+    }
 
-    // SECURITY Roles preview
-    html.push("<h2>Security Roles Preview</h2>");
-    let secRows = [];
+    function validateAndFormatSecurityRole(role) {
+        if (!role) return { isValid: false, formattedRole: "", message: "", matchedRole: null };
+        
+        const matchedValidRole = findMatchingValidRole(role);
+        
+        if (!matchedValidRole) {
+            return { 
+                isValid: false, 
+                formattedRole: "INVALID: " + role.toUpperCase(), 
+                message: "Not a valid security role", 
+                matchedRole: null 
+            };
+        }
+        
+        // Return the role in the standard format (uppercase with underscores)
+        const formattedRole = matchedValidRole;
+        
+        return { 
+            isValid: true, 
+            formattedRole: formattedRole, 
+            message: formattedRole,
+            matchedRole: matchedValidRole
+        };
+    }
 
-    uploadedRows.forEach(row => {
-      const role = getValue(row, COL.SEC);
-      const rank = getValue(row, COL.RANK);
-      const org = highestLevel(row);
-      const dut = getValue(row, COL.DUT).toLowerCase();
-      const valid = validateRole(role);
-      const variations = rankVariations(rank);
-
-      if (role && dut !== "no") {
-        if (variations.length) {
-          variations.forEach(v => {
-            secRows.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,v]);
-          });
+    function determineWorkTrayName(row) {
+        const dutAccess = getDUTAccessColumnValue(row);
+        const workTray = getWorkTrayNameValue(row);
+        
+        // Logic based on requirements
+        if (dutAccess === "no") {
+            return "NO ACCESS";
+        } else if (dutAccess === "yes" && !workTray) {
+            return "Require work tray name";
+        } else if (workTray) {
+            return workTray.toUpperCase();
         } else {
-          secRows.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,rank]);
+            return "NO ACCESS"; // Default fallback
         }
-      }
-    });
+    }
 
-    html.push(`<table><thead><tr>
-      <th>Lookup Type</th><th>Code</th><th>Meaning</th><th>Description</th>
-      <th>From</th><th>To</th><th>Enabled</th><th>Context Value</th>
-      <th>PSOP Organisation</th><th>PSOP Grade</th>
-    </tr></thead><tbody>`);
+    function generateRankVariations(rank) {
+        const rankLower = rank.toString().trim().toLowerCase();
+        const variations = [];
+        
+        // Constable variations
+        if (rankLower.includes("constable") || rankLower === "cons") {
+            variations.push("Constable");
+            variations.push("Constable - PEQF");
+            variations.push("Detective Constable");
+            variations.push("New Constable");
+            variations.push("New Detective Constable");
+        }
+        // Sergeant variations
+        else if (rankLower.includes("sergeant") || rankLower === "sgt") {
+            variations.push("Sergeant");
+            variations.push("Detective Sergeant");
+        }
+        // Inspector variations
+        else if (rankLower.includes("inspector") || rankLower === "insp") {
+            variations.push("Inspector");
+            variations.push("Detective Inspector");
+        }
+        
+        return variations;
+    }
 
-    secRows.forEach(r => {
-      const isInvalid = r[3].startsWith("INVALID:");
-      html.push("<tr>");
-      r.forEach((c,i) =>
-        html.push(`<td class="${i===3 && isInvalid?"invalid-cell":""}">${c}</td>`)
-      );
-      html.push("</tr>");
-    });
+    function getGradeMessage(grade, row) {
+        const psopGrade = grade.toString().trim();
+        
+        // Check if grade contains "Band" followed by a space and a letter
+        const bandPattern = /^Band\s+[A-Za-z]$/i;
+        
+        // Get column values
+        const dutAccess = getDUTAccessColumnValue(row);
+        const workTray = getWorkTrayNameValue(row);
+        const securityRole = getSecurityRoleValue(row);
+        
+        // Check the new condition: Band + letter, Access To Connect = Yes, has Work Tray Name, but no Security Role
+        if (bandPattern.test(psopGrade) && 
+            dutAccess === "yes" && 
+            workTray && 
+            !securityRole) {
+            return "Requires Security Role";
+        }
+        
+        // Original logic for non-band grades
+        if (psopGrade && !bandPattern.test(psopGrade)) {
+            return "Officer role will have access";
+        }
+        
+        return psopGrade;
+    }
 
-    html.push("</tbody></table>");
+    function generateExcelData(rows) {
+        const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
+        const dutData = [dutHeaders];
 
-    previewContainer.innerHTML = html.join("");
-  }
+        const secHeaders = ["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
+        const secData = [secHeaders];
 
-  processBtn.addEventListener("click", () => {
-    const wb = XLSX.utils.book_new();
-    const dutData = [["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"]];
-    const secData = [["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"]];
+        let hasSecurity = false;
 
-    uploadedRows.forEach(row => {
-      const rank = getValue(row, COL.RANK);
-      const variations = rankVariations(rank);
-      const org = highestLevel(row);
-      const tray = determineWorkTray(row);
-      const gradeMsg = gradeMessage(rank, row);
-      const role = getValue(row, COL.SEC);
-      const valid = validateRole(role);
+        rows.forEach((r,i) => {
+            // Determine Work Tray Name based on new logic
+            const workTray = determineWorkTrayName(r);
+            
+            // Get PSOP Grade with special handling (pass the row for additional checks)
+            const rawGrade = (r["Rank/Band"] || "").toString();
+            const psopGrade = getGradeMessage(rawGrade, r);
+            
+            // Get rank variations if applicable
+            const rankVariations = generateRankVariations(rawGrade);
+            
+            // Trim highest org
+            const psopOrg = getHighestNonEmptyLevel(r);
 
-      if (variations.length && getValue(row, COL.DUT).toLowerCase() !== "no") {
-        variations.forEach(v => {
-          dutData.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, v, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-          if (role) {
-            secData.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,v]);
-          }
+            // Get and validate security role
+            const securityRoleRaw = getSecurityRoleValue(r);
+            const securityRoleValidation = validateAndFormatSecurityRole(securityRoleRaw);
+
+            // If we have rank variations, create multiple rows
+            if (rankVariations.length > 0) {
+                // Create DUT and Security rows for each rank variation
+                rankVariations.forEach(variation => {
+                    // DUT Mapping row for this variation
+                    dutData.push([
+                        "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, variation, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
+                    ]);
+
+                    // Security Role row for this variation
+                    if(securityRoleValidation.isValid){
+                        hasSecurity = true;
+                        secData.push([
+                            "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
+                        ]);
+                    } else if (securityRoleRaw) {
+                        // Invalid security role - still add it but marked as invalid
+                        hasSecurity = true;
+                        secData.push([
+                            "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
+                        ]);
+                    }
+                });
+            } else {
+                // Original single row logic
+                // DUT Mapping row
+                dutData.push([
+                    "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, psopGrade, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
+                ]);
+
+                // Security Role row
+                if(securityRoleValidation.isValid){
+                    hasSecurity = true;
+                    secData.push([
+                        "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    ]);
+                } else if (securityRoleRaw) {
+                    // Invalid security role - still add it but marked as invalid
+                    hasSecurity = true;
+                    secData.push([
+                        "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    ]);
+                }
+            }
         });
-      } else {
-        dutData.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, gradeMsg, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-        if (role && getValue(row, COL.DUT).toLowerCase() !== "no") {
-          secData.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,rank]);
+
+        return { dutData, secData, hasSecurity };
+    }
+
+    function renderPreview(rows) {
+        const { dutData, secData, hasSecurity } = generateExcelData(rows);
+        let html = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+        dutData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+        html += `</tbody></table>`;
+
+        if(hasSecurity){
+            html += `<h2>Security Roles Preview</h2><table><thead><tr>${secData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+            secData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+            html += `</tbody></table>`;
         }
-      }
+
+        // Add validation summary
+        const invalidRoles = [];
+        const validRoles = [];
+        
+        rows.forEach((r,i) => {
+            const securityRoleRaw = getSecurityRoleValue(r);
+            if (securityRoleRaw) {
+                const validation = validateAndFormatSecurityRole(securityRoleRaw);
+                if (!validation.isValid) {
+                    invalidRoles.push({
+                        row: i + 2, // +2 because Excel rows start at 1 and header is row 1
+                        role: securityRoleRaw,
+                        message: validation.message
+                    });
+                } else {
+                    validRoles.push({
+                        row: i + 2,
+                        input: securityRoleRaw,
+                        matched: validation.matchedRole
+                    });
+                }
+            }
+        });
+
+        if (validRoles.length > 0) {
+            html += `<h2 style="color: green;">Valid Security Roles</h2>`;
+            html += `<p>The following security roles are valid:</p>`;
+            html += `<ul>`;
+            validRoles.forEach(item => {
+                // Only show if input was different from matched (case/spacing difference)
+                if (item.input.toUpperCase() !== item.matched) {
+                    html += `<li>Row ${item.row}: "${item.input}" → <strong>${item.matched}</strong></li>`;
+                } else {
+                    html += `<li>Row ${item.row}: <strong>${item.matched}</strong></li>`;
+                }
+            });
+            html += `</ul>`;
+        }
+
+        if (invalidRoles.length > 0) {
+            html += `<h2 style="color: red;">Invalid Security Roles</h2>`;
+            html += `<p>The following security roles are not valid. They must match exactly (ignoring case and spaces/underscores):</p>`;
+            html += `<ul>`;
+            invalidRoles.forEach(item => {
+                html += `<li>Row ${item.row}: "<strong>${item.role}</strong>" - ${item.message}</li>`;
+            });
+            html += `</ul>`;
+        }
+
+        // Show valid roles for reference
+        html += `<h3>Valid Security Roles List:</h3>`;
+        html += `<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">`;
+        html += `<p><strong>Note:</strong> Inputs are case-insensitive and spaces/underscores are interchangeable.</p>`;
+        html += `<p><strong>Examples that will match:</strong></p>`;
+        html += `<ul>`;
+        html += `<li>"sys_admin", "SYS_ADMIN", "sys admin", "Sys Admin" → SYS_ADMIN</li>`;
+        html += `<li>"intel", "INTEL", "Intel" → INTEL</li>`;
+        html += `<li>"view and search", "VIEW_AND_SEARCH" → VIEW_AND_SEARCH</li>`;
+        html += `</ul>`;
+        html += `<p><strong>Examples that will NOT match:</strong></p>`;
+        html += `<ul>`;
+        html += `<li>"Met Intel" → Not a valid security role (should be "INTEL")</li>`;
+        html += `<li>"System Admin" → Not a valid security role (should be "SYS_ADMIN")</li>`;
+        html += `<li>"Intel Manager" → Not a valid security role (should be "INTEL_MANAGER")</li>`;
+        html += `</ul>`;
+        html += `<p><strong>Valid roles:</strong> ${VALID_SECURITY_ROLES.join(', ')}</p>`;
+        html += `</div>`;
+
+        previewContainer.innerHTML = html;
+    }
+
+    processBtn.addEventListener("click", () => {
+        if(!uploadedFile || uploadedRows.length===0){ alert("Please upload a file first."); return; }
+        const { dutData, secData, hasSecurity } = generateExcelData(uploadedRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dutData), "DUT Mapping");
+        if(hasSecurity){
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(secData), "Security Roles");
+        }
+        const timestamp = new Date().toISOString().slice(0,19).replace(/[:]/g,'-');
+        XLSX.writeFile(wb, `PSOP_Connect_${timestamp}.xlsx`);
     });
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dutData), "DUT Mapping");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(secData), "Security Roles");
-
-    const ts = new Date().toISOString().replace(/:/g,"-");
-    XLSX.writeFile(wb, "PSOP_Connect_" + ts + ".xlsx");
-  });
 
 });
 </script>
