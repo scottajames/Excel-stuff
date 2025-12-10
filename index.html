@@ -17,6 +17,11 @@ table{border-collapse:collapse;margin-top:20px;width:100%;font-family:Calibri,sa
 th,td{border:1px solid #999;padding:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left}
 th{background:#217346;color:#fff;font-weight:bold;text-align:center}
 .preview-section{margin-top:30px}
+.invalid-cell {
+    background-color: #ffcccc !important;
+    color: #cc0000 !important;
+    font-weight: bold;
+}
 </style>
 </head>
 <body>
@@ -433,13 +438,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderPreview(rows) {
         const { dutData, secData, hasSecurity } = generateExcelData(rows);
+        
+        // Create DUT table with highlighting
         let html = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-        dutData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+        dutData.slice(1).forEach(row => { 
+            html += `<tr>`;
+            row.forEach((c, index) => {
+                // Highlight column 3 (Meaning/Description) if it contains "Require work tray name"
+                if (index === 3 && c === "Require work tray name") {
+                    html += `<td class="invalid-cell">${c}</td>`;
+                } else {
+                    html += `<td>${c}</td>`;
+                }
+            });
+            html += `</tr>`;
+        });
         html += `</tbody></table>`;
 
+        // Create Security table with highlighting
         if(hasSecurity){
             html += `<h2>Security Roles Preview</h2><table><thead><tr>${secData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-            secData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
+            secData.slice(1).forEach(row => { 
+                html += `<tr>`;
+                row.forEach((c, index) => {
+                    // Highlight column 3 (Meaning/Description) if it starts with "INVALID:"
+                    if (index === 3 && c.startsWith("INVALID:")) {
+                        html += `<td class="invalid-cell">${c}</td>`;
+                    } else {
+                        html += `<td>${c}</td>`;
+                    }
+                });
+                html += `</tr>`;
+            });
             html += `</tbody></table>`;
         }
 
@@ -462,3 +492,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
