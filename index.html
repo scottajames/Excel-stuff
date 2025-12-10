@@ -47,6 +47,28 @@ document.addEventListener("DOMContentLoaded", () => {
     let uploadedFile = null;
     let uploadedRows = [];
 
+    // VALID SECURITY ROLES LIST - EDIT THESE AS NEEDED
+    // These are the valid security roles for column V
+    // You can edit this list with your actual security roles
+    const VALID_SECURITY_ROLES = [
+        "test",           // Example role 1
+        "test2",          // Example role 2  
+        "test3",          // Example role 3
+        "admin",          // Example role 4
+        "viewer",         // Example role 5
+        "editor",         // Example role 6
+        "approver",       // Example role 7
+        "supervisor",     // Example role 8
+        "manager",        // Example role 9
+        "auditor"         // Example role 10
+    ];
+    
+    // Helper function to normalize security roles for comparison
+    function normalizeSecurityRole(role) {
+        if (!role) return "";
+        return role.toString().trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
     // Upload handlers
     uploadArea.addEventListener("click", () => fileInput.click());
     uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.style.background="#e6f2e6"; });
@@ -81,31 +103,98 @@ document.addEventListener("DOMContentLoaded", () => {
         return "";
     }
 
-    function determineWorkTrayName(row) {
-        // Check column S (Connect DUT? or similar - assuming column name indicates DUT access)
-        let dutAccess = "";
-        
+    function getDUTAccessColumnValue(row) {
         // Try to find column S by index or by common names
         const columnNames = Object.keys(row);
         
-        // Look for common DUT access column names
+        // Look for common DUT access column names - column S
         const dutColumnCandidates = [
             "Connect DUT?", 
             "DUT Access", 
             "Access to DUT",
+            "Access To Connect", // Added this based on your description
             "Column S",  // Fallback
             columnNames[18] // Assuming S is 19th column (0-indexed 18)
         ];
         
         for (const colName of dutColumnCandidates) {
             if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
-                dutAccess = row[colName].toString().trim().toLowerCase();
-                break;
+                return row[colName].toString().trim().toLowerCase();
             }
         }
         
-        // Get Work Tray Name
-        let workTray = (row["Work Tray Name"] || "").toString().trim();
+        return "";
+    }
+
+    function getWorkTrayNameValue(row) {
+        // Try to find column U (Work Tray Name)
+        const columnNames = Object.keys(row);
+        
+        // Look for Work Tray Name column - column U
+        const workTrayCandidates = [
+            "Work Tray Name",
+            "Column U",  // Fallback
+            columnNames[20] // Assuming U is 21st column (0-indexed 20)
+        ];
+        
+        for (const colName of workTrayCandidates) {
+            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
+                return row[colName].toString().trim();
+            }
+        }
+        
+        return "";
+    }
+
+    function getSecurityRoleValue(row) {
+        // Try to find column V (Connect Security Role)
+        const columnNames = Object.keys(row);
+        
+        // Look for Security Role column - column V
+        const securityCandidates = [
+            "Connect Security Role",
+            "Column V",  // Fallback
+            columnNames[21] // Assuming V is 22nd column (0-indexed 21)
+        ];
+        
+        for (const colName of securityCandidates) {
+            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
+                return row[colName].toString().trim();
+            }
+        }
+        
+        return "";
+    }
+
+    function validateAndFormatSecurityRole(role) {
+        if (!role) return { isValid: false, formattedRole: "", message: "" };
+        
+        const normalizedRole = normalizeSecurityRole(role);
+        const isValid = VALID_SECURITY_ROLES.some(validRole => 
+            normalizeSecurityRole(validRole) === normalizedRole
+        );
+        
+        if (!isValid) {
+            return { 
+                isValid: false, 
+                formattedRole: "Not a valid security role", 
+                message: "Not a valid security role" 
+            };
+        }
+        
+        // Format as uppercase with underscores for spaces
+        const formattedRole = role.toUpperCase().replace(/\s+/g, "_");
+        
+        return { 
+            isValid: true, 
+            formattedRole: formattedRole, 
+            message: formattedRole 
+        };
+    }
+
+    function determineWorkTrayName(row) {
+        const dutAccess = getDUTAccessColumnValue(row);
+        const workTray = getWorkTrayNameValue(row);
         
         // Logic based on requirements
         if (dutAccess === "no") {
@@ -145,12 +234,26 @@ document.addEventListener("DOMContentLoaded", () => {
         return variations;
     }
 
-    function getGradeMessage(grade) {
+    function getGradeMessage(grade, row) {
         const psopGrade = grade.toString().trim();
         
         // Check if grade contains "Band" followed by a space and a letter
         const bandPattern = /^Band\s+[A-Za-z]$/i;
         
+        // Get column values
+        const dutAccess = getDUTAccessColumnValue(row);
+        const workTray = getWorkTrayNameValue(row);
+        const securityRole = getSecurityRoleValue(row);
+        
+        // Check the new condition: Band + letter, Access To Connect = Yes, has Work Tray Name, but no Security Role
+        if (bandPattern.test(psopGrade) && 
+            dutAccess === "yes" && 
+            workTray && 
+            !securityRole) {
+            return "Requires Security Role";
+        }
+        
+        // Original logic for non-band grades
         if (psopGrade && !bandPattern.test(psopGrade)) {
             return "Officer role will have access";
         }
@@ -171,15 +274,19 @@ document.addEventListener("DOMContentLoaded", () => {
             // Determine Work Tray Name based on new logic
             const workTray = determineWorkTrayName(r);
             
-            // Get PSOP Grade with special handling
+            // Get PSOP Grade with special handling (pass the row for additional checks)
             const rawGrade = (r["Rank/Band"] || "").toString();
-            const psopGrade = getGradeMessage(rawGrade);
+            const psopGrade = getGradeMessage(rawGrade, r);
             
             // Get rank variations if applicable
             const rankVariations = generateRankVariations(rawGrade);
             
             // Trim highest org
             const psopOrg = getHighestNonEmptyLevel(r);
+
+            // Get and validate security role
+            const securityRoleRaw = getSecurityRoleValue(r);
+            const securityRoleValidation = validateAndFormatSecurityRole(securityRoleRaw);
 
             // If we have rank variations, create multiple rows
             if (rankVariations.length > 0) {
@@ -191,12 +298,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     ]);
 
                     // Security Role row for this variation
-                    let roleRaw = (r["Connect Security Role"] || "").toString().trim();
-                    if(roleRaw){
+                    if(securityRoleValidation.isValid){
                         hasSecurity = true;
-                        const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
                         secData.push([
-                            "XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
+                            "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
+                        ]);
+                    } else if (securityRoleRaw) {
+                        // Invalid security role - still add it but marked as invalid
+                        hasSecurity = true;
+                        secData.push([
+                            "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
                         ]);
                     }
                 });
@@ -208,12 +319,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
 
                 // Security Role row
-                let roleRaw = (r["Connect Security Role"] || "").toString().trim();
-                if(roleRaw){
+                if(securityRoleValidation.isValid){
                     hasSecurity = true;
-                    const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
                     secData.push([
-                        "XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                        "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    ]);
+                } else if (securityRoleRaw) {
+                    // Invalid security role - still add it but marked as invalid
+                    hasSecurity = true;
+                    secData.push([
+                        "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
                     ]);
                 }
             }
@@ -232,6 +347,33 @@ document.addEventListener("DOMContentLoaded", () => {
             html += `<h2>Security Roles Preview</h2><table><thead><tr>${secData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
             secData.slice(1).forEach(row => { html+=`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`; });
             html += `</tbody></table>`;
+        }
+
+        // Add validation summary
+        const invalidRoles = [];
+        rows.forEach((r,i) => {
+            const securityRoleRaw = getSecurityRoleValue(r);
+            if (securityRoleRaw) {
+                const validation = validateAndFormatSecurityRole(securityRoleRaw);
+                if (!validation.isValid) {
+                    invalidRoles.push({
+                        row: i + 2, // +2 because Excel rows start at 1 and header is row 1
+                        role: securityRoleRaw,
+                        message: validation.message
+                    });
+                }
+            }
+        });
+
+        if (invalidRoles.length > 0) {
+            html += `<h2 style="color: red;">Validation Warnings</h2>`;
+            html += `<p>The following security roles are not valid. Please check them against the valid roles list:</p>`;
+            html += `<ul>`;
+            invalidRoles.forEach(item => {
+                html += `<li>Row ${item.row}: "${item.role}" - ${item.message}</li>`;
+            });
+            html += `</ul>`;
+            html += `<p><strong>Valid Security Roles:</strong> ${VALID_SECURITY_ROLES.join(', ')}</p>`;
         }
 
         previewContainer.innerHTML = html;
