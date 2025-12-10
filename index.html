@@ -133,10 +133,46 @@ document.addEventListener("DOMContentLoaded", () => {
 	"SYSADMIN_NEC"
     ];
     
+    // Create a normalized version of valid roles for comparison
+    const NORMALIZED_VALID_ROLES = VALID_SECURITY_ROLES.map(role => 
+        normalizeSecurityRole(role)
+    );
+    
     // Helper function to normalize security roles for comparison
     function normalizeSecurityRole(role) {
         if (!role) return "";
-        return role.toString().trim().toLowerCase().replace(/\s+/g, " ");
+        return role.toString()
+            .trim()
+            .toLowerCase()
+            .replace(/_/g, ' ')      // Convert underscores to spaces
+            .replace(/\s+/g, ' ')    // Normalize multiple spaces to single space
+            .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+            .trim();
+    }
+    
+    // Helper function to find matching valid role from input
+    function findMatchingValidRole(inputRole) {
+        if (!inputRole) return null;
+        
+        const normalizedInput = normalizeSecurityRole(inputRole);
+        
+        // Try to find exact match in normalized list
+        const exactMatchIndex = NORMALIZED_VALID_ROLES.indexOf(normalizedInput);
+        if (exactMatchIndex !== -1) {
+            return VALID_SECURITY_ROLES[exactMatchIndex]; // Return original format
+        }
+        
+        // If no exact match, try partial matching
+        for (let i = 0; i < VALID_SECURITY_ROLES.length; i++) {
+            const normalizedValid = NORMALIZED_VALID_ROLES[i];
+            // Check if input contains valid role or valid role contains input
+            if (normalizedInput.includes(normalizedValid) || 
+                normalizedValid.includes(normalizedInput)) {
+                return VALID_SECURITY_ROLES[i];
+            }
+        }
+        
+        return null;
     }
 
     // Upload handlers
@@ -237,28 +273,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function validateAndFormatSecurityRole(role) {
-        if (!role) return { isValid: false, formattedRole: "", message: "" };
+        if (!role) return { isValid: false, formattedRole: "", message: "", matchedRole: null };
         
-        const normalizedRole = normalizeSecurityRole(role);
-        const isValid = VALID_SECURITY_ROLES.some(validRole => 
-            normalizeSecurityRole(validRole) === normalizedRole
-        );
+        const matchedValidRole = findMatchingValidRole(role);
         
-        if (!isValid) {
+        if (!matchedValidRole) {
             return { 
                 isValid: false, 
-                formattedRole: "Not a valid security role", 
-                message: "Not a valid security role" 
+                formattedRole: "INVALID: " + role.toUpperCase(), 
+                message: "Not a valid security role", 
+                matchedRole: null 
             };
         }
         
-        // Format as uppercase with underscores for spaces
-        const formattedRole = role.toUpperCase().replace(/\s+/g, "_");
+        // Return the role in the standard format (uppercase with underscores)
+        const formattedRole = matchedValidRole;
         
         return { 
             isValid: true, 
             formattedRole: formattedRole, 
-            message: formattedRole 
+            message: formattedRole,
+            matchedRole: matchedValidRole
         };
     }
 
@@ -421,6 +456,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Add validation summary
         const invalidRoles = [];
+        const matchedRoles = [];
+        
         rows.forEach((r,i) => {
             const securityRoleRaw = getSecurityRoleValue(r);
             if (securityRoleRaw) {
@@ -431,9 +468,25 @@ document.addEventListener("DOMContentLoaded", () => {
                         role: securityRoleRaw,
                         message: validation.message
                     });
+                } else {
+                    matchedRoles.push({
+                        row: i + 2,
+                        input: securityRoleRaw,
+                        matched: validation.matchedRole
+                    });
                 }
             }
         });
+
+        if (matchedRoles.length > 0) {
+            html += `<h2 style="color: green;">Matched Security Roles</h2>`;
+            html += `<p>The following security roles were successfully matched:</p>`;
+            html += `<ul>`;
+            matchedRoles.forEach(item => {
+                html += `<li>Row ${item.row}: "${item.input}" → <strong>${item.matched}</strong></li>`;
+            });
+            html += `</ul>`;
+        }
 
         if (invalidRoles.length > 0) {
             html += `<h2 style="color: red;">Validation Warnings</h2>`;
@@ -443,8 +496,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 html += `<li>Row ${item.row}: "${item.role}" - ${item.message}</li>`;
             });
             html += `</ul>`;
-            html += `<p><strong>Valid Security Roles:</strong> ${VALID_SECURITY_ROLES.join(', ')}</p>`;
         }
+
+        // Show valid roles for reference
+        html += `<h3>Valid Security Roles (accepted in any case/spacing format):</h3>`;
+        html += `<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">`;
+        html += `<p>${VALID_SECURITY_ROLES.join(', ')}</p>`;
+        html += `<p><em>Note: Inputs will be matched regardless of case (sys_admin = SYS_ADMIN = Sys Admin) and spacing (sys admin = sys_admin)</em></p>`;
+        html += `</div>`;
 
         previewContainer.innerHTML = html;
     }
@@ -465,3 +524,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
