@@ -21,10 +21,15 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
 </head>
 <body>
 <div class="container">
-<h1>PSOP Connect - Excel Transformer with Preview</h1>
+  <h1>MBS - DUT & Security Mapping tool</h1>
 
+  <h3>Known errors and how to fix them.</h3>
+  <p><b>Nothing happens when I drag and drop my file:</b> sometimes when you drag and drop it does not work. The best thing to do is reload the page and instead of drag and dropping click on the “Drag &amp; Drop or Click to Upload Excel file” and select the file from your folders instead.</p>
+  <p><b>It has put the incorrect security mapping:</b> you are still required to look and audit the mappings yourself which is why a preview of what you're going to download is shown. If someone has filled in the sheet wrong in MBS, this tool cannot edit the data; it only shows and formats the data the Excel file has.</p>
+  <p><b>It is missing parts or all of the mapping:</b> this tool cannot edit mapping—only format it from the file that is downloaded from MBS. The issue probably isn't the tool but the person who filled in the MBS file.</p>
+<h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
 <div id="uploadArea" class="upload-area">
-Drag & Drop or Click to Upload XLSX
+Drag & Drop or Click to Upload MBS Excel file
 <input type="file" id="fileInput" accept=".xlsx" style="display:none" />
 </div>
 
@@ -80,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
         const dutData = [dutHeaders];
 
-        const secHeaders = ["#","Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
+        const secHeaders = ["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
         const secData = [secHeaders];
 
         let hasSecurity = false;
@@ -108,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 hasSecurity = true;
                 const formattedRole = roleRaw.toUpperCase().replace(/\s+/g,"_");
                 secData.push([
-                    i+1,"XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
+                    "XXC_MPS_CONNECT_RANK_ORG","", "", formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
                 ]);
             }
         });
@@ -145,6 +150,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
-</div>
 </body>
 </html>
