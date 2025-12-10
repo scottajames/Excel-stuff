@@ -22,6 +22,24 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
     color: #cc0000 !important;
     font-weight: bold;
 }
+.valid-cell {
+    background-color: #ccffcc !important;
+    color: #006600 !important;
+}
+.reference-file-area {
+    border: 2px dashed #1a5a2f;
+    padding: 20px;
+    text-align: center;
+    background: white;
+    border-radius: 6px;
+    color: #1a5a2f;
+    cursor: pointer;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+.reference-file-area:hover {
+    background: #e6f2e6;
+}
 </style>
 </head>
 <body>
@@ -33,6 +51,13 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
   <p><b>It has put the incorrect security mapping:</b> you are still required to look and audit the mappings yourself which is why a preview of what you're going to download is shown. If someone has filled in the sheet wrong in MBS, this tool cannot edit the data; it only shows and formats the data the Excel file has.</p>
   <p><b>It is missing parts or all of the mapping:</b> this tool cannot edit mapping—only format it from the file that is downloaded from MBS. The issue probably isn't the tool but the person who filled in the MBS file.</p>
 <h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
+
+<div id="referenceUploadArea" class="reference-file-area">
+Drag & Drop or Click to Upload Reference Excel File (Work Tray Names)
+<input type="file" id="referenceFileInput" accept=".xlsx" style="display:none" />
+</div>
+<p><em>Upload an Excel file containing valid Work Tray Names in column A. This will be used to validate the Work Tray Names from your MBS file.</em></p>
+
 <div id="uploadArea" class="upload-area">
 Drag & Drop or Click to Upload MBS Excel file
 <input type="file" id="fileInput" accept=".xlsx" style="display:none" />
@@ -47,10 +72,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const uploadArea = document.getElementById("uploadArea");
     const fileInput = document.getElementById("fileInput");
+    const referenceUploadArea = document.getElementById("referenceUploadArea");
+    const referenceFileInput = document.getElementById("referenceFileInput");
     const previewContainer = document.getElementById("previewContainer");
     const processBtn = document.getElementById("processBtn");
     let uploadedFile = null;
     let uploadedRows = [];
+    let referenceFile = null;
+    let validWorkTrayNames = new Set(); // Using Set for O(1) lookups
 
     // VALID SECURITY ROLES LIST
     // These are the valid security roles for column V
@@ -169,7 +198,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return null; // No match found
     }
 
-    // Upload handlers
+    // Upload handlers for reference file
+    referenceUploadArea.addEventListener("click", () => referenceFileInput.click());
+    referenceUploadArea.addEventListener("dragover", e => { e.preventDefault(); referenceUploadArea.style.background="#e6f2e6"; });
+    referenceUploadArea.addEventListener("dragleave", () => { referenceUploadArea.style.background="white"; });
+    referenceUploadArea.addEventListener("drop", e => { 
+        e.preventDefault(); 
+        referenceUploadArea.style.background="white"; 
+        if(e.dataTransfer.files && e.dataTransfer.files.length) handleReferenceFile(e.dataTransfer.files[0]); 
+    });
+    referenceFileInput.addEventListener("change", e => handleReferenceFile(e.target.files[0]));
+
+    // Upload handlers for MBS file
     uploadArea.addEventListener("click", () => fileInput.click());
     uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.style.background="#e6f2e6"; });
     uploadArea.addEventListener("dragleave", () => { uploadArea.style.background="white"; });
@@ -179,6 +219,39 @@ document.addEventListener("DOMContentLoaded", () => {
         if(e.dataTransfer.files && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); 
     });
     fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
+
+    function handleReferenceFile(file) {
+        referenceFile = file;
+        referenceUploadArea.textContent = `Reference File Loaded: ${file.name}`;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { defval:"" });
+            
+            // Load valid work tray names from column A
+            validWorkTrayNames.clear();
+            rows.forEach(row => {
+                const columnNames = Object.keys(row);
+                // Try to get value from column A (first column)
+                if (columnNames.length > 0) {
+                    const value = row[columnNames[0]];
+                    if (value && value.toString().trim() !== "") {
+                        validWorkTrayNames.add(value.toString().trim().toUpperCase());
+                    }
+                }
+            });
+            
+            console.log(`Loaded ${validWorkTrayNames.size} valid work tray names from reference file`);
+            
+            // If we already have an MBS file loaded, re-render the preview
+            if (uploadedRows.length > 0) {
+                renderPreview(uploadedRows);
+            }
+        };
+        reader.readAsArrayBuffer(referenceFile);
+    }
 
     function handleFile(file) {
         uploadedFile = file;
@@ -444,9 +517,26 @@ document.addEventListener("DOMContentLoaded", () => {
         dutData.slice(1).forEach(row => { 
             html += `<tr>`;
             row.forEach((c, index) => {
-                // Highlight column 3 (Meaning/Description) if it contains "Require work tray name"
-                if (index === 3 && c === "Require work tray name") {
-                    html += `<td class="invalid-cell">${c}</td>`;
+                // Highlight column 3 (Meaning/Description) based on conditions
+                if (index === 3) {
+                    if (c === "Require work tray name") {
+                        // Red for missing work tray name
+                        html += `<td class="invalid-cell">${c}</td>`;
+                    } else if (c !== "NO ACCESS" && validWorkTrayNames.size > 0) {
+                        // Check if work tray name is valid (if reference file is loaded)
+                        const workTrayName = c.toString().trim().toUpperCase();
+                        if (validWorkTrayNames.has(workTrayName)) {
+                            // Green for valid work tray name
+                            html += `<td class="valid-cell">${c}</td>`;
+                        } else if (workTrayName !== "" && workTrayName !== "NO ACCESS") {
+                            // Red for invalid work tray name
+                            html += `<td class="invalid-cell">${c} (Invalid)</td>`;
+                        } else {
+                            html += `<td>${c}</td>`;
+                        }
+                    } else {
+                        html += `<td>${c}</td>`;
+                    }
                 } else {
                     html += `<td>${c}</td>`;
                 }
@@ -473,6 +563,13 @@ document.addEventListener("DOMContentLoaded", () => {
             html += `</tbody></table>`;
         }
 
+        // Add note about work tray validation
+        if (validWorkTrayNames.size > 0) {
+            html += `<p><strong>Work Tray Name Validation:</strong> Green = valid work tray name, Red = invalid or missing work tray name</p>`;
+        } else {
+            html += `<p><em>Upload a reference file to validate Work Tray Names against known valid values.</em></p>`;
+        }
+
         previewContainer.innerHTML = html;
     }
 
@@ -492,4 +589,3 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
-
