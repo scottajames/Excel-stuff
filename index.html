@@ -17,6 +17,12 @@ table{border-collapse:collapse;margin-top:20px;width:100%;font-family:Calibri,sa
 th,td{border:1px solid #999;padding:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left}
 th{background:#217346;color:#fff;font-weight:bold;text-align:center}
 .preview-section{margin-top:30px}
+.unit-status {margin-bottom: 20px; padding: 10px; border-radius: 4px;}
+.unit-status.loaded {background-color: #ccffcc; border: 1px solid #217346;}
+.unit-status.not-loaded {background-color: #ffcccc; border: 1px solid #ff0000;}
+.issue-summary {margin: 15px 0; padding: 10px; border-radius: 4px;}
+.issue-summary.valid {background-color: #ccffcc; border: 1px solid #217346;}
+.issue-summary.invalid {background-color: #ffcccc; border: 1px solid #ff0000;}
 </style>
 </head>
 <body>
@@ -28,6 +34,10 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
   <p><b>It has put the incorrect security mapping:</b> you are still required to look and audit the mappings yourself which is why a preview of what you're going to download is shown. If someone has filled in the sheet wrong in MBS, this tool cannot edit the data; it only shows and formats the data the Excel file has.</p>
   <p><b>It is missing parts or all of the mapping:</b> this tool cannot edit mapping—only format it from the file that is downloaded from MBS. The issue probably isn't the tool but the person who filled in the MBS file.</p>
 <h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
+
+<!-- Unit.csv status will be inserted here -->
+<div id="unitStatus"></div>
+
 <div id="uploadArea" class="upload-area">
 Drag & Drop or Click to Upload MBS Excel file
 <input type="file" id="fileInput" accept=".xlsx" style="display:none" />
@@ -44,21 +54,35 @@ document.addEventListener("DOMContentLoaded", () => {
     const fileInput = document.getElementById("fileInput");
     const previewContainer = document.getElementById("previewContainer");
     const processBtn = document.getElementById("processBtn");
+    const unitStatus = document.getElementById("unitStatus");
     let uploadedFile = null;
     let uploadedRows = [];
     
     // Store valid units from Unit.csv
     let validUnits = new Set();
     
-    // Fixed file path to Unit.csv (adjust this path as needed)
-    const UNIT_CSV_PATH = "S:\FP\DOI\117_PROGRAMME_MGT\101_PROGRAMMES\Total_Technology\Core_Policing\New Core Policing Programme\MiPS\BA Work\Roles\HR Interface and Security Roles\Secure Data Sources\2024 Access Tracker\Unit.csv"; // Update this to the actual path if different
+    // IMPORTANT: For security reasons, browsers cannot access local file paths like "S:\FP\DOI\..."
+    // You have a few options:
+    
+    // OPTION 1: If Unit.csv is in the same directory as this HTML file:
+    const UNIT_CSV_PATH = "Unit.csv"; // Place Unit.csv in same folder as this HTML
+    
+    // OPTION 2: If on a web server, use relative path:
+    // const UNIT_CSV_PATH = "data/Unit.csv";
+    
+    // OPTION 3: If you need to serve from a specific location, you'll need to:
+    // 1. Host this HTML on a web server that can access that network path
+    // 2. Configure the server to serve the Unit.csv file
+    // 3. Use a relative URL from the server
+    
+    // For now, using Option 1 - update this path to where your Unit.csv actually is
     
     // Load Unit.csv on page load
     function loadUnitCSV() {
         fetch(UNIT_CSV_PATH)
             .then(response => {
                 if (!response.ok) {
-                    console.warn("Unit.csv not found or cannot be loaded. Work tray validation will be skipped.");
+                    updateUnitStatus(false, "Unit.csv not found or cannot be loaded. Work tray validation will be skipped.");
                     return null;
                 }
                 return response.text();
@@ -79,13 +103,26 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }
                     });
+                    updateUnitStatus(true, `Loaded ${validUnits.size} valid units from Unit.csv for work tray validation.`);
                     console.log(`Loaded ${validUnits.size} valid units from Unit.csv`);
                 }
             })
             .catch(error => {
+                updateUnitStatus(false, "Error loading Unit.csv. Work tray validation will be skipped.");
                 console.warn("Error loading Unit.csv:", error);
-                console.warn("Work tray validation will be skipped.");
             });
+    }
+    
+    // Update the unit status display
+    function updateUnitStatus(loaded, message) {
+        const statusClass = loaded ? "unit-status loaded" : "unit-status not-loaded";
+        const statusText = loaded ? "✓ Unit.csv Loaded" : "✗ Unit.csv Not Loaded";
+        unitStatus.innerHTML = `
+            <div class="${statusClass}">
+                <strong>${statusText}</strong><br>
+                ${message}
+            </div>
+        `;
     }
     
     // Load Unit.csv when page loads
@@ -601,53 +638,60 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        if (validWorkTrays.length > 0) {
-            html += `<h2 style="color: green;">Valid Work Trays (Found in Unit.csv)</h2>`;
-            html += `<p>The following work trays are valid units:</p>`;
-            html += `<ul>`;
-            validWorkTrays.forEach(item => {
-                html += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
-            });
-            html += `</ul>`;
-        }
-
-        if (invalidWorkTrays.length > 0) {
-            html += `<h2 style="color: red;">Invalid Work Trays (NOT in Unit.csv)</h2>`;
-            html += `<p>The following work trays were NOT found in Unit.csv:</p>`;
-            html += `<ul>`;
-            invalidWorkTrays.forEach(item => {
-                html += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
-            });
-            html += `</ul>`;
-        }
-
+        // Display officer access issues as a red box
         if (officerAccessIssues.length > 0) {
-            html += `<h2 style="color: red;">Officer Access Issues</h2>`;
-            html += `<p>The following officer ranks have Access To Connect = No OR no Work Tray Name:</p>`;
-            html += `<ul>`;
+            let officerIssuesHTML = `<div class="issue-summary invalid">`;
+            officerIssuesHTML += `<strong>Officer Access Issues</strong><br>`;
+            officerIssuesHTML += `The following officer ranks have Access To Connect = No OR no Work Tray Name:<br><br>`;
+            officerIssuesHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
             officerAccessIssues.forEach(item => {
-                html += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Access To Connect: ${item.dutAccess}, Work Tray Name: ${item.workTray || '(empty)'}</li>`;
+                officerIssuesHTML += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Access To Connect: ${item.dutAccess}, Work Tray Name: ${item.workTray || '(empty)'}</li>`;
             });
-            html += `</ul>`;
+            officerIssuesHTML += `</ul>`;
+            officerIssuesHTML += `</div>`;
+            html += officerIssuesHTML;
         }
 
+        // Display staff security issues as a red box
         if (staffSecurityIssues.length > 0) {
-            html += `<h2 style="color: red;">Staff Security Role Issues</h2>`;
-            html += `<p>The following staff roles (Unbanded or Band X) require a security role:</p>`;
-            html += `<ul>`;
+            let staffIssuesHTML = `<div class="issue-summary invalid">`;
+            staffIssuesHTML += `<strong>Staff Security Role Issues</strong><br>`;
+            staffIssuesHTML += `The following staff roles (Unbanded or Band X) require a security role:<br><br>`;
+            staffIssuesHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
             staffSecurityIssues.forEach(item => {
-                html += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Has Access To Connect = Yes and Work Tray Name but no Security Role</li>`;
+                staffIssuesHTML += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Has Access To Connect = Yes and Work Tray Name but no Security Role</li>`;
             });
-            html += `</ul>`;
+            staffIssuesHTML += `</ul>`;
+            staffIssuesHTML += `</div>`;
+            html += staffIssuesHTML;
         }
 
-        // Add note about Unit.csv
-        if (validUnits.size === 0) {
-            html += `<h3 style="color: orange;">Note: Unit.csv not loaded or empty</h3>`;
-            html += `<p>Work tray validation against Unit.csv is not available. Make sure Unit.csv is in the same directory as this HTML file.</p>`;
-        } else {
-            html += `<h3>Work Tray Validation</h3>`;
-            html += `<p>Work trays are checked against Unit.csv (${validUnits.size} units loaded). Green background indicates a valid unit found in Unit.csv.</p>`;
+        // Display valid work trays as a green box
+        if (validWorkTrays.length > 0) {
+            let validWorkTraysHTML = `<div class="issue-summary valid">`;
+            validWorkTraysHTML += `<strong>Valid Work Trays (Found in Unit.csv)</strong><br>`;
+            validWorkTraysHTML += `The following work trays are valid units:<br><br>`;
+            validWorkTraysHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
+            validWorkTrays.forEach(item => {
+                validWorkTraysHTML += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
+            });
+            validWorkTraysHTML += `</ul>`;
+            validWorkTraysHTML += `</div>`;
+            html += validWorkTraysHTML;
+        }
+
+        // Display invalid work trays as a red box
+        if (invalidWorkTrays.length > 0) {
+            let invalidWorkTraysHTML = `<div class="issue-summary invalid">`;
+            invalidWorkTraysHTML += `<strong>Invalid Work Trays (NOT in Unit.csv)</strong><br>`;
+            invalidWorkTraysHTML += `The following work trays were NOT found in Unit.csv:<br><br>`;
+            invalidWorkTraysHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
+            invalidWorkTrays.forEach(item => {
+                invalidWorkTraysHTML += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
+            });
+            invalidWorkTraysHTML += `</ul>`;
+            invalidWorkTraysHTML += `</div>`;
+            html += invalidWorkTraysHTML;
         }
 
         previewContainer.innerHTML = html;
