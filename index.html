@@ -514,7 +514,15 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Create DUT table with highlighting
         let html = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-        dutData.slice(1).forEach(row => { 
+        
+        dutData.slice(1).forEach((row, rowIndex) => { 
+            // Get original row data for validation
+            const originalRow = rows[Math.floor(rowIndex / Math.max(generateRankVariations(rows[rowIndex]?.["Rank/Band"] || "").length, 1))];
+            const originalGrade = (originalRow["Rank/Band"] || "").toString().trim();
+            const isBand = /^Band\s+[A-Za-z]$/i.test(originalGrade);
+            const dutAccess = getDUTAccessColumnValue(originalRow);
+            const workTrayName = getWorkTrayNameValue(originalRow);
+            
             html += `<tr>`;
             row.forEach((c, index) => {
                 // Highlight column 3 (Meaning/Description) based on conditions
@@ -522,6 +530,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (c === "Require work tray name") {
                         // Red for missing work tray name
                         html += `<td class="invalid-cell">${c}</td>`;
+                    } else if (c === "NO ACCESS" && !isBand && dutAccess === "no") {
+                        // New rule: Non-Band grades with NO ACCESS and DUT Access = No
+                        html += `<td class="invalid-cell">Officer positions will have access to CONNECT</td>`;
+                    } else if (c === "NO ACCESS" && !isBand) {
+                        // New rule: Non-Band grades with NO ACCESS
+                        html += `<td class="invalid-cell">Officer positions will have access to CONNECT</td>`;
                     } else if (c !== "NO ACCESS" && validWorkTrayNames.size > 0) {
                         // Check if work tray name is valid (if reference file is loaded)
                         const workTrayName = c.toString().trim().toUpperCase();
@@ -569,6 +583,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             html += `<p><em>Upload a reference file to validate Work Tray Names against known valid values.</em></p>`;
         }
+        
+        // Add note about officer position validation
+        html += `<p><strong>Officer Position Validation:</strong> Red = Officer positions (non-Band) marked as NO ACCESS should have access to CONNECT</p>`;
 
         previewContainer.innerHTML = html;
     }
