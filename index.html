@@ -20,9 +20,12 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
 .unit-status {margin-bottom: 20px; padding: 10px; border-radius: 4px;}
 .unit-status.loaded {background-color: #ccffcc; border: 1px solid #217346;}
 .unit-status.not-loaded {background-color: #ffcccc; border: 1px solid #ff0000;}
+.unit-status.manual {background-color: #ffffcc; border: 1px solid #ff9900;}
 .issue-summary {margin: 15px 0; padding: 10px; border-radius: 4px;}
 .issue-summary.valid {background-color: #ccffcc; border: 1px solid #217346;}
 .issue-summary.invalid {background-color: #ffcccc; border: 1px solid #ff0000;}
+.manual-upload-area {border: 2px dashed #ff9900; padding: 20px; text-align: center; background: white; border-radius: 6px; color: #ff9900; cursor: pointer; font-weight: bold; margin-bottom: 20px; display: none;}
+.manual-upload-area:hover {background: #fff9e6;}
 </style>
 </head>
 <body>
@@ -36,7 +39,16 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
 <h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
 
 <!-- Unit.csv status will be inserted here -->
-<div id="unitStatus"></div>
+<div id="unitStatus" class="unit-status manual">
+  <strong>⚠ Unit.csv Not Loaded</strong><br>
+  Please upload the Unit.csv file for work tray validation. The Unit.csv file should contain valid unit names in column A.
+</div>
+
+<!-- Manual Unit.csv upload area -->
+<div id="unitUploadArea" class="manual-upload-area">
+  Drag & Drop or Click to Upload Unit.csv file
+  <input type="file" id="unitFileInput" accept=".csv" style="display:none" />
+</div>
 
 <div id="uploadArea" class="upload-area">
 Drag & Drop or Click to Upload MBS Excel file
@@ -55,79 +67,125 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewContainer = document.getElementById("previewContainer");
     const processBtn = document.getElementById("processBtn");
     const unitStatus = document.getElementById("unitStatus");
+    const unitUploadArea = document.getElementById("unitUploadArea");
+    const unitFileInput = document.getElementById("unitFileInput");
     let uploadedFile = null;
     let uploadedRows = [];
     
     // Store valid units from Unit.csv
     let validUnits = new Set();
     
-    // IMPORTANT: For security reasons, browsers cannot access local file paths like "S:\FP\DOI\..."
-    // You have a few options:
+    // Show manual upload for Unit.csv
+    unitUploadArea.style.display = "block";
     
-    // OPTION 1: If Unit.csv is in the same directory as this HTML file:
-    const UNIT_CSV_PATH = "Unit.csv"; // Place Unit.csv in same folder as this HTML
+    // Unit.csv upload handlers
+    unitUploadArea.addEventListener("click", () => unitFileInput.click());
+    unitUploadArea.addEventListener("dragover", e => { 
+        e.preventDefault(); 
+        unitUploadArea.style.background="#fff9e6"; 
+    });
+    unitUploadArea.addEventListener("dragleave", () => { 
+        unitUploadArea.style.background="white"; 
+    });
+    unitUploadArea.addEventListener("drop", e => { 
+        e.preventDefault(); 
+        unitUploadArea.style.background="white"; 
+        if(e.dataTransfer.files && e.dataTransfer.files.length) handleUnitFile(e.dataTransfer.files[0]); 
+    });
+    unitFileInput.addEventListener("change", e => handleUnitFile(e.target.files[0]));
+
+    function handleUnitFile(file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            updateUnitStatus(false, "Please upload a CSV file.");
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = e => {
+            const data = e.target.result;
+            parseUnitCSV(data);
+        };
+        reader.readAsText(file);
+        
+        // Update upload area text
+        unitUploadArea.textContent = `Unit.csv Loaded: ${file.name}`;
+        unitUploadArea.style.borderColor = "#217346";
+        unitUploadArea.style.color = "#217346";
+    }
     
-    // OPTION 2: If on a web server, use relative path:
-    // const UNIT_CSV_PATH = "data/Unit.csv";
-    
-    // OPTION 3: If you need to serve from a specific location, you'll need to:
-    // 1. Host this HTML on a web server that can access that network path
-    // 2. Configure the server to serve the Unit.csv file
-    // 3. Use a relative URL from the server
-    
-    // For now, using Option 1 - update this path to where your Unit.csv actually is
-    
-    // Load Unit.csv on page load
-    function loadUnitCSV() {
-        fetch(UNIT_CSV_PATH)
-            .then(response => {
-                if (!response.ok) {
-                    updateUnitStatus(false, "Unit.csv not found or cannot be loaded. Work tray validation will be skipped.");
-                    return null;
-                }
-                return response.text();
-            })
-            .then(data => {
-                if (data) {
-                    // Parse CSV data (simple parsing)
-                    const lines = data.split('\n');
-                    lines.forEach(line => {
-                        if (line.trim()) {
-                            // Get first column (column A)
-                            const columns = line.split(',');
-                            if (columns.length > 0) {
-                                const unit = columns[0].trim().toUpperCase();
-                                if (unit) {
-                                    validUnits.add(unit);
-                                }
-                            }
+    function parseUnitCSV(csvData) {
+        validUnits.clear();
+        
+        try {
+            // Parse CSV data (simple parsing)
+            const lines = csvData.split('\n');
+            let unitCount = 0;
+            
+            lines.forEach((line, index) => {
+                if (line.trim()) {
+                    // Get first column (column A)
+                    // Handle quoted values and commas within quotes
+                    const columns = parseCSVLine(line);
+                    if (columns.length > 0) {
+                        const unit = columns[0].trim().toUpperCase();
+                        if (unit) {
+                            validUnits.add(unit);
+                            unitCount++;
                         }
-                    });
-                    updateUnitStatus(true, `Loaded ${validUnits.size} valid units from Unit.csv for work tray validation.`);
-                    console.log(`Loaded ${validUnits.size} valid units from Unit.csv`);
+                    }
                 }
-            })
-            .catch(error => {
-                updateUnitStatus(false, "Error loading Unit.csv. Work tray validation will be skipped.");
-                console.warn("Error loading Unit.csv:", error);
             });
+            
+            updateUnitStatus(true, `Loaded ${unitCount} valid units from Unit.csv for work tray validation.`);
+            console.log(`Loaded ${unitCount} valid units from Unit.csv`);
+        } catch (error) {
+            updateUnitStatus(false, "Error parsing Unit.csv file. Please check the format.");
+            console.error("Error parsing Unit.csv:", error);
+        }
+    }
+    
+    // Helper function to parse CSV line with quotes
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"') {
+                // Toggle quote mode
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                // End of field
+                result.push(current);
+                current = '';
+            } else if (char === '\\' && nextChar === '"') {
+                // Escaped quote
+                current += '"';
+                i++; // Skip next character
+            } else {
+                current += char;
+            }
+        }
+        
+        // Add the last field
+        result.push(current);
+        return result;
     }
     
     // Update the unit status display
     function updateUnitStatus(loaded, message) {
         const statusClass = loaded ? "unit-status loaded" : "unit-status not-loaded";
         const statusText = loaded ? "✓ Unit.csv Loaded" : "✗ Unit.csv Not Loaded";
+        unitStatus.className = statusClass;
         unitStatus.innerHTML = `
-            <div class="${statusClass}">
-                <strong>${statusText}</strong><br>
-                ${message}
-            </div>
+            <strong>${statusText}</strong><br>
+            ${message}
         `;
     }
     
-    // Load Unit.csv when page loads
-    loadUnitCSV();
-
     // VALID SECURITY ROLES LIST
     // These are the valid security roles for column V
     const VALID_SECURITY_ROLES = [
@@ -245,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return null; // No match found
     }
 
-    // Upload handlers
+    // Upload handlers for main Excel file
     uploadArea.addEventListener("click", () => fileInput.click());
     uploadArea.addEventListener("dragover", e => { e.preventDefault(); uploadArea.style.background="#e6f2e6"; });
     uploadArea.addEventListener("dragleave", () => { uploadArea.style.background="white"; });
@@ -666,8 +724,8 @@ document.addEventListener("DOMContentLoaded", () => {
             html += staffIssuesHTML;
         }
 
-        // Display valid work trays as a green box
-        if (validWorkTrays.length > 0) {
+        // Display valid work trays as a green box (only if Unit.csv is loaded)
+        if (validWorkTrays.length > 0 && validUnits.size > 0) {
             let validWorkTraysHTML = `<div class="issue-summary valid">`;
             validWorkTraysHTML += `<strong>Valid Work Trays (Found in Unit.csv)</strong><br>`;
             validWorkTraysHTML += `The following work trays are valid units:<br><br>`;
@@ -680,8 +738,8 @@ document.addEventListener("DOMContentLoaded", () => {
             html += validWorkTraysHTML;
         }
 
-        // Display invalid work trays as a red box
-        if (invalidWorkTrays.length > 0) {
+        // Display invalid work trays as a red box (only if Unit.csv is loaded)
+        if (invalidWorkTrays.length > 0 && validUnits.size > 0) {
             let invalidWorkTraysHTML = `<div class="issue-summary invalid">`;
             invalidWorkTraysHTML += `<strong>Invalid Work Trays (NOT in Unit.csv)</strong><br>`;
             invalidWorkTraysHTML += `The following work trays were NOT found in Unit.csv:<br><br>`;
@@ -713,3 +771,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
