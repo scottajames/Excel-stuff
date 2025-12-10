@@ -3,429 +3,399 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PSOP Connect - Fixed Version</title>
+<title>PSOP Connect - Fixed Version (with new access rules)</title>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
 
 <style>
 body{
-    font-family:Calibri, sans-serif;
-    background:#f5f5f5;
-    margin:0;padding:20px;color:#222
+    font-family: Calibri, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+    color: #222;
 }
-.container{max-width:1200px;margin:0 auto}
-h1{font-size:22px;margin-bottom:20px}
+.container{ max-width: 1200px; margin: 0 auto; }
+h1{ font-size: 22px; margin-bottom: 20px; }
 
-.upload-area,.reference-file-area{
-    border:2px dashed #217346;
-    padding:40px;text-align:center;background:white;
-    border-radius:6px;color:#217346;
-    cursor:pointer;font-weight:bold;margin-bottom:20px
+.upload-area, .reference-file-area {
+    border: 2px dashed #217346;
+    padding: 40px;
+    text-align: center;
+    background: white;
+    border-radius: 6px;
+    color: #217346;
+    cursor: pointer;
+    font-weight: bold;
+    margin-bottom: 20px;
 }
-.upload-area:hover,.reference-file-area:hover{
-    background:#e6f2e6
+.upload-area:hover, .reference-file-area:hover {
+    background: #e6f2e6;
 }
-.hidden-input{display:none}
+.hidden-input { display: none; }
 
-button{
-    padding:10px 14px;border:none;border-radius:4px;
-    background:#217346;color:#fff;cursor:pointer;
-    font-size:16px;margin-bottom:20px;display:none
+button {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 4px;
+    background: #217346;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: 20px;
+    display: none;
 }
-button:hover{background:#1a5a2f}
+button:hover { background: #1a5a2f; }
 
-table{
-    border-collapse:collapse;margin-top:20px;width:100%;
-    font-size:14px;table-layout:fixed
+table {
+    border-collapse: collapse;
+    margin-top: 20px;
+    width: 100%;
+    font-size: 14px;
+    table-layout: fixed;
 }
-th,td{
-    border:1px solid #999;padding:6px;overflow:hidden;
-    white-space:nowrap;text-overflow:ellipsis;text-align:left
+th, td {
+    border: 1px solid #999;
+    padding: 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: left;
 }
-th{background:#217346;color:#fff;font-weight:bold;text-align:center}
+th {
+    background: #217346;
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+}
 
-.invalid-cell{background:#ffcccc !important;color:#cc0000;font-weight:bold}
-.valid-cell{background:#ccffcc !important;color:#006600;font-weight:bold}
+.invalid-cell {
+    background-color: #ffcccc !important;
+    color: #cc0000 !important;
+    font-weight: bold;
+}
+.valid-cell {
+    background-color: #ccffcc !important;
+    color: #006600 !important;
+    font-weight: bold;
+}
 
-.preview-section{margin-top:30px}
+.preview-section { margin-top: 30px; }
 </style>
 </head>
 <body>
 <div class="container">
-<h1>MBS - DUT & Security Mapping Tool</h1>
+  <h1>MBS - DUT & Security Mapping Tool</h1>
+  <h3 style="color:red;">This tool formats data only — it does NOT grant authority for roles.</h3>
 
-<h3 style="color:red;">This tool formats data only — it does NOT grant authority for roles.</h3>
-
-<!-- Reference file upload -->
-<div id="referenceArea" class="reference-file-area">
-    Drag & Drop or Click to Upload Reference Excel File (Work Tray Names)
+  <div id="referenceArea" class="reference-file-area">
+    Drag &amp; Drop or Click to Upload Reference Excel File (Work Tray Names)
     <input id="referenceInput" class="hidden-input" type="file" accept=".xlsx">
-</div>
+  </div>
 
-<!-- MBS file upload -->
-<div id="uploadArea" class="upload-area">
-    Drag & Drop or Click to Upload MBS Excel File
+  <div id="uploadArea" class="upload-area">
+    Drag &amp; Drop or Click to Upload MBS Excel File
     <input id="fileInput" class="hidden-input" type="file" accept=".xlsx">
+  </div>
+
+  <button id="processBtn">Process &amp; Download Excel</button>
+
+  <div id="previewContainer" class="preview-section"></div>
 </div>
-
-<button id="processBtn">Process & Download Excel</button>
-
-<div id="previewContainer" class="preview-section"></div>
-</div>
-
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
+  const COL = {
+    RANK: "H",     // Rank/Band in column H
+    DUT: "S",      // Access To Connect in column S
+    TRAY: "U",     // Work Tray Name in column U
+    SEC: "V"       // Connect Security Role in column V
+  };
 
-// ------------------------------
-// CONSTANTS
-// ------------------------------
+  const LEVEL_COLS = [
+    "Level 8 Sub-Team","Level 7 Team","Level 6 Function",
+    "Level 5 Portfolio","Level 4 Organisation"
+  ];
 
-const COL = {   // EXACT column mapping provided by you
-    RANK: "H",
-    DUT: "S",
-    TRAY: "U",
-    SEC: "V"
-};
+  const VALID_SECURITY_ROLES = Array.from(new Set([
+    "BOLT_ON_1","BOLT_ON_2","BOLT_ON_3","BOLT_ON_4","BOLT_ON_5","BOLT_ON_6","BOLT_ON_7","BOLT_ON_8",
+    "CONSTABLE","SGT","INSP","C_INSP","SUPT","C_SUPT","COMMDR","DEP_ASS_COMMIS","ASS_COMMIS",
+    "DEP_COMMIS","COMMIS","MSC_CONS","MSC_SGT","MSC_INSP","MSC_CINSP","MSC_ASS_CO","MSC_CO",
+    "SGT_CUST","HCP","HCP_FTAC","CCC","DDO","PAO","PCSO","INVESTIGATOR","SUP_INVESTIGATOR",
+    "ANPR","FCR","FORENSICS","INTEL","INTEL_MANAGER","INTEL_SIU","INTEL_SOURCE","INTEL_ENQUIRY_LOG",
+    "PNCB","PROPERTY","PSD","TDIU","CMS","DDM","CMT","CPA","CASE_TRAFFIC","CJOMS","MET_INTERNAL",
+    "VIEW_AND_SEARCH","VIEW_ONLY","MI","MOPI","FLAGS_C2S","FLAGS_NDH","FLAGS_NT","FLAGS_VIEW_USERS",
+    "SEALED_AUDIT","NO_FIELD_SEC","COVERT_ACCESS_FLAG","FLAG_CLOSED_ACCESS","FLAG_SECURE_ACCESS",
+    "FLAG_TEAM","SW_ALL_ACCESS","PMP_ALL_ACCESS","PMP_USER","SYS_ADMIN","SYSADMIN_FULL","SYSADMIN_DQ1",
+    "SYSADMIN_DQ2","SYS_ADMIN_DQFULL","FULL_SYS_ADMIN","SYSADMIN_CST","SYSADMIN_CST_FULL","LOCKED_ADMIN",
+    "SYSADMIN_NEC"
+  ]));
 
-// Level hierarchy ALWAYS in order
-const LEVEL_COLS = ["Level 8 Sub-Team","Level 7 Team","Level 6 Function","Level 5 Portfolio","Level 4 Organisation"];
+  const NORMALIZED_ROLES = VALID_SECURITY_ROLES.map(r => r.toLowerCase().replace(/_/g," ").trim());
 
-// Valid security roles — DEDUPED
-const VALID_SECURITY_ROLES = Array.from(new Set([
-"BOLT_ON_1","BOLT_ON_2","BOLT_ON_3","BOLT_ON_4","BOLT_ON_5","BOLT_ON_6","BOLT_ON_7","BOLT_ON_8",
-"CONSTABLE","SGT","INSP","C_INSP","SUPT","C_SUPT","COMMDR","DEP_ASS_COMMIS","ASS_COMMIS",
-"DEP_COMMIS","COMMIS","MSC_CONS","MSC_SGT","MSC_INSP","MSC_CINSP","MSC_ASS_CO","MSC_CO",
-"SGT_CUST","HCP","HCP_FTAC","CCC","DDO","PAO","PCSO","INVESTIGATOR","SUP_INVESTIGATOR",
-"ANPR","FCR","FORENSICS","INTEL","INTEL_MANAGER","INTEL_SIU","INTEL_SOURCE","INTEL_ENQUIRY_LOG",
-"PNCB","PROPERTY","PSD","TDIU","CMS","DDM","CMT","CPA","CASE_TRAFFIC","CJOMS","MET_INTERNAL",
-"VIEW_AND_SEARCH","VIEW_ONLY","MI","MOPI","FLAGS_C2S","FLAGS_NDH","FLAGS_NT","FLAGS_VIEW_USERS",
-"SEALED_AUDIT","NO_FIELD_SEC","COVERT_ACCESS_FLAG","FLAG_CLOSED_ACCESS","FLAG_SECURE_ACCESS",
-"FLAG_TEAM","SW_ALL_ACCESS","PMP_ALL_ACCESS","PMP_USER","SYS_ADMIN","SYSADMIN_FULL","SYSADMIN_DQ1",
-"SYSADMIN_DQ2","SYS_ADMIN_DQFULL","FULL_SYS_ADMIN","SYSADMIN_CST","SYSADMIN_CST_FULL","LOCKED_ADMIN",
-"SYSADMIN_NEC"
-]));
+  const referenceArea = document.getElementById("referenceArea");
+  const referenceInput = document.getElementById("referenceInput");
+  const uploadArea = document.getElementById("uploadArea");
+  const fileInput = document.getElementById("fileInput");
+  const processBtn = document.getElementById("processBtn");
+  const previewContainer = document.getElementById("previewContainer");
 
+  let validWorkTrays = new Set();
+  let uploadedRows = [];
 
-// Normalised list for matching
-const NORMALIZED_ROLES = VALID_SECURITY_ROLES.map(r =>
-    r.toLowerCase().replace(/_/g," ").trim()
-);
-
-
-// ------------------------------
-// ELEMENTS
-// ------------------------------
-
-const referenceArea = document.getElementById("referenceArea");
-const referenceInput = document.getElementById("referenceInput");
-const uploadArea = document.getElementById("uploadArea");
-const fileInput = document.getElementById("fileInput");
-const processBtn = document.getElementById("processBtn");
-const previewContainer = document.getElementById("previewContainer");
-
-let validWorkTrays = new Set();
-let uploadedRows = [];
-
-
-// ------------------------------
-// FILE HANDLERS
-// ------------------------------
-
-function wireUploadBox(area, input, fileHandler) {
+  function wireUploadBox(area, input, handler) {
     area.addEventListener("click", () => input.click());
     area.addEventListener("dragover", e => { e.preventDefault(); area.style.background="#e6f2e6"; });
     area.addEventListener("dragleave", () => area.style.background="white");
     area.addEventListener("drop", e => {
-        e.preventDefault(); area.style.background="white";
-        if (e.dataTransfer.files.length) fileHandler(e.dataTransfer.files[0]);
+      e.preventDefault();
+      area.style.background="white";
+      if (e.dataTransfer.files.length) handler(e.dataTransfer.files[0]);
     });
     input.addEventListener("change", e => {
-        if (e.target.files.length) fileHandler(e.target.files[0]);
+      if (e.target.files.length) handler(e.target.files[0]);
     });
-}
+  }
 
-wireUploadBox(referenceArea, referenceInput, handleReferenceFile);
-wireUploadBox(uploadArea, fileInput, handleMBSFile);
+  wireUploadBox(referenceArea, referenceInput, handleReferenceFile);
+  wireUploadBox(uploadArea, fileInput, handleMBSFile);
 
-
-// ------------------------------
-// SHEET READING HELPERS
-// ------------------------------
-
-function readWorkbook(file, callback) {
+  function readWorkbook(file, cb) {
     const reader = new FileReader();
     reader.onload = e => {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: "array" });
-        callback(wb);
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: "array" });
+      cb(wb);
     };
     reader.readAsArrayBuffer(file);
-}
+  }
 
-
-// ------------------------------
-// REFERENCE FILE
-// ------------------------------
-
-function handleReferenceFile(file) {
+  function handleReferenceFile(file) {
     referenceArea.textContent = "Reference File Loaded: " + file.name;
-
-    // restore input inside
     referenceArea.appendChild(referenceInput);
-
     readWorkbook(file, wb => {
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-        validWorkTrays.clear();
-        rows.forEach(r => {
-            const val = Object.values(r)[0];
-            if (val) validWorkTrays.add(val.toString().trim().toUpperCase());
-        });
-
-        if (uploadedRows.length) renderPreview();
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      validWorkTrays.clear();
+      rows.forEach(r => {
+        const val = Object.values(r)[0];
+        if (val) validWorkTrays.add(val.toString().trim().toUpperCase());
+      });
+      if (uploadedRows.length) renderPreview();
     });
-}
+  }
 
-
-// ------------------------------
-// MBS FILE
-// ------------------------------
-
-function handleMBSFile(file) {
+  function handleMBSFile(file) {
     uploadArea.textContent = "File Loaded: " + file.name;
     uploadArea.appendChild(fileInput);
-
     readWorkbook(file, wb => {
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        renderPreview();
-        processBtn.style.display = "inline-block";
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      renderPreview();
+      processBtn.style.display = "inline-block";
     });
-}
+  }
 
-
-// ------------------------------
-// COLUMN ACCESS HELPERS
-// ------------------------------
-
-function colLetterToIndex(letter) {
+  function colLetterToIndex(letter) {
     return XLSX.utils.decode_col(letter);
-}
+  }
 
-function getValue(row, letter) {
+  function getValue(row, letter) {
     const idx = colLetterToIndex(letter);
-    const values = Object.values(row);
-    return values[idx] ? values[idx].toString().trim() : "";
-}
+    const vals = Object.values(row);
+    return vals[idx] ? vals[idx].toString().trim() : "";
+  }
 
-
-// ------------------------------
-// BUSINESS LOGIC
-// ------------------------------
-
-function normalizeRole(r) {
+  function normalizeRole(r) {
     return r.toLowerCase().replace(/_/g," ").trim();
-}
+  }
 
-function validateRole(role) {
+  function validateRole(role) {
     if (!role) return { valid: false, clean: "", raw: "" };
-
     const norm = normalizeRole(role);
     const idx = NORMALIZED_ROLES.indexOf(norm);
-
     if (idx === -1) {
-        return { valid:false, clean:"INVALID: " + role.toUpperCase(), raw:role };
+      return { valid: false, clean: "INVALID: " + role.toUpperCase(), raw: role };
     }
-    return { valid:true, clean:VALID_SECURITY_ROLES[idx], raw:role };
-}
+    return { valid: true, clean: VALID_SECURITY_ROLES[idx], raw: role };
+  }
 
-function determineWorkTray(row) {
+  function determineWorkTray(row) {
     const dut = getValue(row, COL.DUT).toLowerCase();
     const tray = getValue(row, COL.TRAY);
-
-    if (dut === "no") return "NO ACCESS";
-    if (dut === "yes" && !tray) return "Require work tray name";
+    if (dut === "no") return "";  // no tray if no access
     if (tray) return tray.toUpperCase();
-    return "NO ACCESS";
-}
+    return "";
+  }
 
-function highestLevel(row) {
+  function highestLevel(row) {
     for (let lvl of LEVEL_COLS) {
-        if (row[lvl] && row[lvl].toString().trim()) return row[lvl].toString().trim();
+      if (row[lvl] && row[lvl].toString().trim()) return row[lvl].toString().trim();
     }
     return "";
-}
+  }
 
-function rankVariations(rank) {
+  function rankVariations(rank) {
     const r = rank.toLowerCase();
-
-    if (r.includes("constable") || r==="cons") {
-        return ["Constable","Constable - PEQF","Detective Constable","New Constable","New Detective Constable"];
+    if (r.includes("constable") || r === "cons") {
+      return ["Constable","Constable - PEQF","Detective Constable","New Constable","New Detective Constable"];
     }
-    if (r.includes("sergeant") || r==="sgt") {
-        return ["Sergeant","Detective Sergeant"];
+    if (r.includes("sergeant") || r === "sgt") {
+      return ["Sergeant","Detective Sergeant"];
     }
-    if (r.includes("inspector") || r==="insp") {
-        return ["Inspector","Detective Inspector"];
+    if (r.includes("inspector") || r === "insp") {
+      return ["Inspector","Detective Inspector"];
     }
     return [];
-}
+  }
 
-function gradeMessage(rank, row) {
+  function gradeMessage(rank, row) {
     const dut = getValue(row, COL.DUT).toLowerCase();
-    const tray = getValue(row, COL.TRAY);
-    const sec = getValue(row, COL.SEC);
-
-    const isBand = /^band\s+[a-z]$/i.test(rank);
-
-    if (isBand && dut==="yes" && tray && !sec) return "Requires Security Role";
-    if (!isBand && dut==="no") return "Officer role will have access";
-
+    if (dut === "no") {
+      const rtrim = rank.trim();
+      const isBand = /^band\s*[a-z]$/i.test(rtrim);
+      const isUnbanded = /^unbanded$/i.test(rtrim);
+      if (isBand || isUnbanded) {
+        return "NO ACCESS";
+      } else {
+        return "Officer role will have access to CONNECT";
+      }
+    }
+    // If DUT = Yes, just return rank (or could apply variations)
     return rank;
-}
+  }
 
-
-// ------------------------------
-// PREVIEW
-// ------------------------------
-
-function renderPreview() {
+  function renderPreview() {
     const html = [];
     html.push("<h2>DUT Mapping Preview</h2>");
 
     let dutRows = [];
 
     uploadedRows.forEach(row => {
-        let rank = getValue(row, COL.RANK);
-        let variations = rankVariations(rank);
-        let org = highestLevel(row);
-        let tray = determineWorkTray(row);
-        let gradeMsg = gradeMessage(rank, row);
+      let rank = getValue(row, COL.RANK);
+      let variations = rankVariations(rank);
+      let org = highestLevel(row);
+      let tray = determineWorkTray(row);
+      let gradeMsg = gradeMessage(rank, row);
 
-        if (variations.length) {
-            variations.forEach(v => {
-                dutRows.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, v, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-            });
-        } else {
-            dutRows.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, gradeMsg, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-        }
+      if (variations.length && getValue(row, COL.DUT).toLowerCase() !== "no") {
+        variations.forEach(v => {
+          dutRows.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, v, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
+        });
+      } else {
+        dutRows.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, gradeMsg, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
+      }
     });
 
-    // Render DUT table
     html.push(`<table><thead><tr>
-    <th>Lookup type</th><th>Code</th><th>Meaning</th><th>Description</th>
-    <th>PSOP Grade</th><th>From</th><th>To</th><th>Enabled</th>
-    <th>Context Value</th><th>PSOP Organisation</th>
+      <th>Lookup type</th><th>Code</th><th>Meaning</th><th>Description</th>
+      <th>PSOP Grade</th><th>From</th><th>To</th><th>Enabled</th>
+      <th>Context Value</th><th>PSOP Organisation</th>
     </tr></thead><tbody>`);
 
     dutRows.forEach(r => {
-        const tray = r[3];
-        let cellClass = "";
+      const tray = r[3];
+      const grade = r[4];
+      let cellClass = "";
 
-        if (tray === "Require work tray name") cellClass="invalid-cell";
-        else if (tray==="NO ACCESS" && r[4].match(/^Constable|Sergeant|Inspector/i)) cellClass="invalid-cell";
-        else if (tray!=="NO ACCESS" && validWorkTrays.size && !validWorkTrays.has(tray)) cellClass="invalid-cell";
-        else if (validWorkTrays.has(tray)) cellClass="valid-cell";
+      if (grade === "NO ACCESS" || grade === "Officer role will have access to CONNECT") {
+        cellClass = "invalid-cell";
+      } else if (tray !== "" && validWorkTrays.size && !validWorkTrays.has(tray)) {
+        cellClass = "invalid-cell";
+      } else if (tray !== "" && validWorkTrays.has(tray)) {
+        cellClass = "valid-cell";
+      }
 
-        html.push("<tr>");
-        r.forEach((c,i) =>
-            html.push(`<td class="${i===3?cellClass:""}">${c}</td>`)
-        );
-        html.push("</tr>");
+      html.push("<tr>");
+      r.forEach((c,i) =>
+        html.push(`<td class="${i===3?cellClass:""}">${c}</td>`)
+      );
+      html.push("</tr>");
     });
 
     html.push("</tbody></table>");
 
-
-    // SECURITY TABLE
+    // SECURITY Roles preview
     html.push("<h2>Security Roles Preview</h2>");
-
     let secRows = [];
 
     uploadedRows.forEach(row => {
-        let rank = getValue(row, COL.RANK);
-        let variations = rankVariations(rank);
-        let org = highestLevel(row);
-        let role = getValue(row, COL.SEC);
-        let valid = validateRole(role);
+      const role = getValue(row, COL.SEC);
+      const rank = getValue(row, COL.RANK);
+      const org = highestLevel(row);
+      const dut = getValue(row, COL.DUT).toLowerCase();
+      const valid = validateRole(role);
+      const variations = rankVariations(rank);
 
+      if (role && dut !== "no") {
         if (variations.length) {
-            variations.forEach(v => {
-                if (role)
-                    secRows.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,v]);
-            });
+          variations.forEach(v => {
+            secRows.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,v]);
+          });
         } else {
-            if (role)
-                secRows.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,rank]);
+          secRows.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,rank]);
         }
+      }
     });
 
     html.push(`<table><thead><tr>
-    <th>Lookup Type</th><th>Code</th><th>Meaning</th><th>Description</th>
-    <th>From</th><th>To</th><th>Enabled</th><th>Context Value</th>
-    <th>PSOP Organisation</th><th>PSOP Grade</th>
+      <th>Lookup Type</th><th>Code</th><th>Meaning</th><th>Description</th>
+      <th>From</th><th>To</th><th>Enabled</th><th>Context Value</th>
+      <th>PSOP Organisation</th><th>PSOP Grade</th>
     </tr></thead><tbody>`);
 
     secRows.forEach(r => {
-        const isInvalid = r[3].startsWith("INVALID:");
-        html.push("<tr>");
-        r.forEach((c,i) =>
-            html.push(`<td class="${i===3 && isInvalid?"invalid-cell":""}">${c}</td>`)
-        );
-        html.push("</tr>");
+      const isInvalid = r[3].startsWith("INVALID:");
+      html.push("<tr>");
+      r.forEach((c,i) =>
+        html.push(`<td class="${i===3 && isInvalid?"invalid-cell":""}">${c}</td>`)
+      );
+      html.push("</tr>");
     });
 
     html.push("</tbody></table>");
 
     previewContainer.innerHTML = html.join("");
-}
+  }
 
-
-// ------------------------------
-// EXCEL EXPORT
-// ------------------------------
-
-processBtn.addEventListener("click", () => {
+  processBtn.addEventListener("click", () => {
     const wb = XLSX.utils.book_new();
-
-    // Rebuild DUT + security using clean data
     const dutData = [["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"]];
     const secData = [["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"]];
 
     uploadedRows.forEach(row => {
-        let rank = getValue(row, COL.RANK);
-        let variations = rankVariations(rank);
-        let org = highestLevel(row);
-        let tray = determineWorkTray(row);
-        let gradeMsg = gradeMessage(rank, row);
-        let role = getValue(row, COL.SEC);
-        let valid = validateRole(role);
+      const rank = getValue(row, COL.RANK);
+      const variations = rankVariations(rank);
+      const org = highestLevel(row);
+      const tray = determineWorkTray(row);
+      const gradeMsg = gradeMessage(rank, row);
+      const role = getValue(row, COL.SEC);
+      const valid = validateRole(role);
 
-        if (variations.length) {
-            variations.forEach(v => {
-                dutData.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, v, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-                if (role)
-                    secData.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,v]);
-            });
-        } else {
-            dutData.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, gradeMsg, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
-            if (role)
-                secData.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,rank]);
+      if (variations.length && getValue(row, COL.DUT).toLowerCase() !== "no") {
+        variations.forEach(v => {
+          dutData.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, v, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
+          if (role) {
+            secData.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,v]);
+          }
+        });
+      } else {
+        dutData.push(["XXC_MPS_CONNECT_DEFAULTUNIT","", "", tray, gradeMsg, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", org]);
+        if (role && getValue(row, COL.DUT).toLowerCase() !== "no") {
+          secData.push(["XXC_MPS_CONNECT_RANK_ORG","", "", valid.clean,"","", "Y","XXC_CONNECT_ORG_AND_GRADE",org,rank]);
         }
+      }
     });
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dutData), "DUT Mapping");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(secData), "Security Roles");
 
-    const ts = new Date().toISOString().replace(/[:]/g,"-");
+    const ts = new Date().toISOString().replace(/:/g,"-");
     XLSX.writeFile(wb, "PSOP_Connect_" + ts + ".xlsx");
-});
+  });
 
 });
 </script>
-
 </body>
 </html>
