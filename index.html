@@ -143,7 +143,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             const unitUpper = unit.toUpperCase();
                             validUnits.add(unitUpper);
                             unitCount++;
-                            console.log(`Added unit: ${unitUpper}`);
                         }
                     }
                 }
@@ -154,12 +153,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 unitUploadArea.style.borderColor = "#217346";
                 unitUploadArea.style.color = "#217346";
                 
-                console.log(`Total units loaded: ${validUnits.size}`);
-                console.log('Units:', Array.from(validUnits));
-                
                 // If Excel is already loaded, refresh preview
                 if (uploadedRows.length > 0) {
-                    console.log('Refreshing preview with Unit.csv validation...');
                     renderPreview(uploadedRows);
                 }
                 
@@ -192,7 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const workbook = XLSX.read(data, { type: "array" });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-                console.log(`Loaded Excel file with ${uploadedRows.length} rows`);
                 renderPreview(uploadedRows);
                 processBtn.style.display = "inline-block";
             } catch (error) {
@@ -308,7 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return { isValid: false, formatted: "INVALID SECURITY ROLE" };
     }
 
-    // Determine description with validation
+    // Determine description with validation - CORRECTED LOGIC
     function getDescription(row) {
         const rank = getRankBand(row);
         const dutAccess = getDUTAccess(row);
@@ -316,6 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const securityRole = getSecurityRole(row);
         
         // Check 1: Officer rank with Access = No
+        // ONLY show this for officer ranks (not Band X, not Unbanded) when Access = No
         if (isOfficerRank(rank) && dutAccess === "no") {
             return { 
                 text: "Officer rank will have access, access is set to No", 
@@ -323,15 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
         }
         
-        // Check 2: Officer rank with no work tray name
-        if (isOfficerRank(rank) && !workTray) {
-            return { 
-                text: "Officer rank will have access, access is set to No", 
-                color: "#ffcccc" 
-            };
-        }
-        
-        // Check 3: Staff role with Access = Yes but no security role
+        // Check 2: Staff role with Access = Yes but no security role
         if (isStaffRank(rank) && dutAccess === "yes" && workTray && !securityRole) {
             return { 
                 text: "Staff roles require a security role to have connect access", 
@@ -339,29 +326,22 @@ document.addEventListener("DOMContentLoaded", () => {
             };
         }
         
-        // Normal work tray display
+        // Normal work tray display for ALL ranks
         if (dutAccess === "no") {
             return { text: "NO ACCESS", color: "" };
         } else if (dutAccess === "yes" && !workTray) {
+            // "Require work tray name" appears for ALL ranks when Access = Yes and no work tray
             return { text: "Require work tray name", color: "#ffcccc" };
         } else if (workTray) {
             // Check if work tray exists in Unit.csv
             const workTrayUpper = workTray.toUpperCase();
-            console.log(`Checking work tray: "${workTrayUpper}"`);
-            console.log(`Valid units loaded: ${validUnits.size}`);
             
             if (validUnits.size > 0) {
-                console.log(`Looking for "${workTrayUpper}" in validUnits...`);
                 if (validUnits.has(workTrayUpper)) {
-                    console.log(`✓ Found "${workTrayUpper}" in Unit.csv`);
                     return { text: workTrayUpper, color: "#ccffcc" };
                 } else {
-                    console.log(`✗ NOT found "${workTrayUpper}" in Unit.csv`);
-                    console.log('Available units:', Array.from(validUnits));
                     return { text: workTrayUpper, color: "#ffcccc" };
                 }
-            } else {
-                console.log('No Unit.csv loaded or empty Unit.csv');
             }
             return { text: workTrayUpper, color: "" };
         }
@@ -385,14 +365,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const securityRole = getSecurityRole(row);
             const orgLevel = getHighestOrgLevel(row);
             
-            console.log(`Row ${rowIndex + 1}: Rank="${rank}", Access="${dutAccess}", WorkTray="${workTray}", Security="${securityRole}"`);
-            
             // Get description with validation
             const description = getDescription(row);
             
             // Generate rank variations
             const rankVariations = generateRankVariations(rank);
-            console.log(`Rank variations for "${rank}":`, rankVariations);
             
             // Validate security role
             const securityValidation = validateSecurityRole(securityRole);
