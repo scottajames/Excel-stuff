@@ -288,6 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             variations.push("Constable");
             variations.push("Constable - PEQF");
             variations.push("Detective Constable");
+		variations.push("Detective Constable - PEQF");
             variations.push("New Constable");
             variations.push("New Detective Constable");
         }
@@ -339,7 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
             variations.push(capitalizeRank(rank));
         }
         // For Band ranks (Band A, Band B, etc.)
-        else if (/^band\s+[a-z]$/i.test(rankLower)) {
+        else if (/^band\s+[a-z]\d{1,2}$/i(rankLower)) {
             variations.push(capitalizeRank(rank));
         }
         // For Unbanded
@@ -365,6 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Specific staff roles that should NOT be treated as officers
         const staffRoles = [
+		'Band A', 'Band B', 'Band C', 'Band D', 'Band E', 'Band F', 'Band G', 'Band Y', 'Band O', 'Band T', 'Band X', 'Band K1', 'Band W', 'Band I', 'Band K2', 'Band N', 'Band P1', Band P2', 'Band J1', 'Band J2', 'Band J3', 'Band J4', 'Band S1', 'Band S', 'Band M', 'Band R Transport', Band R DP', 'Band V', 'Band J', 'Band L', 'Band U', 'Band H',
             'advisor to management board',
             'bb1', 'bb2', 'bb3',
             'cbss1',
@@ -380,7 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
             'norfolk c', 'norfolk d', 'norfolk e', 'norfolk f', 'norfolk g',
             'norfolk hydrant', 'norfolk i',
             'ukfpu - 6', 'ukfpu - 7', 'ukfpu - eo', 'ukfpu - heo', 'ukfpu - seo',
-            'volunteer'
+            'volunteer', 'TUPE Interim'
         ];
         
         const isStaffRole = staffRoles.some(role => rankLower.includes(role));
