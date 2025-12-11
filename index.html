@@ -20,40 +20,18 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center}
 .unit-status {margin-bottom: 20px; padding: 10px; border-radius: 4px;}
 .unit-status.loaded {background-color: #ccffcc; border: 1px solid #217346;}
 .unit-status.not-loaded {background-color: #ffcccc; border: 1px solid #ff0000;}
-.unit-status.manual {background-color: #ffffcc; border: 1px solid #ff9900;}
-.issue-summary {margin: 15px 0; padding: 10px; border-radius: 4px;}
-.issue-summary.valid {background-color: #ccffcc; border: 1px solid #217346;}
-.issue-summary.invalid {background-color: #ffcccc; border: 1px solid #ff0000;}
 .manual-upload-area {border: 2px dashed #ff9900; padding: 20px; text-align: center; background: white; border-radius: 6px; color: #ff9900; cursor: pointer; font-weight: bold; margin-bottom: 20px; display: none;}
 .manual-upload-area:hover {background: #fff9e6;}
-.spinner {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(0,0,0,.3);
-    border-radius: 50%;
-    border-top-color: #217346;
-    animation: spin 1s ease-in-out infinite;
-}
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
 </style>
 </head>
 <body>
 <div class="container">
   <h1>MBS - DUT & Security Mapping tool</h1>
 
-  <h3>Known errors and how to fix them.</h3>
-  <p><b>Nothing happens when I drag and drop my file:</b> sometimes when you drag and drop it does not work. The best thing to do is reload the page and instead of drag and dropping click on the "Drag &amp; Drop or Click to Upload Excel file" and select the file from your folders instead.</p>
-  <p><b>It has put the incorrect security mapping:</b> you are still required to look and audit the mappings yourself which is why a preview of what you're going to download is shown. If someone has filled in the sheet wrong in MBS, this tool cannot edit the data; it only shows and formats the data the Excel file has.</p>
-  <p><b>It is missing parts or all of the mapping:</b> this tool cannot edit mapping—only format it from the file that is downloaded from MBS. The issue probably isn't the tool but the person who filled in the MBS file.</p>
-<h3 style=color:red;>This is just a tool for mapping; it does not give authority for security roles.</h3>
-
 <!-- Unit.csv status will be inserted here -->
-<div id="unitStatus" class="unit-status manual">
+<div id="unitStatus" class="unit-status not-loaded">
   <strong>⚠ Unit.csv Not Loaded</strong><br>
-  Please upload the Unit.csv file for work tray validation. The Unit.csv file should contain valid unit names in column A.
+  Please upload the Unit.csv file for work tray validation.
 </div>
 
 <!-- Manual Unit.csv upload area -->
@@ -82,390 +60,128 @@ document.addEventListener("DOMContentLoaded", () => {
     const unitFileInput = document.getElementById("unitFileInput");
     let uploadedFile = null;
     let uploadedRows = [];
-    
-    // Store valid units from Unit.csv
     let validUnits = new Set();
     
     // Show manual upload for Unit.csv
     unitUploadArea.style.display = "block";
     
-    // === ENHANCED FILE UPLOAD HANDLING ===
-    function showUploadFeedback(element, message, isSuccess = true) {
-        const originalText = element.dataset.originalText || element.textContent;
-        element.dataset.originalText = originalText;
-        
-        element.textContent = message;
-        element.style.borderColor = isSuccess ? "#217346" : "#ff0000";
-        element.style.color = isSuccess ? "#217346" : "#ff0000";
-        element.style.background = isSuccess ? "#e6f2e6" : "#ffe6e6";
-        
-        // Reset after 3 seconds if there was an error
-        if (!isSuccess) {
-            setTimeout(() => {
-                element.textContent = originalText;
-                element.style.borderColor = element === uploadArea ? "#217346" : "#ff9900";
-                element.style.color = element === uploadArea ? "#217346" : "#ff9900";
-                element.style.background = "white";
-            }, 3000);
-        }
-    }
-    
-    function showLoading(element) {
-        const originalText = element.textContent;
-        element.dataset.originalText = originalText;
-        element.innerHTML = 'Loading... <span class="spinner"></span>';
-    }
-    
-    function resetUploadArea() {
-        uploadArea.textContent = "Drag & Drop or Click to Upload MBS Excel file";
-        uploadArea.style.borderColor = "#217346";
-        uploadArea.style.color = "#217346";
-        uploadArea.style.background = "white";
-        delete uploadArea.dataset.originalText;
-    }
-    
-    // Unit.csv upload handlers
-    unitUploadArea.addEventListener("click", () => unitFileInput.click());
-    
-    ['dragover', 'dragenter'].forEach(event => {
-        unitUploadArea.addEventListener(event, e => { 
-            e.preventDefault(); 
-            unitUploadArea.style.background = "#fff9e6"; 
-        });
-    });
-    
-    unitUploadArea.addEventListener("dragleave", () => { 
-        unitUploadArea.style.background = "white"; 
-    });
-    
-    unitUploadArea.addEventListener("drop", e => { 
-        e.preventDefault(); 
-        unitUploadArea.style.background = "white"; 
-        if(e.dataTransfer.files && e.dataTransfer.files.length) {
-            handleUnitFile(e.dataTransfer.files[0]); 
-        }
-    });
-    
-    unitFileInput.addEventListener("change", e => {
-        if(e.target.files && e.target.files[0]) {
-            handleUnitFile(e.target.files[0]);
-        }
-    });
-
-    // Main Excel file upload handlers - ENHANCED
-    uploadArea.addEventListener("click", () => fileInput.click());
-    
-    // Prevent default on all drag events
-    ['dragover', 'dragenter'].forEach(event => {
-        uploadArea.addEventListener(event, e => { 
-            e.preventDefault(); 
-            e.stopPropagation();
-            uploadArea.style.background = "#e6f2e6"; 
-        });
-    });
-    
-    uploadArea.addEventListener("dragleave", (e) => { 
-        e.preventDefault();
-        // Only reset background if not dragging over child elements
-        if (!uploadArea.contains(e.relatedTarget)) {
-            uploadArea.style.background = "white"; 
-        }
-    });
-    
-    uploadArea.addEventListener("drop", e => { 
-        e.preventDefault(); 
-        e.stopPropagation();
-        uploadArea.style.background = "white"; 
-        
-        if(e.dataTransfer.files && e.dataTransfer.files.length) {
-            const file = e.dataTransfer.files[0];
-            if (file.name.toLowerCase().endsWith('.xlsx')) {
-                handleFile(file);
-            } else {
-                showUploadFeedback(uploadArea, "Please upload an Excel (.xlsx) file", false);
-            }
-        }
-    });
-    
-    fileInput.addEventListener("change", e => {
-        if(e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            if (file.name.toLowerCase().endsWith('.xlsx')) {
-                handleFile(file);
-            } else {
-                showUploadFeedback(uploadArea, "Please upload an Excel (.xlsx) file", false);
-                fileInput.value = ""; // Reset input
-            }
-        }
-    });
-
-    function handleUnitFile(file) {
-        if (!file) return;
-        
-        if (!file.name.toLowerCase().endsWith('.csv')) {
-            showUploadFeedback(unitUploadArea, "Please upload a CSV file", false);
-            return;
-        }
-        
-        showLoading(unitUploadArea);
-        const reader = new FileReader();
-        
-        reader.onload = e => {
-            try {
-                const data = e.target.result;
-                parseUnitCSV(data);
-                
-                // Update upload area text
-                unitUploadArea.textContent = `Unit.csv Loaded: ${file.name}`;
-                unitUploadArea.style.borderColor = "#217346";
-                unitUploadArea.style.color = "#217346";
-                unitUploadArea.style.background = "#e6f2e6";
-            } catch (error) {
-                showUploadFeedback(unitUploadArea, "Error reading CSV file", false);
-                console.error("Error reading Unit.csv:", error);
-            }
-        };
-        
-        reader.onerror = () => {
-            showUploadFeedback(unitUploadArea, "Error reading file", false);
-        };
-        
-        reader.readAsText(file);
-    }
-    
-    function parseUnitCSV(csvData) {
-        validUnits.clear();
-        
-        try {
-            const lines = csvData.split('\n');
-            let unitCount = 0;
-            
-            lines.forEach((line, index) => {
-                if (line.trim()) {
-                    const columns = parseCSVLine(line);
-                    if (columns.length > 0) {
-                        const unit = columns[0].trim().toUpperCase();
-                        if (unit) {
-                            validUnits.add(unit);
-                            unitCount++;
-                        }
-                    }
-                }
-            });
-            
-            updateUnitStatus(true, `Loaded ${unitCount} valid units from Unit.csv for work tray validation.`);
-            console.log(`Loaded ${unitCount} valid units from Unit.csv`);
-        } catch (error) {
-            updateUnitStatus(false, "Error parsing Unit.csv file. Please check the format.");
-            console.error("Error parsing Unit.csv:", error);
-        }
-    }
-    
-    // Helper function to parse CSV line with quotes
-    function parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            const nextChar = line[i + 1];
-            
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(current);
-                current = '';
-            } else if (char === '\\' && nextChar === '"') {
-                current += '"';
-                i++;
-            } else {
-                current += char;
-            }
-        }
-        
-        result.push(current);
-        return result;
-    }
-    
-    // Update the unit status display
-    function updateUnitStatus(loaded, message) {
-        const statusClass = loaded ? "unit-status loaded" : "unit-status not-loaded";
-        const statusText = loaded ? "✓ Unit.csv Loaded" : "✗ Unit.csv Not Loaded";
-        unitStatus.className = statusClass;
-        unitStatus.innerHTML = `
-            <strong>${statusText}</strong><br>
-            ${message}
-        `;
-    }
-    
     // VALID SECURITY ROLES LIST
     const VALID_SECURITY_ROLES = [
-        "BOLT_ON_1",
-        "BOLT_ON_2",
-        "BOLT_ON_3",
-        "BOLT_ON_4",
-        "BOLT_ON_5",
-        "BOLT_ON_6",
-        "BOLT_ON_7",
-        "BOLT_ON_8",
-        "CONSTABLE",
-        "SGT",
-        "INSP",
-        "C_INSP",
-        "SUPT",
-        "C_SUPT",
-        "COMMDR",
-        "DEP_ASS_COMMIS",
-        "SUPT",
-        "ASS_COMMIS",
-        "DEP_COMMIS",
-        "COMMIS",
-        "MSC_CONS",
-        "MSC_SGT",
-        "MSC_INSP",
-        "MSC_CINSP",
-        "MSC_ASS_CO",
-        "MSC_CO",
-        "SGT_CUST",
-        "HCP",
-        "HCP_FTAC",
-        "CCC",
-        "DDO",
-        "PAO",
-        "PCSO",
-        "INVESTIGATOR",
-        "SUP_INVESTIGATOR",
-        "ANPR",
-        "FCR",
-        "FORENSICS",
-        "INTEL",
-        "INTEL_MANAGER",
-        "INTEL_SIU",
-        "INTEL_SOURCE",
-        "INTEL_ENQUIRY_LOG",
-        "PNCB",
-        "PROPERTY",
-        "PSD",
-        "TDIU",
-        "CMS",
-        "DDM",
-        "CMT",
-        "CPA",
-        "CASE_TRAFFIC",
-        "CJOMS",
-        "MET_INTERNAL",
-        "VIEW_AND_SEARCH",
-        "VIEW_ONLY",
-        "MI",
-        "MOPI",
-        "FLAGS_C2S",
-        "FLAGS_NDH",
-        "FLAGS_NT",
-        "FLAGS_VIEW_USERS",
-        "SEALED_AUDIT",
-        "NO_FIELD_SEC",
-        "COVERT_ACCESS_FLAG",
-        "FLAG_CLOSED_ACCESS",
-        "FLAG_SECURE_ACCESS",
-        "FLAG_TEAM",
-        "SW_ALL_ACCESS",
-        "PMP_ALL_ACCESS",
-        "PMP_USER",
-        "SYS_ADMIN",
-        "SYSADMIN_FULL",
-        "SYSADMIN_DQ1",
-        "SYSADMIN_DQ2",
-        "SYS_ADMIN_DQFULL",
-        "FULL_SYS_ADMIN",
-        "SYSADMIN_CST",
-        "SYSADMIN_CST_FULL",
-        "LOCKED_ADMIN",
+        "BOLT_ON_1", "BOLT_ON_2", "BOLT_ON_3", "BOLT_ON_4", "BOLT_ON_5", "BOLT_ON_6", "BOLT_ON_7", "BOLT_ON_8",
+        "CONSTABLE", "SGT", "INSP", "C_INSP", "SUPT", "C_SUPT", "COMMDR", "DEP_ASS_COMMIS", "ASS_COMMIS", 
+        "DEP_COMMIS", "COMMIS", "MSC_CONS", "MSC_SGT", "MSC_INSP", "MSC_CINSP", "MSC_ASS_CO", "MSC_CO",
+        "SGT_CUST", "HCP", "HCP_FTAC", "CCC", "DDO", "PAO", "PCSO", "INVESTIGATOR", "SUP_INVESTIGATOR",
+        "ANPR", "FCR", "FORENSICS", "INTEL", "INTEL_MANAGER", "INTEL_SIU", "INTEL_SOURCE", "INTEL_ENQUIRY_LOG",
+        "PNCB", "PROPERTY", "PSD", "TDIU", "CMS", "DDM", "CMT", "CPA", "CASE_TRAFFIC", "CJOMS", "MET_INTERNAL",
+        "VIEW_AND_SEARCH", "VIEW_ONLY", "MI", "MOPI", "FLAGS_C2S", "FLAGS_NDH", "FLAGS_NT", "FLAGS_VIEW_USERS",
+        "SEALED_AUDIT", "NO_FIELD_SEC", "COVERT_ACCESS_FLAG", "FLAG_CLOSED_ACCESS", "FLAG_SECURE_ACCESS",
+        "FLAG_TEAM", "SW_ALL_ACCESS", "PMP_ALL_ACCESS", "PMP_USER", "SYS_ADMIN", "SYSADMIN_FULL", "SYSADMIN_DQ1",
+        "SYSADMIN_DQ2", "SYS_ADMIN_DQFULL", "FULL_SYS_ADMIN", "SYSADMIN_CST", "SYSADMIN_CST_FULL", "LOCKED_ADMIN",
         "SYSADMIN_NEC"
     ];
     
-    // Create a normalized version of valid roles for comparison
-    const NORMALIZED_VALID_ROLES = VALID_SECURITY_ROLES.map(role => 
-        normalizeSecurityRole(role)
-    );
+    // Unit.csv upload handlers
+    unitUploadArea.addEventListener("click", () => unitFileInput.click());
+    unitFileInput.addEventListener("change", e => {
+        if(e.target.files[0]) handleUnitFile(e.target.files[0]);
+    });
     
-    // Helper function to normalize security roles for comparison
-    function normalizeSecurityRole(role) {
-        if (!role) return "";
-        return role.toString()
-            .trim()
-            .toLowerCase()
-            .replace(/_/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-    }
-    
-    // Helper function to find matching valid role from input
-    function findMatchingValidRole(inputRole) {
-        if (!inputRole) return null;
-        
-        const normalizedInput = normalizeSecurityRole(inputRole);
-        
-        // Try to find exact match in normalized list
-        const exactMatchIndex = NORMALIZED_VALID_ROLES.indexOf(normalizedInput);
-        if (exactMatchIndex !== -1) {
-            return VALID_SECURITY_ROLES[exactMatchIndex];
+    // Main Excel file upload handlers
+    uploadArea.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", e => {
+        if(e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    function handleUnitFile(file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            alert("Please upload a CSV file.");
+            return;
         }
         
-        return null;
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const lines = e.target.result.split('\n');
+                validUnits.clear();
+                
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        // Get first column (A)
+                        const unit = line.split(',')[0].trim().toUpperCase();
+                        if (unit) validUnits.add(unit);
+                    }
+                });
+                
+                unitStatus.className = "unit-status loaded";
+                unitStatus.innerHTML = `<strong>✓ Unit.csv Loaded</strong><br>Loaded ${validUnits.size} valid units for work tray validation.`;
+                unitUploadArea.textContent = `Unit.csv Loaded: ${file.name}`;
+                unitUploadArea.style.borderColor = "#217346";
+                unitUploadArea.style.color = "#217346";
+                
+                // If Excel is already loaded, refresh preview
+                if (uploadedRows.length > 0) renderPreview(uploadedRows);
+                
+            } catch (error) {
+                alert("Error reading Unit.csv file.");
+                console.error(error);
+            }
+        };
+        reader.readAsText(file);
     }
 
     function handleFile(file) {
-        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            alert("Please upload an Excel (.xlsx) file.");
+            return;
+        }
         
         uploadedFile = file;
-        showLoading(uploadArea);
+        uploadArea.textContent = `File Loaded: ${file.name}`;
         
         const reader = new FileReader();
-        
-        reader.onload = function(e) {
+        reader.onload = e => {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: "array" });
-                
-                if (workbook.SheetNames.length === 0) {
-                    throw new Error("Excel file has no sheets");
-                }
-                
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-                
-                if (uploadedRows.length === 0) {
-                    showUploadFeedback(uploadArea, "File is empty or has no data", false);
-                    return;
-                }
-                
-                showUploadFeedback(uploadArea, `File Loaded: ${file.name}`, true);
                 renderPreview(uploadedRows);
                 processBtn.style.display = "inline-block";
-                
             } catch (error) {
-                console.error("Error processing Excel file:", error);
-                showUploadFeedback(uploadArea, `Error: ${error.message}`, false);
-                uploadedFile = null;
-                uploadedRows = [];
-                processBtn.style.display = "none";
-                previewContainer.innerHTML = "";
+                alert("Error reading Excel file. Please make sure it's a valid Excel file.");
+                console.error(error);
             }
         };
-        
-        reader.onerror = function() {
-            showUploadFeedback(uploadArea, "Error reading file", false);
-            uploadedFile = null;
-            uploadedRows = [];
-            processBtn.style.display = "none";
-            previewContainer.innerHTML = "";
-        };
-        
         reader.readAsArrayBuffer(file);
     }
 
-    function getHighestNonEmptyLevel(row) {
+    // Helper functions to get column values
+    function getColumnValue(row, index) {
+        const keys = Object.keys(row);
+        return keys[index] && row[keys[index]] ? row[keys[index]].toString().trim() : "";
+    }
+    
+    function getRankBand(row) {
+        // Column H (index 7)
+        return getColumnValue(row, 7);
+    }
+    
+    function getDUTAccess(row) {
+        // Column S (index 18)
+        return getColumnValue(row, 18).toLowerCase();
+    }
+    
+    function getWorkTrayName(row) {
+        // Column U (index 20)
+        return getColumnValue(row, 20);
+    }
+    
+    function getSecurityRole(row) {
+        // Column V (index 21)
+        return getColumnValue(row, 21);
+    }
+    
+    function getHighestOrgLevel(row) {
         const levels = ["Level 8 Sub-Team","Level 7 Team","Level 6 Function","Level 5 Portfolio","Level 4 Organisation"];
         for (let lvl of levels) {
             if (row[lvl] && row[lvl].toString().trim() !== "") return row[lvl].toString().trim();
@@ -473,106 +189,30 @@ document.addEventListener("DOMContentLoaded", () => {
         return "";
     }
 
-    function getDUTAccessColumnValue(row) {
-        const columnNames = Object.keys(row);
-        
-        const dutColumnCandidates = [
-            "Connect DUT?", 
-            "DUT Access", 
-            "Access to DUT",
-            "Access To Connect",
-            "Column S",
-            columnNames[18]
-        ];
-        
-        for (const colName of dutColumnCandidates) {
-            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
-                return row[colName].toString().trim().toLowerCase();
-            }
-        }
-        
-        return "";
+    // Check if rank is officer (not Band X and not Unbanded)
+    function isOfficerRank(rank) {
+        if (!rank) return false;
+        const rankLower = rank.toLowerCase();
+        const isBand = /^band\s+[a-z]$/i.test(rankLower);
+        const isUnbanded = /^unbanded$/i.test(rankLower);
+        return !isBand && !isUnbanded;
+    }
+    
+    // Check if rank is staff (Band X or Unbanded)
+    function isStaffRank(rank) {
+        if (!rank) return false;
+        const rankLower = rank.toLowerCase();
+        const isBand = /^band\s+[a-z]$/i.test(rankLower);
+        const isUnbanded = /^unbanded$/i.test(rankLower);
+        return isBand || isUnbanded;
     }
 
-    function getWorkTrayNameValue(row) {
-        const columnNames = Object.keys(row);
-        
-        const workTrayCandidates = [
-            "Work Tray Name",
-            "Column U",
-            columnNames[20]
-        ];
-        
-        for (const colName of workTrayCandidates) {
-            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
-                return row[colName].toString().trim();
-            }
-        }
-        
-        return "";
-    }
-
-    function getSecurityRoleValue(row) {
-        const columnNames = Object.keys(row);
-        
-        const securityCandidates = [
-            "Connect Security Role",
-            "Column V",
-            columnNames[21]
-        ];
-        
-        for (const colName of securityCandidates) {
-            if (row.hasOwnProperty(colName) && row[colName] !== undefined) {
-                return row[colName].toString().trim();
-            }
-        }
-        
-        return "";
-    }
-
-    function validateAndFormatSecurityRole(role) {
-        if (!role) return { isValid: false, formattedRole: "", message: "", matchedRole: null };
-        
-        const matchedValidRole = findMatchingValidRole(role);
-        
-        if (!matchedValidRole) {
-            return { 
-                isValid: false, 
-                formattedRole: "INVALID SECURITY ROLE", 
-                message: "Not a valid security role", 
-                matchedRole: null 
-            };
-        }
-        
-        const formattedRole = matchedValidRole;
-        
-        return { 
-            isValid: true, 
-            formattedRole: formattedRole, 
-            message: formattedRole,
-            matchedRole: matchedValidRole
-        };
-    }
-
-    function determineWorkTrayName(row) {
-        const dutAccess = getDUTAccessColumnValue(row);
-        const workTray = getWorkTrayNameValue(row);
-        
-        if (dutAccess === "no") {
-            return "NO ACCESS";
-        } else if (dutAccess === "yes" && !workTray) {
-            return "Require work tray name";
-        } else if (workTray) {
-            return workTray.toUpperCase();
-        } else {
-            return "NO ACCESS";
-        }
-    }
-
+    // Generate rank variations
     function generateRankVariations(rank) {
-        const rankLower = rank.toString().trim().toLowerCase();
+        const rankLower = rank.toLowerCase();
         const variations = [];
         
+        // Constable variations
         if (rankLower.includes("constable") || rankLower === "cons") {
             variations.push("Constable");
             variations.push("Constable - PEQF");
@@ -580,273 +220,168 @@ document.addEventListener("DOMContentLoaded", () => {
             variations.push("New Constable");
             variations.push("New Detective Constable");
         }
+        // Sergeant variations
         else if (rankLower.includes("sergeant") || rankLower === "sgt") {
             variations.push("Sergeant");
             variations.push("Detective Sergeant");
         }
+        // Inspector variations
         else if (rankLower.includes("inspector") || rankLower === "insp") {
             variations.push("Inspector");
             variations.push("Detective Inspector");
+        }
+        // For other ranks, just return the original
+        else {
+            variations.push(rank);
         }
         
         return variations;
     }
 
-    function getGradeMessage(grade, row) {
-        const psopGrade = grade.toString().trim();
+    // Validate security role
+    function validateSecurityRole(role) {
+        if (!role) return { isValid: false, formatted: "INVALID SECURITY ROLE" };
         
-        const unbandedPattern = /^Unbanded$/i;
-        const bandPattern = /^Band\s+[A-Za-z]$/i;
+        const roleUpper = role.toUpperCase().replace(/\s+/g, '_');
         
-        const isOfficerRank = !unbandedPattern.test(psopGrade) && !bandPattern.test(psopGrade);
-        
-        const dutAccess = getDUTAccessColumnValue(row);
-        const workTray = getWorkTrayNameValue(row);
-        const securityRole = getSecurityRoleValue(row);
-        
-        if (isOfficerRank && (dutAccess === "no" || !workTray)) {
-            return "OFFICER ROLES HAVE ACCESS TO CONNECT";
+        // Check against valid roles list
+        if (VALID_SECURITY_ROLES.includes(roleUpper)) {
+            return { isValid: true, formatted: roleUpper };
         }
         
-        if ((unbandedPattern.test(psopGrade) || bandPattern.test(psopGrade)) && 
-            dutAccess === "yes" && 
-            workTray && 
-            !securityRole) {
-            return "STAFF REQUIRE A SECURITY ROLE";
+        // Also check if it matches without underscores
+        const roleNoUnderscore = roleUpper.replace(/_/g, '');
+        for (const validRole of VALID_SECURITY_ROLES) {
+            if (validRole.replace(/_/g, '') === roleNoUnderscore) {
+                return { isValid: true, formatted: validRole };
+            }
         }
         
-        if (isOfficerRank) {
-            return "Officer role will have access";
-        }
-        
-        return psopGrade;
+        return { isValid: false, formatted: "INVALID SECURITY ROLE" };
     }
 
-    function generateExcelData(rows) {
-        const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
-        const dutData = [dutHeaders];
-
-        const secHeaders = ["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
-        const secData = [secHeaders];
-
-        let hasSecurity = false;
-
-        rows.forEach((r,i) => {
-            const workTray = determineWorkTrayName(r);
-            const rawGrade = (r["Rank/Band"] || "").toString();
-            const psopGrade = getGradeMessage(rawGrade, r);
-            const rankVariations = generateRankVariations(rawGrade);
-            const psopOrg = getHighestNonEmptyLevel(r);
-            const securityRoleRaw = getSecurityRoleValue(r);
-            const securityRoleValidation = validateAndFormatSecurityRole(securityRoleRaw);
-
-            if (rankVariations.length > 0) {
-                rankVariations.forEach(variation => {
-                    dutData.push([
-                        "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, variation, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
-                    ]);
-
-                    if(securityRoleValidation.isValid){
-                        hasSecurity = true;
-                        secData.push([
-                            "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
-                        ]);
-                    } else if (securityRoleRaw) {
-                        hasSecurity = true;
-                        secData.push([
-                            "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, variation
-                        ]);
-                    }
-                });
-            } else {
-                dutData.push([
-                    "XXC_MPS_CONNECT_DEFAULTUNIT","", "", workTray, psopGrade, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg
-                ]);
-
-                if(securityRoleValidation.isValid){
-                    hasSecurity = true;
-                    secData.push([
-                        "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
-                    ]);
-                } else if (securityRoleRaw) {
-                    hasSecurity = true;
-                    secData.push([
-                        "XXC_MPS_CONNECT_RANK_ORG","", "", securityRoleValidation.formattedRole, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", psopOrg, psopGrade
-                    ]);
+    // Determine description with validation
+    function getDescription(row) {
+        const rank = getRankBand(row);
+        const dutAccess = getDUTAccess(row);
+        const workTray = getWorkTrayName(row);
+        const securityRole = getSecurityRole(row);
+        
+        // Check 1: Officer rank with Access = No
+        if (isOfficerRank(rank) && dutAccess === "no") {
+            return { 
+                text: "Officer rank will have access, access is set to No", 
+                color: "#ffcccc" 
+            };
+        }
+        
+        // Check 2: Officer rank with no work tray name
+        if (isOfficerRank(rank) && !workTray) {
+            return { 
+                text: "Officer rank will have access, access is set to No", 
+                color: "#ffcccc" 
+            };
+        }
+        
+        // Check 3: Staff role with Access = Yes but no security role
+        if (isStaffRank(rank) && dutAccess === "yes" && workTray && !securityRole) {
+            return { 
+                text: "Staff roles require a security role to have connect access", 
+                color: "#ffcccc" 
+            };
+        }
+        
+        // Normal work tray display
+        if (dutAccess === "no") {
+            return { text: "NO ACCESS", color: "" };
+        } else if (dutAccess === "yes" && !workTray) {
+            return { text: "Require work tray name", color: "" };
+        } else if (workTray) {
+            // Check if work tray exists in Unit.csv
+            const workTrayUpper = workTray.toUpperCase();
+            if (validUnits.size > 0) {
+                if (validUnits.has(workTrayUpper)) {
+                    return { text: workTrayUpper, color: "#ccffcc" };
+                } else {
+                    return { text: workTrayUpper, color: "#ffcccc" };
                 }
             }
-        });
-
-        return { dutData, secData, hasSecurity };
+            return { text: workTrayUpper, color: "" };
+        }
+        
+        return { text: "NO ACCESS", color: "" };
     }
 
     function renderPreview(rows) {
-        const { dutData, secData, hasSecurity } = generateExcelData(rows);
+        const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
+        let dutHTML = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
         
-        function getCellBackgroundColor(cellValue, rowIndex, cellIndex, originalRow) {
-            if (cellIndex === 3) {
-                const cellVal = cellValue.toString();
-                const workTray = getWorkTrayNameValue(originalRow);
-                const workTrayUpper = workTray.toUpperCase();
-                
-                if (cellVal === "OFFICER ROLES HAVE ACCESS TO CONNECT") {
-                    return "#ffcccc";
-                }
-                
-                if (cellVal === "STAFF REQUIRE A SECURITY ROLE") {
-                    return "#ffcccc";
-                }
-                
-                if (cellIndex === 3 && cellVal === "INVALID SECURITY ROLE") {
-                    return "#ffcccc";
-                }
-                
-                if (workTray && cellVal !== "NO ACCESS" && cellVal !== "Require work tray name") {
-                    if (validUnits.size > 0 && validUnits.has(workTrayUpper)) {
-                        return "#ccffcc";
-                    } else if (validUnits.size > 0) {
-                        return "#ffcccc";
-                    }
-                }
-            }
-            return "";
-        }
+        const secHeaders = ["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
+        let secHTML = `<h2>Security Roles Preview</h2><table><thead><tr>${secHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
         
-        let html = `<h2>DUT Mapping Preview</h2><table><thead><tr>${dutData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-        dutData.slice(1).forEach((row, rowIndex) => { 
-            html += `<tr>`;
-            row.forEach((cell, cellIndex) => {
-                const bgColor = getCellBackgroundColor(cell, rowIndex, cellIndex, rows[rowIndex]);
-                const style = bgColor ? `style="background-color: ${bgColor};"` : '';
-                html += `<td ${style}>${cell}</td>`;
+        let hasSecurityRows = false;
+        
+        rows.forEach((row, rowIndex) => {
+            const rank = getRankBand(row);
+            const dutAccess = getDUTAccess(row);
+            const workTray = getWorkTrayName(row);
+            const securityRole = getSecurityRole(row);
+            const orgLevel = getHighestOrgLevel(row);
+            
+            // Get description with validation
+            const description = getDescription(row);
+            
+            // Generate rank variations
+            const rankVariations = generateRankVariations(rank);
+            
+            // Validate security role
+            const securityValidation = validateSecurityRole(securityRole);
+            const securityColor = securityValidation.isValid ? "" : "#ffcccc";
+            
+            // Create DUT rows for each variation
+            rankVariations.forEach(variation => {
+                dutHTML += `<tr>`;
+                dutHTML += `<td>XXC_MPS_CONNECT_DEFAULTUNIT</td>`;
+                dutHTML += `<td></td>`;
+                dutHTML += `<td></td>`;
+                dutHTML += `<td style="background-color: ${description.color}">${description.text}</td>`;
+                dutHTML += `<td>${variation}</td>`;
+                dutHTML += `<td></td>`;
+                dutHTML += `<td></td>`;
+                dutHTML += `<td>Y</td>`;
+                dutHTML += `<td>XXC_CONNECT_ORG_AND_GRADE</td>`;
+                dutHTML += `<td>${orgLevel}</td>`;
+                dutHTML += `</tr>`;
             });
-            html += `</tr>`;
-        });
-        html += `</tbody></table>`;
-
-        if(hasSecurity){
-            html += `<h2>Security Roles Preview</h2><table><thead><tr>${secData[0].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
-            secData.slice(1).forEach((row, rowIndex) => { 
-                html += `<tr>`;
-                row.forEach((cell, cellIndex) => {
-                    const bgColor = getCellBackgroundColor(cell, rowIndex, cellIndex, rows[rowIndex]);
-                    const style = bgColor ? `style="background-color: ${bgColor};"` : '';
-                    html += `<td ${style}>${cell}</td>`;
-                });
-                html += `</tr>`;
-            });
-            html += `</tbody></table>`;
-        }
-
-        // Add validation summary
-        const officerAccessIssues = [];
-        const staffSecurityIssues = [];
-        const validWorkTrays = [];
-        const invalidWorkTrays = [];
-        
-        rows.forEach((r,i) => {
-            const rawGrade = (r["Rank/Band"] || "").toString();
-            const psopGrade = getGradeMessage(rawGrade, r);
-            const dutAccess = getDUTAccessColumnValue(r);
-            const workTray = getWorkTrayNameValue(r);
-            const workTrayUpper = workTray.toUpperCase();
             
-            // Check work tray against Unit.csv
-            if (workTray && dutAccess === "yes") {
-                if (validUnits.size > 0) {
-                    if (validUnits.has(workTrayUpper)) {
-                        validWorkTrays.push({
-                            row: i + 2,
-                            workTray: workTray,
-                            match: "Valid unit found in Unit.csv"
-                        });
-                    } else {
-                        invalidWorkTrays.push({
-                            row: i + 2,
-                            workTray: workTray,
-                            match: "NOT FOUND in Unit.csv"
-                        });
-                    }
-                }
-            }
-            
-            // Check for officer access issues
-            if (psopGrade === "OFFICER ROLES HAVE ACCESS TO CONNECT") {
-                officerAccessIssues.push({
-                    row: i + 2,
-                    grade: rawGrade,
-                    dutAccess: dutAccess,
-                    workTray: workTray
-                });
-            }
-            
-            // Check for staff security issues
-            if (psopGrade === "STAFF REQUIRE A SECURITY ROLE") {
-                staffSecurityIssues.push({
-                    row: i + 2,
-                    grade: rawGrade,
-                    dutAccess: dutAccess,
-                    workTray: workTray
+            // Create Security rows for each variation if security role exists
+            if (securityRole) {
+                hasSecurityRows = true;
+                rankVariations.forEach(variation => {
+                    secHTML += `<tr>`;
+                    secHTML += `<td>XXC_MPS_CONNECT_RANK_ORG</td>`;
+                    secHTML += `<td></td>`;
+                    secHTML += `<td></td>`;
+                    secHTML += `<td style="background-color: ${securityColor}">${securityValidation.formatted}</td>`;
+                    secHTML += `<td></td>`;
+                    secHTML += `<td></td>`;
+                    secHTML += `<td>Y</td>`;
+                    secHTML += `<td>XXC_CONNECT_ORG_AND_GRADE</td>`;
+                    secHTML += `<td>${orgLevel}</td>`;
+                    secHTML += `<td>${variation}</td>`;
+                    secHTML += `</tr>`;
                 });
             }
         });
-
-        // Display officer access issues as a red box
-        if (officerAccessIssues.length > 0) {
-            let officerIssuesHTML = `<div class="issue-summary invalid">`;
-            officerIssuesHTML += `<strong>Officer Access Issues</strong><br>`;
-            officerIssuesHTML += `The following officer ranks have Access To Connect = No OR no Work Tray Name:<br><br>`;
-            officerIssuesHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
-            officerAccessIssues.forEach(item => {
-                officerIssuesHTML += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Access To Connect: ${item.dutAccess}, Work Tray Name: ${item.workTray || '(empty)'}</li>`;
-            });
-            officerIssuesHTML += `</ul>`;
-            officerIssuesHTML += `</div>`;
-            html += officerIssuesHTML;
+        
+        dutHTML += `</tbody></table>`;
+        secHTML += `</tbody></table>`;
+        
+        let html = dutHTML;
+        if (hasSecurityRows) {
+            html += secHTML;
         }
-
-        // Display staff security issues as a red box
-        if (staffSecurityIssues.length > 0) {
-            let staffIssuesHTML = `<div class="issue-summary invalid">`;
-            staffIssuesHTML += `<strong>Staff Security Role Issues</strong><br>`;
-            staffIssuesHTML += `The following staff roles (Unbanded or Band X) require a security role:<br><br>`;
-            staffIssuesHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
-            staffSecurityIssues.forEach(item => {
-                staffIssuesHTML += `<li>Row ${item.row}: Grade "<strong>${item.grade}</strong>" - Has Access To Connect = Yes and Work Tray Name but no Security Role</li>`;
-            });
-            staffIssuesHTML += `</ul>`;
-            staffIssuesHTML += `</div>`;
-            html += staffIssuesHTML;
-        }
-
-        // Display valid work trays as a green box (only if Unit.csv is loaded)
-        if (validWorkTrays.length > 0 && validUnits.size > 0) {
-            let validWorkTraysHTML = `<div class="issue-summary valid">`;
-            validWorkTraysHTML += `<strong>Valid Work Trays (Found in Unit.csv)</strong><br>`;
-            validWorkTraysHTML += `The following work trays are valid units:<br><br>`;
-            validWorkTraysHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
-            validWorkTrays.forEach(item => {
-                validWorkTraysHTML += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
-            });
-            validWorkTraysHTML += `</ul>`;
-            validWorkTraysHTML += `</div>`;
-            html += validWorkTraysHTML;
-        }
-
-        // Display invalid work trays as a red box (only if Unit.csv is loaded)
-        if (invalidWorkTrays.length > 0 && validUnits.size > 0) {
-            let invalidWorkTraysHTML = `<div class="issue-summary invalid">`;
-            invalidWorkTraysHTML += `<strong>Invalid Work Trays (NOT in Unit.csv)</strong><br>`;
-            invalidWorkTraysHTML += `The following work trays were NOT found in Unit.csv:<br><br>`;
-            invalidWorkTraysHTML += `<ul style="margin: 5px 0; padding-left: 20px;">`;
-            invalidWorkTrays.forEach(item => {
-                invalidWorkTraysHTML += `<li>Row ${item.row}: "<strong>${item.workTray}</strong>" → ${item.match}</li>`;
-            });
-            invalidWorkTraysHTML += `</ul>`;
-            invalidWorkTraysHTML += `</div>`;
-            html += invalidWorkTraysHTML;
-        }
-
+        
         previewContainer.innerHTML = html;
     }
 
@@ -856,33 +391,89 @@ document.addEventListener("DOMContentLoaded", () => {
             return; 
         }
         
-        // Show loading on process button
-        processBtn.innerHTML = 'Processing... <span class="spinner"></span>';
-        processBtn.disabled = true;
+        const dutHeaders = ["Lookup type","Code","Meaning","Description","PSOP Grade","From","To","Enabled","Context Value","PSOP Organisation"];
+        const dutData = [dutHeaders];
         
-        setTimeout(() => {
-            try {
-                const { dutData, secData, hasSecurity } = generateExcelData(uploadedRows);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dutData), "DUT Mapping");
-                if(hasSecurity){
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(secData), "Security Roles");
-                }
-                const timestamp = new Date().toISOString().slice(0,19).replace(/[:]/g,'-');
-                XLSX.writeFile(wb, `PSOP_Connect_${timestamp}.xlsx`);
-            } catch (error) {
-                alert("Error generating Excel file: " + error.message);
-                console.error(error);
-            } finally {
-                // Reset button
-                processBtn.innerHTML = 'Process & Download Excel';
-                processBtn.disabled = false;
+        const secHeaders = ["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
+        const secData = [secHeaders];
+        
+        uploadedRows.forEach(row => {
+            const rank = getRankBand(row);
+            const dutAccess = getDUTAccess(row);
+            const workTray = getWorkTrayName(row);
+            const securityRole = getSecurityRole(row);
+            const orgLevel = getHighestOrgLevel(row);
+            
+            // Get description
+            const description = getDescription(row);
+            
+            // Generate rank variations
+            const rankVariations = generateRankVariations(rank);
+            
+            // Validate security role
+            const securityValidation = validateSecurityRole(securityRole);
+            
+            // Create DUT rows for each variation
+            rankVariations.forEach(variation => {
+                dutData.push([
+                    "XXC_MPS_CONNECT_DEFAULTUNIT", "", "", description.text, variation, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", orgLevel
+                ]);
+            });
+            
+            // Create Security rows for each variation if security role exists
+            if (securityRole) {
+                rankVariations.forEach(variation => {
+                    secData.push([
+                        "XXC_MPS_CONNECT_RANK_ORG", "", "", securityValidation.formatted, "", "", "Y", "XXC_CONNECT_ORG_AND_GRADE", orgLevel, variation
+                    ]);
+                });
             }
-        }, 100);
+        });
+        
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dutData), "DUT Mapping");
+        if (secData.length > 1) {
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(secData), "Security Roles");
+        }
+        const timestamp = new Date().toISOString().slice(0,19).replace(/[:]/g,'-');
+        XLSX.writeFile(wb, `PSOP_Connect_${timestamp}.xlsx`);
     });
 
-    // Initial reset of upload area
-    resetUploadArea();
+    // Add drag and drop for main Excel file
+    uploadArea.addEventListener("dragover", e => { 
+        e.preventDefault(); 
+        uploadArea.style.background="#e6f2e6"; 
+    });
+    
+    uploadArea.addEventListener("dragleave", () => { 
+        uploadArea.style.background="white"; 
+    });
+    
+    uploadArea.addEventListener("drop", e => { 
+        e.preventDefault(); 
+        uploadArea.style.background="white"; 
+        if(e.dataTransfer.files && e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]); 
+        }
+    });
+
+    // Add drag and drop for Unit.csv
+    unitUploadArea.addEventListener("dragover", e => { 
+        e.preventDefault(); 
+        unitUploadArea.style.background="#fff9e6"; 
+    });
+    
+    unitUploadArea.addEventListener("dragleave", () => { 
+        unitUploadArea.style.background="white"; 
+    });
+    
+    unitUploadArea.addEventListener("drop", e => { 
+        e.preventDefault(); 
+        unitUploadArea.style.background="white"; 
+        if(e.dataTransfer.files && e.dataTransfer.files.length) {
+            handleUnitFile(e.dataTransfer.files[0]); 
+        }
+    });
 });
 </script>
 </body>
