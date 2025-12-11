@@ -288,7 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             variations.push("Constable");
             variations.push("Constable - PEQF");
             variations.push("Detective Constable");
-		variations.push("Detective Constable - PEQF");
+            variations.push("Detective Constable - PEQF");
             variations.push("New Constable");
             variations.push("New Detective Constable");
         }
@@ -335,12 +335,12 @@ document.addEventListener("DOMContentLoaded", () => {
             variations.push("Commissioner");
         }
         // For all other specific ranks listed, just return as-is
-        else if (rankLower.match(/^(advisor to management board|assistant commissioner|bb1|bb2|bb3|cbss1|fleet - manager|fleet - team member|ffs|intern|mass m2|mass p2|mass s4|mopac advisor|mopac apprentice|mopac band b|mopac grade [1-8]|mopac smt|non executive director|non exec director|norfolk [c-g]|norfolk hydrant|norfolk i|ukfpu - [67]|ukfpu - eo|ukfpu - heo|ukfpu - seo|volunteer)$/i)) {
+        else if (rankLower.match(/^(advisor to management board|assistant commissioner|bb1|bb2|bb3|cbss1|fleet - manager|fleet - team member|ffs|intern|mass m2|mass p2|mass s4|mopac advisor|mopac apprentice|mopac band b|mopac grade [1-8]|mopac smt|non executive director|non exec director|norfolk [c-g]|norfolk hydrant|norfolk i|ukfpu - [67]|ukfpu - eo|ukfpu - heo|ukfpu - seo|volunteer|tupe interim)$/i)) {
             // Return the rank with proper capitalization
             variations.push(capitalizeRank(rank));
         }
-        // For Band ranks (Band A, Band B, etc.)
-        else if (/^band\s+[a-z]\d{1,2}$/i(rankLower)) {
+        // For Band ranks (Band A, Band B, Band K1, etc.) - FIXED REGEX
+        else if (/^band\s+[a-z0-9]/i.test(rankLower)) {
             variations.push(capitalizeRank(rank));
         }
         // For Unbanded
@@ -355,18 +355,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return variations;
     }
 
-    // Check if rank is officer (not Band X, not Unbanded, and not in staff-specific list)
+    // Check if rank is officer (only specific officer ranks, not Band/Unbanded/staff)
     function isOfficerRank(rank) {
         if (!rank) return false;
         const rankLower = rank.toLowerCase();
         
-        // Staff ranks (Band X, Unbanded, and specific staff roles)
-        const isBand = /^band\s+[a-z]$/i.test(rankLower);
+        // Staff ranks (Band anything, Unbanded, and specific staff roles)
+        const isBand = /^band\s+[a-z0-9]/i.test(rankLower); // Handles Band A, Band K1, Band 1, etc.
         const isUnbanded = /^unbanded$/i.test(rankLower);
         
         // Specific staff roles that should NOT be treated as officers
         const staffRoles = [
-		'Band A', 'Band B', 'Band C', 'Band D', 'Band E', 'Band F', 'Band G', 'Band Y', 'Band O', 'Band T', 'Band X', 'Band K1', 'Band W', 'Band I', 'Band K2', 'Band N', 'Band P1', Band P2', 'Band J1', 'Band J2', 'Band J3', 'Band J4', 'Band S1', 'Band S', 'Band M', 'Band R Transport', Band R DP', 'Band V', 'Band J', 'Band L', 'Band U', 'Band H',
+            'band a', 'band b', 'band c', 'band d', 'band e', 'band f', 'band g', 
+            'band y', 'band o', 'band t', 'band x', 'band k1', 'band w', 'band i', 
+            'band k2', 'band n', 'band p1', 'band p2', 'band j1', 'band j2', 
+            'band j3', 'band j4', 'band s1', 'band s', 'band m', 'band r transport', 
+            'band r dp', 'band v', 'band j', 'band l', 'band u', 'band h',
             'advisor to management board',
             'bb1', 'bb2', 'bb3',
             'cbss1',
@@ -382,24 +386,52 @@ document.addEventListener("DOMContentLoaded", () => {
             'norfolk c', 'norfolk d', 'norfolk e', 'norfolk f', 'norfolk g',
             'norfolk hydrant', 'norfolk i',
             'ukfpu - 6', 'ukfpu - 7', 'ukfpu - eo', 'ukfpu - heo', 'ukfpu - seo',
-            'volunteer', 'TUPE Interim'
+            'volunteer', 'tupe interim'
         ];
         
         const isStaffRole = staffRoles.some(role => rankLower.includes(role));
         
-        return !isBand && !isUnbanded && !isStaffRole;
+        // Officer ranks are specifically: Constable, Sergeant, Inspector, Commissioner, 
+        // Assistant Commissioner, Chief Inspector, Commander, Superintendent and their variations
+        const officerRankPatterns = [
+            /constable/i,
+            /sergeant/i,
+            /inspector/i,
+            /commissioner/i,
+            /chief inspector/i,
+            /commander/i,
+            /superintendent/i,
+            /chief superintendent/i,
+            /deputy assistant commissioner/i,
+            /c_insp/i,
+            /c_supt/i,
+            /commdr/i,
+            /supt/i,
+            /insp/i,
+            /sgt/i,
+            /cons/i
+        ];
+        
+        const isOfficer = officerRankPatterns.some(pattern => pattern.test(rankLower));
+        
+        return isOfficer && !isBand && !isUnbanded && !isStaffRole;
     }
     
-    // Check if rank is staff (Band X, Unbanded, or specific staff roles)
+    // Check if rank is staff (Band anything, Unbanded, or specific staff roles)
     function isStaffRank(rank) {
         if (!rank) return false;
         const rankLower = rank.toLowerCase();
         
-        const isBand = /^band\s+[a-z]$/i.test(rankLower);
+        const isBand = /^band\s+[a-z0-9]/i.test(rankLower); // Handles Band A, Band K1, Band 1, etc.
         const isUnbanded = /^unbanded$/i.test(rankLower);
         
         // Specific staff roles
         const staffRoles = [
+            'band a', 'band b', 'band c', 'band d', 'band e', 'band f', 'band g', 
+            'band y', 'band o', 'band t', 'band x', 'band k1', 'band w', 'band i', 
+            'band k2', 'band n', 'band p1', 'band p2', 'band j1', 'band j2', 
+            'band j3', 'band j4', 'band s1', 'band s', 'band m', 'band r transport', 
+            'band r dp', 'band v', 'band j', 'band l', 'band u', 'band h',
             'advisor to management board',
             'bb1', 'bb2', 'bb3',
             'cbss1',
@@ -415,7 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
             'norfolk c', 'norfolk d', 'norfolk e', 'norfolk f', 'norfolk g',
             'norfolk hydrant', 'norfolk i',
             'ukfpu - 6', 'ukfpu - 7', 'ukfpu - eo', 'ukfpu - heo', 'ukfpu - seo',
-            'volunteer'
+            'volunteer', 'tupe interim'
         ];
         
         const isStaffRole = staffRoles.some(role => rankLower.includes(role));
@@ -658,3 +690,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
