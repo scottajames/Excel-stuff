@@ -101,16 +101,52 @@ document.addEventListener("DOMContentLoaded", () => {
         const reader = new FileReader();
         reader.onload = e => {
             try {
-                const lines = e.target.result.split('\n');
+                const csvText = e.target.result;
                 validUnits.clear();
                 
-                lines.forEach(line => {
-                    if (line.trim()) {
-                        // Get first column (A)
-                        const unit = line.split(',')[0].trim().toUpperCase();
-                        if (unit) validUnits.add(unit);
+                // Parse CSV properly
+                const lines = csvText.split(/\r?\n/); // Handle both \n and \r\n
+                let unitCount = 0;
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue; // Skip empty lines
+                    
+                    // Parse CSV line considering quotes
+                    let inQuotes = false;
+                    let currentField = '';
+                    const fields = [];
+                    
+                    for (let char of line) {
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            fields.push(currentField);
+                            currentField = '';
+                        } else {
+                            currentField += char;
+                        }
                     }
-                });
+                    fields.push(currentField); // Add last field
+                    
+                    // Get first column (column A)
+                    if (fields.length > 0) {
+                        const unit = fields[0].trim();
+                        if (unit && unit !== '') {
+                            // Skip potential header row (check if it looks like a header)
+                            if (i === 0 && (unit.toLowerCase().includes('unit') || 
+                                             unit.toLowerCase().includes('name') ||
+                                             unit.toLowerCase().includes('header'))) {
+                                continue; // Skip header row
+                            }
+                            
+                            const unitUpper = unit.toUpperCase();
+                            validUnits.add(unitUpper);
+                            unitCount++;
+                            console.log(`Added unit: ${unitUpper}`);
+                        }
+                    }
+                }
                 
                 unitStatus.className = "unit-status loaded";
                 unitStatus.innerHTML = `<strong>✓ Unit.csv Loaded</strong><br>Loaded ${validUnits.size} valid units for work tray validation.`;
@@ -118,14 +154,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 unitUploadArea.style.borderColor = "#217346";
                 unitUploadArea.style.color = "#217346";
                 
+                console.log(`Total units loaded: ${validUnits.size}`);
+                console.log('Units:', Array.from(validUnits));
+                
                 // If Excel is already loaded, refresh preview
-                if (uploadedRows.length > 0) renderPreview(uploadedRows);
+                if (uploadedRows.length > 0) {
+                    console.log('Refreshing preview with Unit.csv validation...');
+                    renderPreview(uploadedRows);
+                }
                 
             } catch (error) {
-                alert("Error reading Unit.csv file.");
-                console.error(error);
+                alert("Error reading Unit.csv file. Please check the format.");
+                console.error("Unit.csv parsing error:", error);
             }
         };
+        
+        reader.onerror = () => {
+            alert("Error reading the Unit.csv file.");
+        };
+        
         reader.readAsText(file);
     }
 
@@ -145,6 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const workbook = XLSX.read(data, { type: "array" });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 uploadedRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                console.log(`Loaded Excel file with ${uploadedRows.length} rows`);
                 renderPreview(uploadedRows);
                 processBtn.style.display = "inline-block";
             } catch (error) {
@@ -260,7 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return { isValid: false, formatted: "INVALID SECURITY ROLE" };
     }
 
-    // Determine description with validation - UPDATED with red for "Require work tray name"
+    // Determine description with validation
     function getDescription(row) {
         const rank = getRankBand(row);
         const dutAccess = getDUTAccess(row);
@@ -295,17 +343,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dutAccess === "no") {
             return { text: "NO ACCESS", color: "" };
         } else if (dutAccess === "yes" && !workTray) {
-            // CHANGED: "Require work tray name" now displays as RED
             return { text: "Require work tray name", color: "#ffcccc" };
         } else if (workTray) {
             // Check if work tray exists in Unit.csv
             const workTrayUpper = workTray.toUpperCase();
+            console.log(`Checking work tray: "${workTrayUpper}"`);
+            console.log(`Valid units loaded: ${validUnits.size}`);
+            
             if (validUnits.size > 0) {
+                console.log(`Looking for "${workTrayUpper}" in validUnits...`);
                 if (validUnits.has(workTrayUpper)) {
+                    console.log(`✓ Found "${workTrayUpper}" in Unit.csv`);
                     return { text: workTrayUpper, color: "#ccffcc" };
                 } else {
+                    console.log(`✗ NOT found "${workTrayUpper}" in Unit.csv`);
+                    console.log('Available units:', Array.from(validUnits));
                     return { text: workTrayUpper, color: "#ffcccc" };
                 }
+            } else {
+                console.log('No Unit.csv loaded or empty Unit.csv');
             }
             return { text: workTrayUpper, color: "" };
         }
@@ -329,11 +385,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const securityRole = getSecurityRole(row);
             const orgLevel = getHighestOrgLevel(row);
             
+            console.log(`Row ${rowIndex + 1}: Rank="${rank}", Access="${dutAccess}", WorkTray="${workTray}", Security="${securityRole}"`);
+            
             // Get description with validation
             const description = getDescription(row);
             
             // Generate rank variations
             const rankVariations = generateRankVariations(rank);
+            console.log(`Rank variations for "${rank}":`, rankVariations);
             
             // Validate security role
             const securityValidation = validateSecurityRole(securityRole);
