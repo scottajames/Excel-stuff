@@ -231,28 +231,57 @@ document.addEventListener("DOMContentLoaded", () => {
         return "";
     }
 
-    // Check if rank is officer (not Band X and not Unbanded)
-    function isOfficerRank(rank) {
-        if (!rank) return false;
-        const rankLower = rank.toLowerCase();
-        const isBand = /^band\s+[a-z]$/i.test(rankLower);
-        const isUnbanded = /^unbanded$/i.test(rankLower);
-        return !isBand && !isUnbanded;
+    // Helper function to properly capitalize ranks
+    function capitalizeRank(rank) {
+        if (!rank) return "";
+        
+        // Special handling for hyphenated ranks
+        if (rank.includes('-')) {
+            return rank.split('-').map(part => capitalizeFirstLetter(part.trim())).join(' - ');
+        }
+        
+        // Special handling for ranks with "MSC"
+        if (rank.toLowerCase().includes('msc')) {
+            return rank.toUpperCase();
+        }
+        
+        // Capitalize first letter of each word
+        return rank.split(' ').map(word => {
+            // Don't capitalize short words like "to", "and", etc.
+            const smallWords = ['to', 'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'for', 'of'];
+            if (smallWords.includes(word.toLowerCase())) {
+                return word.toLowerCase();
+            }
+            // Special handling for UKFPU
+            if (word.toUpperCase() === 'UKFPU') {
+                return 'UKFPU';
+            }
+            // Special handling for grades/bands
+            if (/^[a-z]$/i.test(word) || /^[1-8]$/.test(word)) {
+                return word.toUpperCase();
+            }
+            return capitalizeFirstLetter(word);
+        }).join(' ');
     }
-    
-    // Check if rank is staff (Band X or Unbanded)
-    function isStaffRank(rank) {
-        if (!rank) return false;
-        const rankLower = rank.toLowerCase();
-        const isBand = /^band\s+[a-z]$/i.test(rankLower);
-        const isUnbanded = /^unbanded$/i.test(rankLower);
-        return isBand || isUnbanded;
+
+    function capitalizeFirstLetter(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     }
 
     // Generate rank variations
     function generateRankVariations(rank) {
-        const rankLower = rank.toLowerCase();
+        if (!rank) return [""];
+        
+        const rankLower = rank.toLowerCase().trim();
         const variations = [];
+        
+        // MSC Special ranks - just add "Special " prefix
+        if (rankLower.includes("msc") && rankLower.includes("special")) {
+            // Extract the rank part after "MSC Special"
+            const rankPart = rank.replace(/msc\s*special\s*/i, '').trim();
+            variations.push(`Special ${rankPart}`);
+            return variations;
+        }
         
         // Constable variations
         if (rankLower.includes("constable") || rankLower === "cons") {
@@ -272,12 +301,124 @@ document.addEventListener("DOMContentLoaded", () => {
             variations.push("Inspector");
             variations.push("Detective Inspector");
         }
-        // For other ranks, just return the original
+        // Chief Inspector
+        else if (rankLower.includes("chief inspector") || rankLower === "c_insp") {
+            variations.push("Chief Inspector");
+            variations.push("Detective Chief Inspector");
+        }
+        // Superintendent variations
+        else if (rankLower.includes("superintendent") || rankLower === "supt") {
+            variations.push("Superintendent");
+            variations.push("Detective Superintendent");
+            variations.push("New Superintendent");
+        }
+        // Chief Superintendent
+        else if (rankLower.includes("chief superintendent") || rankLower === "c_supt") {
+            variations.push("Chief Superintendent");
+            variations.push("Detective Chief Superintendent");
+        }
+        // Commander
+        else if (rankLower.includes("commander") || rankLower === "commdr") {
+            variations.push("Commander");
+        }
+        // Assistant Commissioner
+        else if (rankLower.includes("assistant commissioner")) {
+            variations.push("Assistant Commissioner");
+        }
+        // Deputy Assistant Commissioner
+        else if (rankLower.includes("deputy assistant commissioner") || rankLower.includes("deputy asst commissioner")) {
+            variations.push("Deputy Assistant Commissioner");
+        }
+        // Commissioner
+        else if (rankLower.includes("commissioner")) {
+            variations.push("Commissioner");
+        }
+        // For all other specific ranks listed, just return as-is
+        else if (rankLower.match(/^(advisor to management board|assistant commissioner|bb1|bb2|bb3|cbss1|fleet - manager|fleet - team member|ffs|intern|mass m2|mass p2|mass s4|mopac advisor|mopac apprentice|mopac band b|mopac grade [1-8]|mopac smt|non executive director|non exec director|norfolk [c-g]|norfolk hydrant|norfolk i|ukfpu - [67]|ukfpu - eo|ukfpu - heo|ukfpu - seo|volunteer)$/i)) {
+            // Return the rank with proper capitalization
+            variations.push(capitalizeRank(rank));
+        }
+        // For Band ranks (Band A, Band B, etc.)
+        else if (/^band\s+[a-z]$/i.test(rankLower)) {
+            variations.push(capitalizeRank(rank));
+        }
+        // For Unbanded
+        else if (/^unbanded$/i.test(rankLower)) {
+            variations.push("Unbanded");
+        }
+        // For any other rank not specifically handled
         else {
-            variations.push(rank);
+            variations.push(capitalizeRank(rank));
         }
         
         return variations;
+    }
+
+    // Check if rank is officer (not Band X, not Unbanded, and not in staff-specific list)
+    function isOfficerRank(rank) {
+        if (!rank) return false;
+        const rankLower = rank.toLowerCase();
+        
+        // Staff ranks (Band X, Unbanded, and specific staff roles)
+        const isBand = /^band\s+[a-z]$/i.test(rankLower);
+        const isUnbanded = /^unbanded$/i.test(rankLower);
+        
+        // Specific staff roles that should NOT be treated as officers
+        const staffRoles = [
+            'advisor to management board',
+            'bb1', 'bb2', 'bb3',
+            'cbss1',
+            'fleet - manager', 'fleet - team member',
+            'ffs',
+            'intern',
+            'mass m2', 'mass p2', 'mass s4',
+            'mopac advisor', 'mopac apprentice', 'mopac band b',
+            'mopac grade 1', 'mopac grade 2', 'mopac grade 3', 'mopac grade 4',
+            'mopac grade 5', 'mopac grade 6', 'mopac grade 7', 'mopac grade 8',
+            'mopac smt',
+            'non executive director', 'non exec director',
+            'norfolk c', 'norfolk d', 'norfolk e', 'norfolk f', 'norfolk g',
+            'norfolk hydrant', 'norfolk i',
+            'ukfpu - 6', 'ukfpu - 7', 'ukfpu - eo', 'ukfpu - heo', 'ukfpu - seo',
+            'volunteer'
+        ];
+        
+        const isStaffRole = staffRoles.some(role => rankLower.includes(role));
+        
+        return !isBand && !isUnbanded && !isStaffRole;
+    }
+    
+    // Check if rank is staff (Band X, Unbanded, or specific staff roles)
+    function isStaffRank(rank) {
+        if (!rank) return false;
+        const rankLower = rank.toLowerCase();
+        
+        const isBand = /^band\s+[a-z]$/i.test(rankLower);
+        const isUnbanded = /^unbanded$/i.test(rankLower);
+        
+        // Specific staff roles
+        const staffRoles = [
+            'advisor to management board',
+            'bb1', 'bb2', 'bb3',
+            'cbss1',
+            'fleet - manager', 'fleet - team member',
+            'ffs',
+            'intern',
+            'mass m2', 'mass p2', 'mass s4',
+            'mopac advisor', 'mopac apprentice', 'mopac band b',
+            'mopac grade 1', 'mopac grade 2', 'mopac grade 3', 'mopac grade 4',
+            'mopac grade 5', 'mopac grade 6', 'mopac grade 7', 'mopac grade 8',
+            'mopac smt',
+            'non executive director', 'non exec director',
+            'norfolk c', 'norfolk d', 'norfolk e', 'norfolk f', 'norfolk g',
+            'norfolk hydrant', 'norfolk i',
+            'ukfpu - 6', 'ukfpu - 7', 'ukfpu - eo', 'ukfpu - heo', 'ukfpu - seo',
+            'volunteer'
+        ];
+        
+        const isStaffRole = staffRoles.some(role => rankLower.includes(role));
+        
+        return isBand || isUnbanded || isStaffRole;
     }
 
     // Validate security role
