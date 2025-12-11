@@ -260,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return { isValid: false, formatted: "INVALID SECURITY ROLE" };
     }
 
-    // Determine description with validation
+    // Determine description with validation - UPDATED with red for "Require work tray name"
     function getDescription(row) {
         const rank = getRankBand(row);
         const dutAccess = getDUTAccess(row);
@@ -295,7 +295,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dutAccess === "no") {
             return { text: "NO ACCESS", color: "" };
         } else if (dutAccess === "yes" && !workTray) {
-            return { text: "Require work tray name", color: "" };
+            // CHANGED: "Require work tray name" now displays as RED
+            return { text: "Require work tray name", color: "#ffcccc" };
         } else if (workTray) {
             // Check if work tray exists in Unit.csv
             const workTrayUpper = workTray.toUpperCase();
