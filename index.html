@@ -29,10 +29,12 @@ th{background:#217346;color:#fff;font-weight:bold;text-align:center;position:sti
 .loading {display: none; text-align: center; padding: 20px;}
 .loading-spinner {border: 4px solid #f3f3f3; border-top: 4px solid #217346; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 10px;}
 @keyframes spin {0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); }}
-.row-count {font-size: 12px; color: #666; margin-top: 10px; font-style: italic;}
 .error-row {background-color: #ffebee !important;}
-.warning-row {background-color: #fff3e0 !important;}
 .success-row {background-color: #e8f5e9 !important;}
+.error-messages {background-color: #ffebee; border: 1px solid #ffcdd2; border-radius: 4px; padding: 15px; margin-top: 20px;}
+.error-messages h3 {color: #d32f2f; margin-top: 0; margin-bottom: 10px; font-size: 16px;}
+.error-item {padding: 8px; margin-bottom: 5px; background-color: white; border-left: 4px solid #f44336; border-radius: 2px;}
+.error-count {display: inline-block; background-color: #f44336; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 10px; font-weight: bold;}
 </style>
 </head>
 <body>
@@ -64,6 +66,12 @@ Drag & Drop or Click to Upload MBS Excel file
 
 <button id="processBtn">Process & Download Excel</button>
 
+<!-- Error messages container -->
+<div id="errorContainer" class="error-messages" style="display:none;">
+  <h3>Validation Errors <span id="errorCount" class="errorCount">0</span></h3>
+  <div id="errorList"></div>
+</div>
+
 <div id="previewContainer" class="preview-section"></div>
 
 <script>
@@ -76,6 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const dutStatus = document.getElementById("dutStatus");
     const dutUploadArea = document.getElementById("dutUploadArea");
     const dutFileInput = document.getElementById("dutFileInput");
+    const errorContainer = document.getElementById("errorContainer");
+    const errorList = document.getElementById("errorList");
+    const errorCount = document.getElementById("errorCount");
     
     let uploadedFile = null;
     let uploadedRows = [];
@@ -125,6 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dutStatus.innerHTML = `<strong>⚠ XXC_MPS_CONNECT_DEFAULTUNIT file Not Loaded</strong><br>
         Please upload the XXC_MPS_CONNECT_DEFAULTUNIT Excel file for work tray and rank validation.`;
         previewContainer.innerHTML = "";
+        errorContainer.style.display = "none";
         processBtn.style.display = "none";
         fileInput.value = "";
         dutFileInput.value = "";
@@ -566,75 +578,46 @@ document.addEventListener("DOMContentLoaded", () => {
         const workTray = getWorkTrayName(row);
         const securityRole = getSecurityRole(row);
         
+        let errorMessage = "";
+        let hasError = false;
+        let displayText = "";
+        
+        // Determine what text to display
+        if (dutAccess === "no") {
+            displayText = "NO ACCESS";
+        } else if (dutAccess === "yes" && !workTray) {
+            displayText = "NO ACCESS"; // Show as "NO ACCESS" when missing work tray
+            hasError = true;
+            errorMessage = "Require work tray name";
+        } else if (workTray) {
+            displayText = workTray.toUpperCase();
+            
+            // Validate against DUT file
+            const dutValidation = validateInDUTFile(workTray, rank);
+            if (!dutValidation.exists) {
+                hasError = true;
+                errorMessage = "Work tray/Rank combination not found in DUT file";
+            }
+        } else {
+            displayText = "NO ACCESS";
+        }
+        
         // Check 1: Officer rank with Access = No
         if (isOfficerRank(rank) && dutAccess === "no") {
-            return { 
-                text: "Officer rank will have access, access is set to No", 
-                color: "#ffcccc",
-                issue: true,
-                validation: { valid: false, reason: "Officer rank should have access" }
-            };
+            hasError = true;
+            errorMessage = "Officer rank will have access, but Connect Access is set to 'No'";
         }
         
         // Check 2: Staff role with Access = Yes but no security role
         if (isStaffRank(rank) && dutAccess === "yes" && workTray && !securityRole) {
-            return { 
-                text: "Staff roles require a security role to have connect access", 
-                color: "#ffcccc",
-                issue: true,
-                validation: { valid: false, reason: "Missing security role for staff" }
-            };
-        }
-        
-        // Normal work tray display
-        if (dutAccess === "no") {
-            return { 
-                text: "NO ACCESS", 
-                color: "", 
-                issue: false,
-                validation: { valid: true, reason: "No access required" }
-            };
-        } else if (dutAccess === "yes" && !workTray) {
-            return { 
-                text: "Require work tray name", 
-                color: "#ffcccc", 
-                issue: true,
-                validation: { valid: false, reason: "Missing work tray name" }
-            };
-        } else if (workTray) {
-            // Validate against DUT file
-            const dutValidation = validateInDUTFile(workTray, rank);
-            
-            if (dutValidation.exists) {
-                return { 
-                    text: workTray.toUpperCase(), 
-                    color: "#ccffcc", 
-                    issue: false,
-                    validation: { 
-                        valid: true, 
-                        reason: `Found in DUT file`,
-                        details: dutValidation
-                    }
-                };
-            } else {
-                return { 
-                    text: workTray.toUpperCase(), 
-                    color: "#ffcccc", 
-                    issue: true,
-                    validation: { 
-                        valid: false, 
-                        reason: "Not found in DUT file",
-                        details: dutValidation
-                    }
-                };
-            }
+            hasError = true;
+            errorMessage = "Staff roles require a security role to have Connect access";
         }
         
         return { 
-            text: "NO ACCESS", 
-            color: "", 
-            issue: false,
-            validation: { valid: true, reason: "No access required" }
+            text: displayText, 
+            hasError: hasError,
+            errorMessage: errorMessage
         };
     }
 
@@ -645,6 +628,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const secHeaders = ["Lookup Type","Code","Meaning","Description","From","To","Enabled","Context Value","PSOP Organisation","PSOP Grade"];
         let secHTML = `<h2>Security Roles Preview</h2><table><thead><tr>${secHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
         
+        let errorMessages = [];
+        let errorIndex = 0;
         let hasSecurityRows = false;
         
         rows.forEach((row, rowIndex) => {
@@ -655,27 +640,30 @@ document.addEventListener("DOMContentLoaded", () => {
             const orgLevel = getHighestOrgLevel(row);
             
             const description = getDescription(row);
-            
             const rankVariations = generateRankVariations(rank);
             const securityValidation = validateSecurityRole(securityRole);
             
             // Create DUT rows for each variation
             rankVariations.forEach(variation => {
-                let tooltip = "";
-                if (description.validation && description.validation.details) {
-                    if (description.validation.valid) {
-                        tooltip = ` title="✓ Valid: ${description.validation.reason}"`;
-                    } else {
-                        tooltip = ` title="✗ Invalid: ${description.validation.reason}"`;
-                    }
+                const rowClass = description.hasError ? 'error-row' : 'success-row';
+                
+                // If there's an error, add it to the error list
+                if (description.hasError && description.errorMessage) {
+                    errorIndex++;
+                    const errorId = `error-${errorIndex}`;
+                    dutHTML += `<tr id="${errorId}" class="${rowClass}">`;
+                    errorMessages.push({
+                        id: errorId,
+                        message: `Row ${rowIndex + 2}: ${description.errorMessage} (Rank: ${rank}, Work Tray: ${workTray || "Not specified"})`
+                    });
+                } else {
+                    dutHTML += `<tr class="${rowClass}">`;
                 }
                 
-                const rowClass = description.issue ? 'error-row' : description.color === '#ccffcc' ? 'success-row' : '';
-                dutHTML += `<tr class="${rowClass}"${tooltip}>`;
                 dutHTML += `<td>XXC_MPS_CONNECT_DEFAULTUNIT</td>`;
                 dutHTML += `<td></td>`;
                 dutHTML += `<td></td>`;
-                dutHTML += `<td style="background-color: ${description.color}">${description.text}</td>`;
+                dutHTML += `<td>${description.text}</td>`;
                 dutHTML += `<td>${variation}</td>`;
                 dutHTML += `<td></td>`;
                 dutHTML += `<td></td>`;
@@ -689,13 +677,25 @@ document.addEventListener("DOMContentLoaded", () => {
             if (securityRole) {
                 hasSecurityRows = true;
                 rankVariations.forEach(variation => {
-                    const secRowClass = !securityValidation.isValid ? 'error-row' : '';
-                    const secTooltip = !securityValidation.isValid ? ' title="Invalid security role"' : '';
-                    secHTML += `<tr class="${secRowClass}"${secTooltip}>`;
+                    const secRowClass = !securityValidation.isValid ? 'error-row' : 'success-row';
+                    
+                    // If security role is invalid, add to error list
+                    if (!securityValidation.isValid) {
+                        errorIndex++;
+                        const errorId = `security-error-${errorIndex}`;
+                        secHTML += `<tr id="${errorId}" class="${secRowClass}">`;
+                        errorMessages.push({
+                            id: errorId,
+                            message: `Row ${rowIndex + 2}: Invalid security role "${securityRole}" (Rank: ${rank})`
+                        });
+                    } else {
+                        secHTML += `<tr class="${secRowClass}">`;
+                    }
+                    
                     secHTML += `<td>XXC_MPS_CONNECT_RANK_ORG</td>`;
                     secHTML += `<td></td>`;
                     secHTML += `<td></td>`;
-                    secHTML += `<td style="background-color: ${!securityValidation.isValid ? '#ffcccc' : ''}">${securityValidation.formatted}</td>`;
+                    secHTML += `<td>${securityValidation.formatted}</td>`;
                     secHTML += `<td></td>`;
                     secHTML += `<td></td>`;
                     secHTML += `<td>Y</td>`;
@@ -716,6 +716,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         previewContainer.innerHTML = html;
+        
+        // Display error messages if there are any
+        if (errorMessages.length > 0) {
+            errorList.innerHTML = '';
+            errorMessages.forEach(error => {
+                const errorItem = document.createElement('div');
+                errorItem.className = 'error-item';
+                errorItem.innerHTML = error.message;
+                errorList.appendChild(errorItem);
+            });
+            errorCount.textContent = errorMessages.length;
+            errorContainer.style.display = 'block';
+        } else {
+            errorContainer.style.display = 'none';
+        }
     }
 
     processBtn.addEventListener("click", () => {
