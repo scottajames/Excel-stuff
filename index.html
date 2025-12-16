@@ -571,7 +571,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return { isValid: false, formatted: "INVALID SECURITY ROLE" };
     }
 
-    // Determine description with DUT file validation
+    // Determine description with DUT file validation - CORRECTED LOGIC
     function getDescription(row) {
         const rank = getRankBand(row);
         const dutAccess = getDUTAccess(row);
@@ -585,34 +585,41 @@ document.addEventListener("DOMContentLoaded", () => {
         // Determine what text to display
         if (dutAccess === "no") {
             displayText = "NO ACCESS";
-        } else if (dutAccess === "yes" && !workTray) {
-            displayText = "NO ACCESS"; // Show as "NO ACCESS" when missing work tray
-            hasError = true;
-            errorMessage = "Require work tray name";
-        } else if (workTray) {
-            displayText = workTray.toUpperCase();
-            
-            // Validate against DUT file
-            const dutValidation = validateInDUTFile(workTray, rank);
-            if (!dutValidation.exists) {
+            // Staff AND Officer ranks can have "NO ACCESS" when Access = No - no error
+        } else if (dutAccess === "yes") {
+            if (!workTray) {
+                // Empty work tray when Access = Yes is an error for BOTH staff and officers
+                displayText = "NO ACCESS";
                 hasError = true;
-                errorMessage = "Work tray/Rank combination not found in DUT file";
+                errorMessage = "Require work tray name";
+            } else if (workTray.toUpperCase() === "NO ACCESS") {
+                displayText = "NO ACCESS";
+                // "NO ACCESS" as work tray when Access = Yes is an error for BOTH staff and officers
+                hasError = true;
+                errorMessage = "Require work tray name";
+            } else {
+                // Actual work tray name provided
+                displayText = workTray.toUpperCase();
+                
+                // Validate against DUT file for actual work tray names
+                const dutValidation = validateInDUTFile(workTray, rank);
+                if (!dutValidation.exists) {
+                    hasError = true;
+                    errorMessage = "Work tray/Rank combination not found in DUT file";
+                }
+                
+                // Staff roles need security role when they have an actual work tray
+                if (isStaffRank(rank) && !securityRole) {
+                    hasError = true;
+                    errorMessage = "Staff roles require a security role to have Connect access";
+                }
             }
         } else {
             displayText = "NO ACCESS";
         }
         
-        // Check 1: Officer rank with Access = No
-        if (isOfficerRank(rank) && dutAccess === "no") {
-            hasError = true;
-            errorMessage = "Officer rank will have access, but Connect Access is set to 'No'";
-        }
-        
-        // Check 2: Staff role with Access = Yes but no security role
-        if (isStaffRank(rank) && dutAccess === "yes" && workTray && !securityRole) {
-            hasError = true;
-            errorMessage = "Staff roles require a security role to have Connect access";
-        }
+        // Check: Officer rank with Access = No is now allowed (removed this error)
+        // Officer ranks with Access = Yes but no work tray is already caught above
         
         return { 
             text: displayText, 
