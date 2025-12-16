@@ -629,7 +629,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let secHTML = `<h2>Security Roles Preview</h2><table><thead><tr>${secHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
         
         let errorMessages = [];
-        let errorIndex = 0;
         let hasSecurityRows = false;
         
         rows.forEach((row, rowIndex) => {
@@ -646,19 +645,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Create DUT rows for each variation
             rankVariations.forEach(variation => {
                 const rowClass = description.hasError ? 'error-row' : 'success-row';
-                
-                // If there's an error, add it to the error list
-                if (description.hasError && description.errorMessage) {
-                    errorIndex++;
-                    const errorId = `error-${errorIndex}`;
-                    dutHTML += `<tr id="${errorId}" class="${rowClass}">`;
-                    errorMessages.push({
-                        id: errorId,
-                        message: `Row ${rowIndex + 2}: ${description.errorMessage} (Rank: ${rank}, Work Tray: ${workTray || "Not specified"})`
-                    });
-                } else {
-                    dutHTML += `<tr class="${rowClass}">`;
-                }
+                dutHTML += `<tr class="${rowClass}">`;
                 
                 dutHTML += `<td>XXC_MPS_CONNECT_DEFAULTUNIT</td>`;
                 dutHTML += `<td></td>`;
@@ -671,6 +658,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 dutHTML += `<td>XXC_CONNECT_ORG_AND_GRADE</td>`;
                 dutHTML += `<td>${orgLevel}</td>`;
                 dutHTML += `</tr>`;
+                
+                // Add error message to the list if this row has an error
+                if (description.hasError && description.errorMessage) {
+                    // Only add unique error messages to avoid duplicates
+                    if (!errorMessages.includes(description.errorMessage)) {
+                        errorMessages.push(description.errorMessage);
+                    }
+                }
             });
             
             // Create Security rows
@@ -678,19 +673,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 hasSecurityRows = true;
                 rankVariations.forEach(variation => {
                     const secRowClass = !securityValidation.isValid ? 'error-row' : 'success-row';
-                    
-                    // If security role is invalid, add to error list
-                    if (!securityValidation.isValid) {
-                        errorIndex++;
-                        const errorId = `security-error-${errorIndex}`;
-                        secHTML += `<tr id="${errorId}" class="${secRowClass}">`;
-                        errorMessages.push({
-                            id: errorId,
-                            message: `Row ${rowIndex + 2}: Invalid security role "${securityRole}" (Rank: ${rank})`
-                        });
-                    } else {
-                        secHTML += `<tr class="${secRowClass}">`;
-                    }
+                    secHTML += `<tr class="${secRowClass}">`;
                     
                     secHTML += `<td>XXC_MPS_CONNECT_RANK_ORG</td>`;
                     secHTML += `<td></td>`;
@@ -703,6 +686,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     secHTML += `<td>${orgLevel}</td>`;
                     secHTML += `<td>${variation}</td>`;
                     secHTML += `</tr>`;
+                    
+                    // Add security role error to the list
+                    if (!securityValidation.isValid) {
+                        const errorMsg = `Invalid security role "${securityRole}"`;
+                        if (!errorMessages.includes(errorMsg)) {
+                            errorMessages.push(errorMsg);
+                        }
+                    }
                 });
             }
         });
@@ -720,10 +711,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Display error messages if there are any
         if (errorMessages.length > 0) {
             errorList.innerHTML = '';
-            errorMessages.forEach(error => {
+            errorMessages.forEach(errorMessage => {
                 const errorItem = document.createElement('div');
                 errorItem.className = 'error-item';
-                errorItem.innerHTML = error.message;
+                errorItem.innerHTML = errorMessage;
                 errorList.appendChild(errorItem);
             });
             errorCount.textContent = errorMessages.length;
