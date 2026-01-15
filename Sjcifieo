@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel File Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 60px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .upload-subtext {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .process-btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+        }
+        
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .process-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .mapping-info {
+            background: #f0f7ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .mapping-info h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .mapping-item {
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .download-btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Excel File Processor</h1>
+            <p>Upload an Excel file to process "Connect Inputs" sheet</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-area" id="dropArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Click to upload or drag & drop Excel file</div>
+                <div class="upload-subtext">Only .xlsx, .xls files are supported</div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls">
+            </div>
+            
+            <button class="process-btn" id="processBtn" disabled>Process Excel File</button>
+            
+            <div class="mapping-info">
+                <h3>📋 Mapping Rules Applied:</h3>
+                <div class="mapping-grid">
+                    <div class="mapping-item">
+                        <strong>SUPV:</strong><br>
+                        Sergeant, Detective Sergeant, D, K2, N, P, Q
+                    </div>
+                    <div class="mapping-item">
+                        <strong>MNGR:</strong><br>
+                        Inspector, Detective Inspector, C, M, V
+                    </div>
+                    <div class="mapping-item">
+                        <strong>SNR MNGR:</strong><br>
+                        Chief Inspector, Detective Chief Inspector, B, J, L, U
+                    </div>
+                    <div class="mapping-item">
+                        <strong>Other:</strong><br>
+                        Superintendent, Detective Superintendent, A, H, S (No change)
+                    </div>
+                </div>
+                <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                    <strong>Note:</strong> Column K values are checked, and corresponding values are written to Column L
+                </p>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing file... Please wait</p>
+            </div>
+            
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script>
+        // DOM Elements
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+
+        // File handling
+        dropArea.addEventListener('click', () => fileInput.click());
+        
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('dragover');
+        });
+        
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('dragover');
+        });
+        
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        function handleFileSelect(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                showStatus('Please upload an Excel file (.xlsx or .xls)', 'error');
+                processBtn.disabled = true;
+                return;
+            }
+            
+            processBtn.disabled = false;
+            dropArea.querySelector('.upload-text').textContent = `Selected: ${file.name}`;
+            dropArea.querySelector('.upload-subtext').textContent = 
+                `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+        }
+        
+        // Processing function
+        processBtn.addEventListener('click', async () => {
+            if (!fileInput.files.length) return;
+            
+            const file = fileInput.files[0];
+            loading.style.display = 'block';
+            status.style.display = 'none';
+            processBtn.disabled = true;
+            
+            try {
+                const data = await readExcelFile(file);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Check if "Connect Inputs" sheet exists
+                if (!workbook.SheetNames.includes('Connect Inputs')) {
+                    throw new Error('Sheet named "Connect Inputs" not found in the Excel file');
+                }
+                
+                // Get the sheet
+                const sheet = workbook.Sheets['Connect Inputs'];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                
+                // Process the data
+                processExcelData(jsonData);
+                
+                // Update the sheet with processed data
+                const newWorksheet = XLSX.utils.aoa_to_sheet(jsonData);
+                workbook.Sheets['Connect Inputs'] = newWorksheet;
+                
+                // Generate new Excel file
+                const wbout = XLSX.write(workbook, { 
+                    bookType: 'xlsx', 
+                    type: 'array' 
+                });
+                
+                // Create download link
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                
+                // Show success message with download link
+                showStatus(`
+                    ✅ File processed successfully!<br>
+                    <a href="${url}" download="processed_${file.name}" class="download-btn">
+                        📥 Download Processed File
+                    </a>
+                `, 'success');
+                
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                loading.style.display = 'none';
+                processBtn.disabled = false;
+            }
+        });
+        
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    resolve(e.target.result);
+                };
+                
+                reader.onerror = (error) => {
+                    reject(new Error('Error reading file'));
+                };
+                
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        function processExcelData(data) {
+            // Find column indices (K = column 10, L = column 11 in 0-indexed array)
+            const colKIndex = 10; // Column K (0-indexed: A=0, B=1, ..., K=10)
+            const colLIndex = 11; // Column L
+            
+            // Check if we have at least one row
+            if (data.length === 0) return;
+            
+            // Process each row
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                
+                // Ensure row has enough columns
+                while (row.length <= colLIndex) {
+                    row.push('');
+                }
+                
+                // Get value from column K (trim whitespace and convert to string)
+                const colKValue = row[colKIndex] ? String(row[colKIndex]).trim().toLowerCase() : '';
+                
+                if (!colKValue) {
+                    // If column K is empty, leave column L empty
+                    row[colLIndex] = '';
+                    continue;
+                }
+                
+                // Apply mapping rules
+                let colLValue = '';
+                
+                // SUPV mapping
+                const supvKeywords = ['sergeant', 'detective sergeant', 'd', 'k2', 'n', 'p', 'q'];
+                if (supvKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                    colLValue = 'SUPV';
+                }
+                
+                // MNGR mapping
+                const mngrKeywords = ['inspector', 'detective inspector', 'c', 'm', 'v'];
+                if (mngrKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                    colLValue = 'MNGR';
+                }
+                
+                // SNR MNGR mapping
+                const snrMngrKeywords = ['chief inspector', 'detective chief inspector', 'b', 'j', 'l', 'u'];
+                if (snrMngrKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                    colLValue = 'SNR MNGR';
+                }
+                
+                // Superintendent mapping - leave empty as per requirements
+                const supKeywords = ['superintendent', 'detective superintendent', 'a', 'h', 's'];
+                if (supKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                    colLValue = ''; // Leave blank for these
+                }
+                
+                // Set column L value
+                row[colLIndex] = colLValue;
+            }
+        }
+        
+        function showStatus(message, type) {
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            // Scroll to status
+            status.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
