@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             border-radius: 12px;
@@ -121,36 +121,77 @@
         .mapping-info {
             background: #f0f7ff;
             border-radius: 8px;
-            padding: 20px;
+            padding: 25px;
             margin-top: 30px;
             border-left: 4px solid #667eea;
         }
         
         .mapping-info h3 {
             color: #333;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .mapping-info h3 i {
+            color: #667eea;
         }
         
         .mapping-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
+            gap: 15px;
+            margin-bottom: 20px;
         }
         
         .mapping-item {
-            padding: 10px;
+            padding: 15px;
             background: white;
-            border-radius: 5px;
+            border-radius: 8px;
             border: 1px solid #e0e0e0;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .mapping-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .mapping-item.slt {
+            border: 2px solid #667eea;
+            background: linear-gradient(to right, #f0f7ff, #fff);
+        }
+        
+        .mapping-item strong {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .mapping-item ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .mapping-item li {
+            padding: 2px 0;
+            color: #555;
+            font-size: 14px;
         }
         
         .status {
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             margin-top: 20px;
             display: none;
             text-align: center;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 15px;
         }
         
         .status.success {
@@ -165,10 +206,16 @@
             border: 1px solid #f5c6cb;
         }
         
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
         .loading {
             display: none;
             text-align: center;
-            padding: 20px;
+            padding: 30px;
         }
         
         .spinner {
@@ -187,19 +234,42 @@
         }
         
         .download-btn {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
             padding: 15px 30px;
             background: #28a745;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
-            margin-top: 15px;
-            transition: background 0.3s;
+            margin-top: 10px;
+            transition: all 0.3s;
         }
         
         .download-btn:hover {
             background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .file-types-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+            color: #856404;
+        }
+        
+        .file-types-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .file-types-info strong {
+            color: #856404;
         }
     </style>
 </head>
@@ -214,34 +284,70 @@
             <div class="upload-area" id="dropArea">
                 <div class="upload-icon">📁</div>
                 <div class="upload-text">Click to upload or drag & drop Excel file</div>
-                <div class="upload-subtext">Only .xlsx, .xls files are supported</div>
-                <input type="file" id="fileInput" accept=".xlsx,.xls">
+                <div class="upload-subtext">Supports .xlsx, .xls, .xlsm (macro-enabled) files</div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm">
             </div>
             
             <button class="process-btn" id="processBtn" disabled>Process Excel File</button>
             
+            <div class="file-types-info">
+                <p><strong>Supported File Types:</strong> .xlsx (regular Excel), .xls (older Excel), .xlsm (macro-enabled)</p>
+                <p><strong>Note:</strong> Macros will not be preserved in the output file</p>
+            </div>
+            
             <div class="mapping-info">
-                <h3>📋 Mapping Rules Applied:</h3>
+                <h3>
+                    <span>📋</span>
+                    Mapping Rules Applied:
+                </h3>
                 <div class="mapping-grid">
                     <div class="mapping-item">
-                        <strong>SUPV:</strong><br>
-                        Sergeant, Detective Sergeant, D, K2, N, P, Q
+                        <strong>SUPV</strong>
+                        <ul>
+                            <li>Sergeant</li>
+                            <li>Detective Sergeant</li>
+                            <li>D</li>
+                            <li>K2</li>
+                            <li>N</li>
+                            <li>P</li>
+                            <li>Q</li>
+                        </ul>
                     </div>
                     <div class="mapping-item">
-                        <strong>MNGR:</strong><br>
-                        Inspector, Detective Inspector, C, M, V
+                        <strong>MNGR</strong>
+                        <ul>
+                            <li>Inspector</li>
+                            <li>Detective Inspector</li>
+                            <li>C</li>
+                            <li>M</li>
+                            <li>V</li>
+                        </ul>
                     </div>
                     <div class="mapping-item">
-                        <strong>SNR MNGR:</strong><br>
-                        Chief Inspector, Detective Chief Inspector, B, J, L, U
+                        <strong>SNR MNGR</strong>
+                        <ul>
+                            <li>Chief Inspector</li>
+                            <li>Detective Chief Inspector</li>
+                            <li>B</li>
+                            <li>J</li>
+                            <li>L</li>
+                            <li>U</li>
+                        </ul>
                     </div>
-                    <div class="mapping-item">
-                        <strong>Other:</strong><br>
-                        Superintendent, Detective Superintendent, A, H, S (No change)
+                    <div class="mapping-item slt">
+                        <strong>SLT</strong>
+                        <ul>
+                            <li>Superintendent</li>
+                            <li>Detective Superintendent</li>
+                            <li>A</li>
+                            <li>H</li>
+                            <li>S</li>
+                        </ul>
                     </div>
                 </div>
-                <p style="margin-top: 15px; color: #666; font-size: 14px;">
-                    <strong>Note:</strong> Column K values are checked, and corresponding values are written to Column L
+                <p style="margin-top: 15px; color: #666; font-size: 14px; padding: 10px; background: white; border-radius: 5px; border: 1px solid #e0e0e0;">
+                    <strong>Note:</strong> Column K values are checked, and corresponding values are written to Column L.<br>
+                    Cells in Column L will be filled with: SUPV, MNGR, SNR MNGR, or SLT based on Column K values.
                 </p>
             </div>
             
@@ -262,6 +368,8 @@
         const processBtn = document.getElementById('processBtn');
         const loading = document.getElementById('loading');
         const status = document.getElementById('status');
+        const uploadText = document.querySelector('.upload-text');
+        const uploadSubtext = document.querySelector('.upload-subtext');
 
         // File handling
         dropArea.addEventListener('click', () => fileInput.click());
@@ -292,16 +400,24 @@
         });
         
         function handleFileSelect(file) {
-            if (!file.name.match(/\.(xlsx|xls)$/i)) {
-                showStatus('Please upload an Excel file (.xlsx or .xls)', 'error');
+            const validExtensions = /\.(xlsx|xls|xlsm)$/i;
+            
+            if (!file.name.match(validExtensions)) {
+                showStatus('Please upload an Excel file (.xlsx, .xls, or .xlsm)', 'error');
                 processBtn.disabled = true;
                 return;
             }
             
+            // Check if it's a macro-enabled file
+            const isMacroFile = file.name.toLowerCase().endsWith('.xlsm');
+            
             processBtn.disabled = false;
-            dropArea.querySelector('.upload-text').textContent = `Selected: ${file.name}`;
-            dropArea.querySelector('.upload-subtext').textContent = 
-                `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            uploadText.textContent = `Selected: ${file.name}`;
+            uploadSubtext.textContent = `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB ${isMacroFile ? '• Macro-enabled' : ''}`;
+            
+            if (isMacroFile) {
+                showStatus('⚠️ Note: This is a macro-enabled file (.xlsm). Macros will not be preserved in the output.', 'warning');
+            }
         }
         
         // Processing function
@@ -318,20 +434,23 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 
                 // Check if "Connect Inputs" sheet exists
-                if (!workbook.SheetNames.includes('Connect Inputs')) {
-                    throw new Error('Sheet named "Connect Inputs" not found in the Excel file');
+                const sheetNames = workbook.SheetNames;
+                const targetSheetName = findTargetSheet(sheetNames);
+                
+                if (!targetSheetName) {
+                    throw new Error('Sheet named "Connect Inputs" or similar not found in the Excel file');
                 }
                 
                 // Get the sheet
-                const sheet = workbook.Sheets['Connect Inputs'];
+                const sheet = workbook.Sheets[targetSheetName];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                 
                 // Process the data
-                processExcelData(jsonData);
+                const processedCount = processExcelData(jsonData);
                 
                 // Update the sheet with processed data
                 const newWorksheet = XLSX.utils.aoa_to_sheet(jsonData);
-                workbook.Sheets['Connect Inputs'] = newWorksheet;
+                workbook.Sheets[targetSheetName] = newWorksheet;
                 
                 // Generate new Excel file
                 const wbout = XLSX.write(workbook, { 
@@ -342,22 +461,56 @@
                 // Create download link
                 const blob = new Blob([wbout], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+                const originalName = file.name.replace(/\.[^/.]+$/, "");
+                const downloadName = `processed_${originalName}_${timestamp}.xlsx`;
                 
                 // Show success message with download link
                 showStatus(`
-                    ✅ File processed successfully!<br>
-                    <a href="${url}" download="processed_${file.name}" class="download-btn">
-                        📥 Download Processed File
-                    </a>
+                    <div style="font-size: 48px;">✅</div>
+                    <div style="text-align: center;">
+                        <strong>File processed successfully!</strong><br>
+                        <span style="font-size: 14px; color: #555;">
+                            Sheet: "${targetSheetName}"<br>
+                            ${processedCount} cells updated in Column L
+                        </span>
+                        <br><br>
+                        <a href="${url}" download="${downloadName}" class="download-btn">
+                            <span>📥</span>
+                            Download Processed File
+                        </a>
+                    </div>
                 `, 'success');
                 
             } catch (error) {
-                showStatus(`❌ Error: ${error.message}`, 'error');
+                showStatus(`
+                    <div style="font-size: 48px;">❌</div>
+                    <div style="text-align: center;">
+                        <strong>Error:</strong><br>
+                        ${error.message}
+                    </div>
+                `, 'error');
             } finally {
                 loading.style.display = 'none';
                 processBtn.disabled = false;
             }
         });
+        
+        function findTargetSheet(sheetNames) {
+            // Try exact match first
+            const exactMatch = sheetNames.find(name => name === 'Connect Inputs');
+            if (exactMatch) return exactMatch;
+            
+            // Try case-insensitive match
+            const insensitiveMatch = sheetNames.find(name => 
+                name.toLowerCase().includes('connect') || 
+                name.toLowerCase().includes('input')
+            );
+            if (insensitiveMatch) return insensitiveMatch;
+            
+            // Return first sheet if no match found
+            return sheetNames[0];
+        }
         
         function readExcelFile(file) {
             return new Promise((resolve, reject) => {
@@ -368,7 +521,7 @@
                 };
                 
                 reader.onerror = (error) => {
-                    reject(new Error('Error reading file'));
+                    reject(new Error('Error reading file. Please make sure the file is not corrupted.'));
                 };
                 
                 reader.readAsArrayBuffer(file);
@@ -380,8 +533,10 @@
             const colKIndex = 10; // Column K (0-indexed: A=0, B=1, ..., K=10)
             const colLIndex = 11; // Column L
             
+            let processedCount = 0;
+            
             // Check if we have at least one row
-            if (data.length === 0) return;
+            if (data.length === 0) return processedCount;
             
             // Process each row
             for (let i = 0; i < data.length; i++) {
@@ -393,53 +548,77 @@
                 }
                 
                 // Get value from column K (trim whitespace and convert to string)
-                const colKValue = row[colKIndex] ? String(row[colKIndex]).trim().toLowerCase() : '';
+                const colKValue = row[colKIndex] ? String(row[colKIndex]).trim() : '';
                 
                 if (!colKValue) {
                     // If column K is empty, leave column L empty
-                    row[colLIndex] = '';
+                    if (row[colLIndex] !== '') {
+                        row[colLIndex] = '';
+                        processedCount++;
+                    }
                     continue;
                 }
                 
+                const colKValueLower = colKValue.toLowerCase();
+                
                 // Apply mapping rules
-                let colLValue = '';
+                let colLValue = row[colLIndex]; // Keep existing value if no match
                 
                 // SUPV mapping
                 const supvKeywords = ['sergeant', 'detective sergeant', 'd', 'k2', 'n', 'p', 'q'];
-                if (supvKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                if (supvKeywords.some(keyword => 
+                    colKValueLower.includes(keyword.toLowerCase()) || 
+                    colKValueLower === keyword.toLowerCase()
+                )) {
                     colLValue = 'SUPV';
                 }
                 
                 // MNGR mapping
                 const mngrKeywords = ['inspector', 'detective inspector', 'c', 'm', 'v'];
-                if (mngrKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                if (mngrKeywords.some(keyword => 
+                    colKValueLower.includes(keyword.toLowerCase()) || 
+                    colKValueLower === keyword.toLowerCase()
+                )) {
                     colLValue = 'MNGR';
                 }
                 
                 // SNR MNGR mapping
                 const snrMngrKeywords = ['chief inspector', 'detective chief inspector', 'b', 'j', 'l', 'u'];
-                if (snrMngrKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
+                if (snrMngrKeywords.some(keyword => 
+                    colKValueLower.includes(keyword.toLowerCase()) || 
+                    colKValueLower === keyword.toLowerCase()
+                )) {
                     colLValue = 'SNR MNGR';
                 }
                 
-                // Superintendent mapping - leave empty as per requirements
-                const supKeywords = ['superintendent', 'detective superintendent', 'a', 'h', 's'];
-                if (supKeywords.some(keyword => colKValue.includes(keyword.toLowerCase()))) {
-                    colLValue = ''; // Leave blank for these
+                // SLT mapping (UPDATED: Now puts "SLT" instead of leaving blank)
+                const sltKeywords = ['superintendent', 'detective superintendent', 'a', 'h', 's'];
+                if (sltKeywords.some(keyword => 
+                    colKValueLower.includes(keyword.toLowerCase()) || 
+                    colKValueLower === keyword.toLowerCase()
+                )) {
+                    colLValue = 'SLT';
                 }
                 
-                // Set column L value
-                row[colLIndex] = colLValue;
+                // Only update if value changed
+                if (row[colLIndex] !== colLValue) {
+                    row[colLIndex] = colLValue;
+                    processedCount++;
+                }
             }
+            
+            return processedCount;
         }
         
         function showStatus(message, type) {
             status.innerHTML = message;
             status.className = `status ${type}`;
-            status.style.display = 'block';
+            status.style.display = 'flex';
             
             // Scroll to status
-            status.scrollIntoView({ behavior: 'smooth' });
+            setTimeout(() => {
+                status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
         }
     </script>
 </body>
