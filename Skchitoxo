@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Column A Modifier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        /* Upload Section */
+        .upload-section {
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: #f0f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: #e6f7ff;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 50px;
+            color: #4facfe;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .upload-subtext {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        /* Replacement Section */
+        .replacement-section {
+            background: #f0f9ff;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #e6f7ff;
+        }
+        
+        .replacement-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .replacement-section h3 i {
+            color: #4facfe;
+        }
+        
+        .replacement-input {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .input-group {
+            flex: 1;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        #replacementText {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        #replacementText:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
+        .example-box {
+            background: white;
+            border-left: 4px solid #4facfe;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        
+        .example-box p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .example {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .example .before {
+            color: #e74c3c;
+            text-decoration: line-through;
+        }
+        
+        .example .arrow {
+            color: #666;
+        }
+        
+        .example .after {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .process-btn, .preview-btn {
+            flex: 1;
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .process-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .process-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+        }
+        
+        .preview-btn {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .preview-btn:hover:not(:disabled) {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .process-btn:disabled, .preview-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Status Messages */
+        .status {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .status-icon {
+            font-size: 24px;
+        }
+        
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Preview Section */
+        .preview-section {
+            display: none;
+            margin-top: 20px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .preview-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .preview-content {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .preview-table th {
+            background: #4facfe;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .preview-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .preview-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .original-cell {
+            color: #e74c3c;
+            text-decoration: line-through;
+        }
+        
+        .new-cell {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        /* Download Button */
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 30px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Excel Column A Modifier</h1>
+            <p>Replace text before the first space in Column A with custom text</p>
+        </div>
+        
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <div class="upload-area" id="dropArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text" id="uploadText">Click to upload or drag & drop Excel file</div>
+                    <div class="upload-subtext" id="fileInfo">Only .xlsx, .xls files are supported</div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls">
+                </div>
+            </div>
+            
+            <!-- Replacement Input Section -->
+            <div class="replacement-section">
+                <h3>
+                    <span>🔧</span>
+                    Replacement Text for Column A
+                </h3>
+                <div class="replacement-input">
+                    <div class="input-group">
+                        <label for="replacementText">Enter text to replace everything before first space:</label>
+                        <input type="text" id="replacementText" placeholder="Enter replacement text...">
+                    </div>
+                </div>
+                
+                <div class="example-box">
+                    <p><strong>Example:</strong> If you enter "NewText", here's what happens:</p>
+                    <div class="example">
+                        <span class="before">"OldText RestOfContent"</span>
+                        <span class="arrow">→</span>
+                        <span class="after">"NewText RestOfContent"</span>
+                    </div>
+                    <div class="example">
+                        <span class="before">"OriginalData MoreInfo"</span>
+                        <span class="arrow">→</span>
+                        <span class="after">"NewText MoreInfo"</span>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 13px; color: #888;">
+                        Note: Only text before the first space is replaced. Everything after the space remains unchanged.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="preview-btn" id="previewBtn" disabled>
+                    <span>👁️</span>
+                    Preview Changes
+                </button>
+                <button class="process-btn" id="processBtn" disabled>
+                    <span>⚡</span>
+                    Process & Download
+                </button>
+            </div>
+            
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing file... Please wait</p>
+            </div>
+            
+            <!-- Status Messages -->
+            <div class="status" id="status"></div>
+            
+            <!-- Preview Section -->
+            <div class="preview-section" id="previewSection">
+                <div class="preview-header">
+                    <h3>📋 Preview of Changes</h3>
+                    <button onclick="closePreview()" style="background: none; border: none; cursor: pointer; font-size: 20px;">×</button>
+                </div>
+                <div class="preview-content" id="previewContent">
+                    <!-- Preview content will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script>
+        // DOM Elements
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadText = document.getElementById('uploadText');
+        const fileInfo = document.getElementById('fileInfo');
+        const replacementText = document.getElementById('replacementText');
+        const previewBtn = document.getElementById('previewBtn');
+        const processBtn = document.getElementById('processBtn');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        const previewSection = document.getElementById('previewSection');
+        const previewContent = document.getElementById('previewContent');
+        
+        let currentFile = null;
+        let currentWorkbook = null;
+        let previewData = [];
+
+        // File handling
+        dropArea.addEventListener('click', () => fileInput.click());
+        
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('dragover');
+        });
+        
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('dragover');
+        });
+        
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        function handleFileSelect(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                showStatus('Please upload an Excel file (.xlsx or .xls)', 'error');
+                previewBtn.disabled = true;
+                processBtn.disabled = true;
+                return;
+            }
+            
+            currentFile = file;
+            uploadText.textContent = `Selected: ${file.name}`;
+            fileInfo.textContent = `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB • Type: ${file.type || 'Excel file'}`;
+            
+            // Enable buttons only if we have replacement text
+            updateButtonStates();
+        }
+        
+        // Update button states based on file and replacement text
+        replacementText.addEventListener('input', updateButtonStates);
+        
+        function updateButtonStates() {
+            const hasFile = currentFile !== null;
+            const hasReplacementText = replacementText.value.trim() !== '';
+            
+            previewBtn.disabled = !hasFile || !hasReplacementText;
+            processBtn.disabled = !hasFile || !hasReplacementText;
+        }
+        
+        // Preview functionality
+        previewBtn.addEventListener('click', async () => {
+            if (!currentFile || !replacementText.value.trim()) return;
+            
+            await loadAndPreviewFile();
+        });
+        
+        // Process functionality
+        processBtn.addEventListener('click', async () => {
+            if (!currentFile || !replacementText.value.trim()) return;
+            
+            loading.style.display = 'block';
+            status.style.display = 'none';
+            previewSection.style.display = 'none';
+            previewBtn.disabled = true;
+            processBtn.disabled = true;
+            
+            try {
+                const data = await readExcelFile(currentFile);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Process all sheets or just the first one
+                const sheetNames = workbook.SheetNames;
+                const newText = replacementText.value.trim();
+                
+                // Process each sheet
+                sheetNames.forEach(sheetName => {
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    
+                    // Process column A (index 0)
+                    processColumnA(jsonData, newText);
+                    
+                    // Update the sheet with processed data
+                    const newWorksheet = XLSX.utils.aoa_to_sheet(jsonData);
+                    workbook.Sheets[sheetName] = newWorksheet;
+                });
+                
+                // Generate new Excel file
+                const wbout = XLSX.write(workbook, { 
+                    bookType: 'xlsx', 
+                    type: 'array' 
+                });
+                
+                // Create download link
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+                const downloadName = `modified_${currentFile.name.replace(/\.[^/.]+$/, "")}_${timestamp}.xlsx`;
+                
+                // Show success message with download link
+                showStatus(`
+                    <div class="status-icon">✅</div>
+                    <div>
+                        <strong>File processed successfully!</strong><br>
+                        Column A has been modified in all sheets.
+                        <br>
+                        <a href="${url}" download="${downloadName}" class="download-btn">
+                            <span>📥</span>
+                            Download Modified File
+                        </a>
+                    </div>
+                `, 'success');
+                
+            } catch (error) {
+                showStatus(`
+                    <div class="status-icon">❌</div>
+                    <div>
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `, 'error');
+            } finally {
+                loading.style.display = 'none';
+                updateButtonStates();
+            }
+        });
+        
+        async function loadAndPreviewFile() {
+            loading.style.display = 'block';
+            status.style.display = 'none';
+            
+            try {
+                const data = await readExcelFile(currentFile);
+                const workbook = XLSX.read(data, { type: 'array' });
+                currentWorkbook = workbook;
+                
+                // Get the first sheet for preview
+                const firstSheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                
+                // Generate preview data
+                previewData = generatePreviewData(jsonData, replacementText.value.trim());
+                
+                // Display preview
+                displayPreview(previewData, firstSheetName);
+                
+                previewSection.style.display = 'block';
+                previewSection.scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                showStatus(`
+                    <div class="status-icon">❌</div>
+                    <div>
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `, 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    resolve(e.target.result);
+                };
+                
+                reader.onerror = (error) => {
+                    reject(new Error('Error reading file'));
+                };
+                
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        function processColumnA(data, newText) {
+            // Process each row
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                
+                // Skip if row is empty
+                if (!row || row.length === 0) continue;
+                
+                // Get value from column A
+                const originalValue = row[0] ? String(row[0]) : '';
+                
+                if (originalValue) {
+                    // Split by first space
+                    const spaceIndex = originalValue.indexOf(' ');
+                    
+                    if (spaceIndex !== -1) {
+                        // Replace everything before first space
+                        const afterSpace = originalValue.substring(spaceIndex);
+                        row[0] = newText + afterSpace;
+                    } else {
+                        // If no space, replace entire content
+                        row[0] = newText;
+                    }
+                }
+            }
+        }
+        
+        function generatePreviewData(data, newText) {
+            const previewRows = [];
+            
+            // Get first 20 non-empty rows for preview
+            let count = 0;
+            for (let i = 0; i < data.length && count < 20; i++) {
+                const row = data[i];
+                if (!row || row.length === 0 || !row[0]) continue;
+                
+                const originalValue = String(row[0]);
+                const spaceIndex = originalValue.indexOf(' ');
+                
+                let newValue;
+                if (spaceIndex !== -1) {
+                    const afterSpace = originalValue.substring(spaceIndex);
+                    newValue = newText + afterSpace;
+                } else {
+                    newValue = newText;
+                }
+                
+                previewRows.push({
+                    row: i + 1,
+                    original: originalValue,
+                    new: newValue
+                });
+                
+                count++;
+            }
+            
+            return previewRows;
+        }
+        
+        function displayPreview(data, sheetName) {
+            if (data.length === 0) {
+                previewContent.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #666;">
+                        No data found in Column A of sheet "${sheetName}"
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div style="padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    Preview of first ${data.length} rows from sheet: <strong>${sheetName}</strong>
+                </div>
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Row</th>
+                            <th>Original Value (Column A)</th>
+                            <th style="width: 40px;">→</th>
+                            <th>New Value (Column A)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.forEach(item => {
+                html += `
+                    <tr>
+                        <td style="text-align: center; color: #666;">${item.row}</td>
+                        <td>
+                            <span class="original-cell">${escapeHtml(item.original)}</span>
+                        </td>
+                        <td style="text-align: center; color: #4facfe;">→</td>
+                        <td>
+                            <span class="new-cell">${escapeHtml(item.new)}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+                <div style="padding: 15px 20px; background: #f8f9fa; border-top: 1px solid #dee2e6; text-align: center; color: #666; font-size: 14px;">
+                    ${currentWorkbook.SheetNames.length > 1 ? 
+                        `Note: Preview shows only first sheet. All ${currentWorkbook.SheetNames.length} sheets will be processed.` : 
+                        'All rows in the file will be processed.'}
+                </div>
+            `;
+            
+            previewContent.innerHTML = html;
+        }
+        
+        function closePreview() {
+            previewSection.style.display = 'none';
+        }
+        
+        function showStatus(message, type) {
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+            status.style.display = 'flex';
+            
+            // Scroll to status
+            status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
