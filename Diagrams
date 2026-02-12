@@ -209,8 +209,8 @@
         
         <div class="info-box">
             <p><strong>📋 File Requirements:</strong> Upload an Excel file starting with "Future Postings"</p>
-            <p><strong>📑 Required Sheets:</strong> "Unit Relation", "Connect Inputs", "Security Mapping"</p>
-            <p><strong>ℹ️ How it works:</strong> The tool reads the hierarchy from "Unit Relation" tab, combines grades/ranks from "Connect Inputs" and security roles from "Security Mapping", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
+            <p><strong>📑 Required Sheets:</strong> "5 Unit Relation", "1 Connect Inputs", "3 Security Mappings"</p>
+            <p><strong>ℹ️ How it works:</strong> The tool reads the hierarchy from "5 Unit Relation" tab, combines grades/ranks from "1 Connect Inputs" and security roles from "3 Security Mappings", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
         </div>
         
         <div class="upload-section">
@@ -281,7 +281,7 @@
                         const workbook = XLSX.read(uint8Array, { type: 'array' });
                         
                         // Check for required sheets
-                        const requiredSheets = ['Unit Relation', 'Connect Inputs', 'Security Mapping'];
+                        const requiredSheets = ['5 Unit Relation', '1 Connect Inputs', '3 Security Mappings'];
                         const missingSheets = requiredSheets.filter(sheet => !workbook.SheetNames.includes(sheet));
 
                         if (missingSheets.length > 0) {
@@ -294,32 +294,32 @@
                             return;
                         }
 
-                        // Read Unit Relation sheet
-                        const unitRelationSheet = workbook.Sheets['Unit Relation'];
+                        // Read 5 Unit Relation sheet
+                        const unitRelationSheet = workbook.Sheets['5 Unit Relation'];
                         hierarchyData = XLSX.utils.sheet_to_json(unitRelationSheet);
                         
                         if (hierarchyData.length === 0) {
-                            showStatus('❌ Error: "Unit Relation" sheet contains no data', 'error');
+                            showStatus('❌ Error: "5 Unit Relation" sheet contains no data', 'error');
                             document.getElementById('uploadBtn').disabled = false;
                             return;
                         }
 
-                        // Read Connect Inputs sheet
-                        const connectInputsSheet = workbook.Sheets['Connect Inputs'];
+                        // Read 1 Connect Inputs sheet
+                        const connectInputsSheet = workbook.Sheets['1 Connect Inputs'];
                         gradesData = XLSX.utils.sheet_to_json(connectInputsSheet);
                         
                         if (gradesData.length === 0) {
-                            showStatus('❌ Error: "Connect Inputs" sheet contains no data', 'error');
+                            showStatus('❌ Error: "1 Connect Inputs" sheet contains no data', 'error');
                             document.getElementById('uploadBtn').disabled = false;
                             return;
                         }
 
-                        // Read Security Mapping sheet
-                        const securityMappingSheet = workbook.Sheets['Security Mapping'];
+                        // Read 3 Security Mappings sheet
+                        const securityMappingSheet = workbook.Sheets['3 Security Mappings'];
                         securityRolesData = XLSX.utils.sheet_to_json(securityMappingSheet);
                         
                         if (securityRolesData.length === 0) {
-                            showStatus('⚠️ Warning: "Security Mapping" sheet contains no data', 'warning');
+                            showStatus('⚠️ Warning: "3 Security Mappings" sheet contains no data', 'warning');
                         }
 
                         // Process hierarchy
@@ -362,7 +362,7 @@
         }
 
         function getGradeAndLowestLevel(lowestLevelName) {
-            // Search in Connect Inputs for matching Organisation Level 4
+            // Search in 1 Connect Inputs for matching Organisation Level 4
             const gradeRecord = gradesData.find(row => {
                 const level4 = (row['Organisation Level 4'] || '').toString().trim();
                 return level4 === lowestLevelName;
@@ -397,7 +397,7 @@
         }
 
         function getSecurityRoles(lowestLevelName, grade) {
-            // Search in Security Mapping for matching PSOP Organisation and PSOP Grade
+            // Search in 3 Security Mappings for matching PSOP Organisation and PSOP Grade
             const roles = securityRolesData
                 .filter(row => {
                     const org = (row['PSOP Organisation'] || '').toString().trim();
