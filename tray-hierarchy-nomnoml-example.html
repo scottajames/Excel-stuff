@@ -1,56 +1,53 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tray Hierarchy Nomnoml Example</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nomnoml/1.0.0/nomnoml.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        #diagram {
-            border: 1px solid #ccc;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.17.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nomnoml/1.1.3/nomnoml.min.js"></script>
 </head>
 <body>
-    <h1>Tray Hierarchy Nomnoml Example</h1>
-    <select id="traySelector" onchange="updateDiagram()">
-        <option value="tray1">Tray 1</option>
-        <option value="tray2">Tray 2</option>
-        <option value="tray3">Tray 3</option>
-    </select>
-
-    <div id="diagram"></div>
+    <h1>Upload Excel file to build hierarchy</h1>
+    <input type="file" id="file" accept=".xlsx" />
+    <button id="generate">Generate Hierarchy</button>
+    <div id="output"></div>
 
     <script>
-        function updateDiagram() {
-            const tray = document.getElementById('traySelector').value;
-            let diagramDefinition;
+        document.getElementById('generate').onclick = function() {
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
 
-            switch(tray) {
-                case 'tray1':
-                    diagramDefinition = `#top: Tray 1 | Band 1\n[Tray 1] --> [Child Tray 1.1] | Band 1.1\n[Child Tray 1.1] --> [Child Tray 1.1.1] | Band 1.1.1`; 
-                    break;
-                case 'tray2':
-                    diagramDefinition = `#top: Tray 2 | Band 2\n[Tray 2] --> [Child Tray 2.1] | Band 2.1\n[Child Tray 2.1] --> [Child Tray 2.1.1] | Band 2.1.1`; 
-                    break;
-                case 'tray3':
-                    diagramDefinition = `#top: Tray 3 | Band 3\n[Tray 3] --> [Child Tray 3.1] | Band 3.1\n[Child Tray 3.1] --> [Child Tray 3.1.1] | Band 3.1.1`; 
-                    break;
-                default:
-                    diagramDefinition = ``;
-            }
-            nomnoml.draw(document.getElementById('diagram'), diagramDefinition);
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const headers = jsonData[0];
+                // Prepare to build hierarchy
+                const hierarchy = {};
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    const node = {};
+                    headers.forEach((header, index) => {
+                        node[header] = row[index];
+                    });
+                    buildHierarchy(hierarchy, node);
+                }
+                renderNomnoml(hierarchy);
+            };
+            reader.readAsArrayBuffer(file);
         }
 
-        // Initial diagram
-        updateDiagram();
+        function buildHierarchy(hierarchy, node) {
+            // Add logic to build the hierarchy here
+        }
+
+        function renderNomnoml(hierarchy) {
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = ''; // Clear previous diagrams
+            const diagram = nomnoml.render('[[<parent tray> | <child trays>]]');
+            outputDiv.appendChild(diagram);
+        }
     </script>
 </body>
 </html>
