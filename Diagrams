@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tray Hierarchy Chain Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .info-box {
+            background: #e6f2e6;
+            border-left: 4px solid #217346;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .upload-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 2px dashed #217346;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        input[type="file"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #217346;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #1a5a2f;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .parent-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border: 2px solid #217346;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: white;
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .diagram-container {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+            padding: 20px;
+            min-height: 400px;
+            overflow: auto;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .status {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+            font-size: 13px;
+        }
+        
+        .status.loading {
+            background: #cfe2ff;
+            color: #084298;
+            border: 1px solid #b6d4fe;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+            display: block;
+        }
+        
+        .status.success {
+            background: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+            display: block;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #664d03;
+            border: 1px solid #ffecb5;
+            display: block;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .file-name {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .chain {
+            background: white;
+            border-left: 3px solid #217346;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        
+        .chain-item {
+            margin: 5px 0;
+            padding: 5px 0;
+        }
+        
+        .arrow {
+            color: #217346;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+        
+        .chain-title {
+            background: #217346;
+            color: white;
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .error-details {
+            background: #fff5f5;
+            border: 1px solid #ffcccc;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Tray Hierarchy Chain Viewer</h1>
+        
+        <div class="info-box">
+            <p><strong>📋 Required Excel Columns:</strong> Level 4, Level 5, Level 6, Level 7, Level 8, Level 9, Level 10, Rank, Unit/Worktray, Security Roles</p>
+            <p><strong>ℹ️ How it works:</strong> Upload an Excel file. The tool will trace each child tray through all parent levels until reaching the ultimate parent (where child = parent). Chains show: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
+        </div>
+        
+        <div class="upload-section">
+            <div class="controls">
+                <input type="file" id="fileInput" accept=".xlsx,.xls" />
+                <button onclick="handleFileUpload()" id="uploadBtn">Upload & Generate</button>
+            </div>
+            <div class="file-name" id="fileName"></div>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="parent-selector hidden" id="parentSelectorDiv">
+            <label for="parentSelect"><strong>🎯 Select Chain Root (Ultimate Parent):</strong></label>
+            <select id="parentSelect" onchange="updateDiagram()"></select>
+        </div>
+        
+        <div class="diagram-container" id="diagramContainer">
+            <p style="color: #999;">Diagrams will appear here after uploading a valid Excel file...</p>
+        </div>
+    </div>
+
+    <script>
+        let excelData = [];
+        let allChains = [];
+        let uniqueRoots = new Set();
+
+        const REQUIRED_COLUMNS = ['Level 4', 'Level 5', 'Level 6', 'Level 7', 'Level 8', 'Level 9', 'Level 10', 'Rank', 'Unit/Worktray', 'Security Roles'];
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function validateFile(headers) {
+            const missingColumns = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+            return {
+                valid: missingColumns.length === 0,
+                missing: missingColumns
+            };
+        }
+
+        function handleFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showStatus('❌ Error: Please select a file', 'error');
+                return;
+            }
+
+            // Validate file type
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                showStatus('❌ Error: File must be .xlsx or .xls format', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            showStatus('⏳ Processing file...', 'loading');
+            document.getElementById('uploadBtn').disabled = true;
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    if (!workbook.SheetNames.length) {
+                        showStatus('❌ Error: Excel file contains no sheets', 'error');
+                        document.getElementById('uploadBtn').disabled = false;
+                        return;
+                    }
+
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    try {
+                        excelData = XLSX.utils.sheet_to_json(worksheet);
+                    } catch (parseErr) {
+                        showStatus('❌ Error: Failed to parse Excel file. Ensure it has proper headers.', 'error');
+                        document.getElementById('uploadBtn').disabled = false;
+                        return;
+                    }
+                    
+                    if (excelData.length === 0) {
+                        showStatus('❌ Error: Excel file contains no data rows', 'error');
+                        document.getElementById('uploadBtn').disabled = false;
+                        return;
+                    }
+
+                    // Validate headers
+                    const headers = Object.keys(excelData[0]);
+                    const validation = validateFile(headers);
+
+                    if (!validation.valid) {
+                        showStatus(`❌ Error: Missing required columns: ${validation.missing.join(', ')}`, 'error');
+                        const details = document.createElement('div');
+                        details.className = 'error-details';
+                        details.innerHTML = `<strong>Your columns:</strong> ${headers.join(', ')}<br><strong>Required:</strong> ${REQUIRED_COLUMNS.join(', ')}`;
+                        document.getElementById('status').appendChild(details);
+                        document.getElementById('uploadBtn').disabled = false;
+                        return;
+                    }
+
+                    // Process data
+                    processHierarchy();
+                    
+                    if (allChains.length === 0) {
+                        showStatus('⚠️ Warning: No valid chains found in the data. Check your data structure.', 'warning');
+                        document.getElementById('uploadBtn').disabled = false;
+                        return;
+                    }
+
+                    buildParentSelector();
+                    updateDiagram();
+                    
+                    showStatus(`✅ Success: Loaded ${excelData.length} records and generated ${allChains.length} chain(s)`, 'success');
+                    document.getElementById('fileName').textContent = `📄 File: ${file.name} | Sheet: ${sheetName}`;
+                    document.getElementById('parentSelectorDiv').classList.remove('hidden');
+                    document.getElementById('uploadBtn').disabled = false;
+
+                } catch (err) {
+                    showStatus(`❌ Error: ${err.message}`, 'error');
+                    console.error('Full error:', err);
+                    document.getElementById('uploadBtn').disabled = false;
+                }
+            };
+
+            reader.onerror = function() {
+                showStatus('❌ Error: Failed to read file', 'error');
+                document.getElementById('uploadBtn').disabled = false;
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processHierarchy() {
+            allChains = [];
+            uniqueRoots.clear();
+            const processedRows = new Set();
+
+            excelData.forEach((row, idx) => {
+                // Validate row has required data
+                const level4 = (row['Level 4'] || '').toString().trim();
+                const rank = (row['Rank'] || '').toString().trim();
+
+                if (!level4 || !rank) {
+                    console.warn(`Skipping row ${idx}: Missing Level 4 or Rank`);
+                    return;
+                }
+
+                const rowKey = `${level4}_${rank}`;
+                if (processedRows.has(rowKey)) {
+                    return; // Skip duplicates
+                }
+                processedRows.add(rowKey);
+
+                // Build chain from Level 4 upwards
+                const chain = buildChain(row);
+                if (chain.root) {
+                    allChains.push(chain);
+                    uniqueRoots.add(chain.root);
+                }
+            });
+        }
+
+        function buildChain(startRow) {
+            const chain = [];
+            let currentLevel = 4;
+            let currentValue = (startRow['Level 4'] || '').toString().trim();
+            const ranks = (startRow['Rank'] || '').toString().trim();
+            let lowestLevel = 4;
+
+            // Validate initial value
+            if (!currentValue) {
+                return { root: null, chain: [] };
+            }
+
+            // Trace upwards through levels
+            while (currentLevel <= 10) {
+                const levelKey = `Level ${currentLevel}`;
+                const parentValue = (startRow[levelKey] || '').toString().trim();
+
+                if (!parentValue) {
+                    currentLevel++;
+                    continue;
+                }
+
+                chain.push({
+                    level: currentLevel,
+                    tray: currentValue,
+                    parent: parentValue
+                });
+
+                // Check if we've reached the root (child === parent)
+                if (currentValue === parentValue) {
+                    return {
+                        root: currentValue,
+                        chain: chain,
+                        ranks: ranks,
+                        lowestLevel: lowestLevel
+                    };
+                }
+
+                currentValue = parentValue;
+                lowestLevel = currentLevel;
+                currentLevel++;
+            }
+
+            // If we reach here, return what we have
+            return {
+                root: currentValue || null,
+                chain: chain,
+                ranks: ranks,
+                lowestLevel: lowestLevel
+            };
+        }
+
+        function buildParentSelector() {
+            const select = document.getElementById('parentSelect');
+            select.innerHTML = '';
+
+            Array.from(uniqueRoots).sort().forEach(root => {
+                const option = document.createElement('option');
+                option.value = root;
+                option.textContent = `🎯 ${root}`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateDiagram() {
+            const select = document.getElementById('parentSelect');
+            const selectedRoot = select.value;
+            const container = document.getElementById('diagramContainer');
+            container.innerHTML = '';
+
+            // Filter chains for selected root
+            const filteredChains = allChains.filter(c => c.root === selectedRoot);
+
+            if (filteredChains.length === 0) {
+                container.innerHTML = '<p style="color: red;">No chains found for selected root.</p>';
+                return;
+            }
+
+            // Group by unique chain path
+            const uniquePaths = new Map();
+            filteredChains.forEach(chain => {
+                const pathKey = chain.chain.map(c => c.tray).join('|');
+                if (!uniquePaths.has(pathKey)) {
+                    uniquePaths.set(pathKey, []);
+                }
+                uniquePaths.get(pathKey).push(chain);
+            });
+
+            let html = `<div class="chain-title">📊 Root: ${selectedRoot} (${uniquePaths.size} unique chain(s))</div>`;
+
+            uniquePaths.forEach((chains, pathKey) => {
+                const firstChain = chains[0];
+                const allRanks = [...new Set(chains.map(c => c.ranks).flat())];
+                
+                html += '<div class="chain">';
+                html += `<div class="chain-item"><strong>Ranks:</strong> ${allRanks.join(', ')}</div>`;
+                html += `<div class="chain-item"><strong>Lowest Level:</strong> ${firstChain.lowestLevel}</div>`;
+                html += '<div class="chain-item"><strong>Path:</strong></div>';
+                html += '<div class="chain-item">';
+                
+                // Build the chain display
+                firstChain.chain.forEach((link, idx) => {
+                    if (idx === 0) {
+                        html += `<strong>${link.tray}</strong>`;
+                    }
+                    html += ` <span class="arrow">→</span> <strong>${link.parent}</strong>`;
+                });
+
+                html += '</div>';
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
