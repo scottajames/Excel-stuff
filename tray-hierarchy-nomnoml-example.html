@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tray Hierarchy Nomnoml Example</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nomnoml/1.0.0/nomnoml.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #diagram {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tray Hierarchy Nomnoml Example</h1>
+    <select id="traySelector" onchange="updateDiagram()">
+        <option value="tray1">Tray 1</option>
+        <option value="tray2">Tray 2</option>
+        <option value="tray3">Tray 3</option>
+    </select>
+
+    <div id="diagram"></div>
+
+    <script>
+        function updateDiagram() {
+            const tray = document.getElementById('traySelector').value;
+            let diagramDefinition;
+
+            switch(tray) {
+                case 'tray1':
+                    diagramDefinition = `#top: Tray 1 | Band 1\n[Tray 1] --> [Child Tray 1.1] | Band 1.1\n[Child Tray 1.1] --> [Child Tray 1.1.1] | Band 1.1.1`; 
+                    break;
+                case 'tray2':
+                    diagramDefinition = `#top: Tray 2 | Band 2\n[Tray 2] --> [Child Tray 2.1] | Band 2.1\n[Child Tray 2.1] --> [Child Tray 2.1.1] | Band 2.1.1`; 
+                    break;
+                case 'tray3':
+                    diagramDefinition = `#top: Tray 3 | Band 3\n[Tray 3] --> [Child Tray 3.1] | Band 3.1\n[Child Tray 3.1] --> [Child Tray 3.1.1] | Band 3.1.1`; 
+                    break;
+                default:
+                    diagramDefinition = ``;
+            }
+            nomnoml.draw(document.getElementById('diagram'), diagramDefinition);
+        }
+
+        // Initial diagram
+        updateDiagram();
+    </script>
+</body>
+</html>
