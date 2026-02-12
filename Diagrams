@@ -208,13 +208,14 @@
         <h1>🔗 Tray Hierarchy Chain Viewer</h1>
         
         <div class="info-box">
-            <p><strong>📋 Required Excel Columns:</strong> Level 4, Level 5, Level 6, Level 7, Level 8, Level 9, Level 10, Rank, Unit/Worktray, Security Roles</p>
-            <p><strong>ℹ️ How it works:</strong> Upload an Excel file. The tool will trace each child tray through all parent levels until reaching the ultimate parent (where child = parent). Chains show: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
+            <p><strong>📋 Required Columns:</strong> Level 4, Level 5, Level 6, Level 7, Level 8, Level 9, Level 10, Rank, Unit/Worktray, Security Roles</p>
+            <p><strong>📁 Supported Formats:</strong> .xlsx, .xls, .xlsm, .csv</p>
+            <p><strong>ℹ️ How it works:</strong> Upload a file. The tool will trace each child tray through all parent levels until reaching the ultimate parent (where child = parent). Chains show: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
         </div>
         
         <div class="upload-section">
             <div class="controls">
-                <input type="file" id="fileInput" accept=".xlsx,.xls" />
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv" />
                 <button onclick="handleFileUpload()" id="uploadBtn">Upload & Generate</button>
             </div>
             <div class="file-name" id="fileName"></div>
@@ -228,7 +229,7 @@
         </div>
         
         <div class="diagram-container" id="diagramContainer">
-            <p style="color: #999;">Diagrams will appear here after uploading a valid Excel file...</p>
+            <p style="color: #999;">Diagrams will appear here after uploading a valid file...</p>
         </div>
     </div>
 
@@ -253,6 +254,39 @@
             };
         }
 
+        function getFileExtension(filename) {
+            return filename.split('.').pop().toLowerCase();
+        }
+
+        function handleCSV(text) {
+            try {
+                const lines = text.split('\n').filter(line => line.trim());
+                if (lines.length < 2) {
+                    showStatus('❌ Error: CSV file contains no data rows', 'error');
+                    return null;
+                }
+
+                // Parse header
+                const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                
+                // Parse data rows
+                const data = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+                    const row = {};
+                    headers.forEach((header, idx) => {
+                        row[header] = values[idx] || '';
+                    });
+                    data.push(row);
+                }
+
+                return { headers, data };
+            } catch (err) {
+                showStatus(`❌ Error parsing CSV: ${err.message}`, 'error');
+                return null;
+            }
+        }
+
         function handleFileUpload() {
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
@@ -262,9 +296,11 @@
                 return;
             }
 
-            // Validate file type
-            if (!file.name.match(/\.(xlsx|xls)$/i)) {
-                showStatus('❌ Error: File must be .xlsx or .xls format', 'error');
+            const fileExt = getFileExtension(file.name);
+            const validExtensions = ['xlsx', 'xls', 'xlsm', 'csv'];
+
+            if (!validExtensions.includes(fileExt)) {
+                showStatus(`❌ Error: File must be ${validExtensions.join(', ')} format`, 'error');
                 return;
             }
 
@@ -274,34 +310,55 @@
 
             reader.onload = function(e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    if (!workbook.SheetNames.length) {
-                        showStatus('❌ Error: Excel file contains no sheets', 'error');
-                        document.getElementById('uploadBtn').disabled = false;
-                        return;
-                    }
+                    let headers = [];
+                    let data = [];
 
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    
-                    try {
-                        excelData = XLSX.utils.sheet_to_json(worksheet);
-                    } catch (parseErr) {
-                        showStatus('❌ Error: Failed to parse Excel file. Ensure it has proper headers.', 'error');
-                        document.getElementById('uploadBtn').disabled = false;
-                        return;
-                    }
-                    
-                    if (excelData.length === 0) {
-                        showStatus('❌ Error: Excel file contains no data rows', 'error');
-                        document.getElementById('uploadBtn').disabled = false;
-                        return;
+                    if (fileExt === 'csv') {
+                        // Handle CSV
+                        const text = e.target.result;
+                        const csvResult = handleCSV(text);
+                        if (!csvResult) {
+                            document.getElementById('uploadBtn').disabled = false;
+                            return;
+                        }
+                        headers = csvResult.headers;
+                        data = csvResult.data;
+                        excelData = data;
+                    } else {
+                        // Handle Excel files (.xlsx, .xls, .xlsm)
+                        const arrayBuffer = e.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        
+                        try {
+                            const workbook = XLSX.read(uint8Array, { type: 'array' });
+                            
+                            if (!workbook.SheetNames.length) {
+                                showStatus('❌ Error: Excel file contains no sheets', 'error');
+                                document.getElementById('uploadBtn').disabled = false;
+                                return;
+                            }
+
+                            const sheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[sheetName];
+                            
+                            data = XLSX.utils.sheet_to_json(worksheet);
+                            
+                            if (data.length === 0) {
+                                showStatus('❌ Error: Excel file contains no data rows', 'error');
+                                document.getElementById('uploadBtn').disabled = false;
+                                return;
+                            }
+
+                            headers = Object.keys(data[0]);
+                            excelData = data;
+                        } catch (parseErr) {
+                            showStatus('❌ Error: Failed to parse Excel file. Ensure it has proper headers.', 'error');
+                            document.getElementById('uploadBtn').disabled = false;
+                            return;
+                        }
                     }
 
                     // Validate headers
-                    const headers = Object.keys(excelData[0]);
                     const validation = validateFile(headers);
 
                     if (!validation.valid) {
@@ -327,7 +384,7 @@
                     updateDiagram();
                     
                     showStatus(`✅ Success: Loaded ${excelData.length} records and generated ${allChains.length} chain(s)`, 'success');
-                    document.getElementById('fileName').textContent = `📄 File: ${file.name} | Sheet: ${sheetName}`;
+                    document.getElementById('fileName').textContent = `📄 File: ${file.name} (${fileExt.toUpperCase()})`;
                     document.getElementById('parentSelectorDiv').classList.remove('hidden');
                     document.getElementById('uploadBtn').disabled = false;
 
@@ -343,7 +400,11 @@
                 document.getElementById('uploadBtn').disabled = false;
             };
 
-            reader.readAsArrayBuffer(file);
+            if (fileExt === 'csv') {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
         }
 
         function processHierarchy() {
