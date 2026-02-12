@@ -208,14 +208,14 @@
         <h1>🔗 Tray Hierarchy Chain Viewer</h1>
         
         <div class="info-box">
-            <p><strong>📋 Required Columns:</strong> Level 4, Level 5, Level 6, Level 7, Level 8, Level 9, Level 10, Rank, Unit/Worktray, Security Roles</p>
-            <p><strong>📁 Supported Formats:</strong> .xlsx, .xls, .xlsm, .csv</p>
-            <p><strong>ℹ️ How it works:</strong> Upload a file. The tool will trace each child tray through all parent levels until reaching the ultimate parent (where child = parent). Chains show: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
+            <p><strong>📋 File Requirements:</strong> Upload an Excel file starting with "Future Postings"</p>
+            <p><strong>📑 Required Sheets:</strong> "Unit Relation", "Connect Inputs", "Security Mapping"</p>
+            <p><strong>ℹ️ How it works:</strong> The tool reads the hierarchy from "Unit Relation" tab, combines grades/ranks from "Connect Inputs" and security roles from "Security Mapping", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
         </div>
         
         <div class="upload-section">
             <div class="controls">
-                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv" />
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" />
                 <button onclick="handleFileUpload()" id="uploadBtn">Upload & Generate</button>
             </div>
             <div class="file-name" id="fileName"></div>
@@ -229,62 +229,21 @@
         </div>
         
         <div class="diagram-container" id="diagramContainer">
-            <p style="color: #999;">Diagrams will appear here after uploading a valid file...</p>
+            <p style="color: #999;">Diagrams will appear here after uploading a valid Excel file...</p>
         </div>
     </div>
 
     <script>
-        let excelData = [];
+        let hierarchyData = [];
+        let gradesData = [];
+        let securityRolesData = [];
         let allChains = [];
         let uniqueRoots = new Set();
-
-        const REQUIRED_COLUMNS = ['Level 4', 'Level 5', 'Level 6', 'Level 7', 'Level 8', 'Level 9', 'Level 10', 'Rank', 'Unit/Worktray', 'Security Roles'];
 
         function showStatus(message, type = 'info') {
             const statusEl = document.getElementById('status');
             statusEl.textContent = message;
             statusEl.className = `status ${type}`;
-        }
-
-        function validateFile(headers) {
-            const missingColumns = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
-            return {
-                valid: missingColumns.length === 0,
-                missing: missingColumns
-            };
-        }
-
-        function getFileExtension(filename) {
-            return filename.split('.').pop().toLowerCase();
-        }
-
-        function handleCSV(text) {
-            try {
-                const lines = text.split('\n').filter(line => line.trim());
-                if (lines.length < 2) {
-                    showStatus('❌ Error: CSV file contains no data rows', 'error');
-                    return null;
-                }
-
-                // Parse header
-                const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-                
-                // Parse data rows
-                const data = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-                    const row = {};
-                    headers.forEach((header, idx) => {
-                        row[header] = values[idx] || '';
-                    });
-                    data.push(row);
-                }
-
-                return { headers, data };
-            } catch (err) {
-                showStatus(`❌ Error parsing CSV: ${err.message}`, 'error');
-                return null;
-            }
         }
 
         function handleFileUpload() {
@@ -296,11 +255,16 @@
                 return;
             }
 
-            const fileExt = getFileExtension(file.name);
-            const validExtensions = ['xlsx', 'xls', 'xlsm', 'csv'];
+            // Validate filename
+            if (!file.name.startsWith('Future Postings')) {
+                showStatus('❌ Error: File must start with "Future Postings"', 'error');
+                return;
+            }
 
-            if (!validExtensions.includes(fileExt)) {
-                showStatus(`❌ Error: File must be ${validExtensions.join(', ')} format`, 'error');
+            // Validate file type
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'xlsm'].includes(fileExt)) {
+                showStatus('❌ Error: File must be .xlsx, .xls, or .xlsm format', 'error');
                 return;
             }
 
@@ -310,83 +274,77 @@
 
             reader.onload = function(e) {
                 try {
-                    let headers = [];
-                    let data = [];
-
-                    if (fileExt === 'csv') {
-                        // Handle CSV
-                        const text = e.target.result;
-                        const csvResult = handleCSV(text);
-                        if (!csvResult) {
-                            document.getElementById('uploadBtn').disabled = false;
-                            return;
-                        }
-                        headers = csvResult.headers;
-                        data = csvResult.data;
-                        excelData = data;
-                    } else {
-                        // Handle Excel files (.xlsx, .xls, .xlsm)
-                        const arrayBuffer = e.target.result;
-                        const uint8Array = new Uint8Array(arrayBuffer);
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    try {
+                        const workbook = XLSX.read(uint8Array, { type: 'array' });
                         
-                        try {
-                            const workbook = XLSX.read(uint8Array, { type: 'array' });
-                            
-                            if (!workbook.SheetNames.length) {
-                                showStatus('❌ Error: Excel file contains no sheets', 'error');
-                                document.getElementById('uploadBtn').disabled = false;
-                                return;
-                            }
+                        // Check for required sheets
+                        const requiredSheets = ['Unit Relation', 'Connect Inputs', 'Security Mapping'];
+                        const missingSheets = requiredSheets.filter(sheet => !workbook.SheetNames.includes(sheet));
 
-                            const sheetName = workbook.SheetNames[0];
-                            const worksheet = workbook.Sheets[sheetName];
-                            
-                            data = XLSX.utils.sheet_to_json(worksheet);
-                            
-                            if (data.length === 0) {
-                                showStatus('❌ Error: Excel file contains no data rows', 'error');
-                                document.getElementById('uploadBtn').disabled = false;
-                                return;
-                            }
-
-                            headers = Object.keys(data[0]);
-                            excelData = data;
-                        } catch (parseErr) {
-                            showStatus('❌ Error: Failed to parse Excel file. Ensure it has proper headers.', 'error');
+                        if (missingSheets.length > 0) {
+                            showStatus(`❌ Error: Missing required sheets: ${missingSheets.join(', ')}`, 'error');
+                            const details = document.createElement('div');
+                            details.className = 'error-details';
+                            details.innerHTML = `<strong>Available sheets:</strong> ${workbook.SheetNames.join(', ')}`;
+                            document.getElementById('status').appendChild(details);
                             document.getElementById('uploadBtn').disabled = false;
                             return;
                         }
-                    }
 
-                    // Validate headers
-                    const validation = validateFile(headers);
+                        // Read Unit Relation sheet
+                        const unitRelationSheet = workbook.Sheets['Unit Relation'];
+                        hierarchyData = XLSX.utils.sheet_to_json(unitRelationSheet);
+                        
+                        if (hierarchyData.length === 0) {
+                            showStatus('❌ Error: "Unit Relation" sheet contains no data', 'error');
+                            document.getElementById('uploadBtn').disabled = false;
+                            return;
+                        }
 
-                    if (!validation.valid) {
-                        showStatus(`❌ Error: Missing required columns: ${validation.missing.join(', ')}`, 'error');
-                        const details = document.createElement('div');
-                        details.className = 'error-details';
-                        details.innerHTML = `<strong>Your columns:</strong> ${headers.join(', ')}<br><strong>Required:</strong> ${REQUIRED_COLUMNS.join(', ')}`;
-                        document.getElementById('status').appendChild(details);
+                        // Read Connect Inputs sheet
+                        const connectInputsSheet = workbook.Sheets['Connect Inputs'];
+                        gradesData = XLSX.utils.sheet_to_json(connectInputsSheet);
+                        
+                        if (gradesData.length === 0) {
+                            showStatus('❌ Error: "Connect Inputs" sheet contains no data', 'error');
+                            document.getElementById('uploadBtn').disabled = false;
+                            return;
+                        }
+
+                        // Read Security Mapping sheet
+                        const securityMappingSheet = workbook.Sheets['Security Mapping'];
+                        securityRolesData = XLSX.utils.sheet_to_json(securityMappingSheet);
+                        
+                        if (securityRolesData.length === 0) {
+                            showStatus('⚠️ Warning: "Security Mapping" sheet contains no data', 'warning');
+                        }
+
+                        // Process hierarchy
+                        processHierarchy();
+                        
+                        if (allChains.length === 0) {
+                            showStatus('⚠️ Warning: No valid chains found in the data. Check your data structure.', 'warning');
+                            document.getElementById('uploadBtn').disabled = false;
+                            return;
+                        }
+
+                        buildParentSelector();
+                        updateDiagram();
+                        
+                        showStatus(`✅ Success: Loaded ${hierarchyData.length} hierarchy records, ${gradesData.length} grade records, and ${securityRolesData.length} security role records. Generated ${allChains.length} chain(s)`, 'success');
+                        document.getElementById('fileName').textContent = `📄 File: ${file.name}`;
+                        document.getElementById('parentSelectorDiv').classList.remove('hidden');
+                        document.getElementById('uploadBtn').disabled = false;
+
+                    } catch (parseErr) {
+                        showStatus('❌ Error: Failed to parse Excel file. Ensure sheets are named correctly.', 'error');
+                        console.error('Parse error:', parseErr);
                         document.getElementById('uploadBtn').disabled = false;
                         return;
                     }
-
-                    // Process data
-                    processHierarchy();
-                    
-                    if (allChains.length === 0) {
-                        showStatus('⚠️ Warning: No valid chains found in the data. Check your data structure.', 'warning');
-                        document.getElementById('uploadBtn').disabled = false;
-                        return;
-                    }
-
-                    buildParentSelector();
-                    updateDiagram();
-                    
-                    showStatus(`✅ Success: Loaded ${excelData.length} records and generated ${allChains.length} chain(s)`, 'success');
-                    document.getElementById('fileName').textContent = `📄 File: ${file.name} (${fileExt.toUpperCase()})`;
-                    document.getElementById('parentSelectorDiv').classList.remove('hidden');
-                    document.getElementById('uploadBtn').disabled = false;
 
                 } catch (err) {
                     showStatus(`❌ Error: ${err.message}`, 'error');
@@ -400,11 +358,56 @@
                 document.getElementById('uploadBtn').disabled = false;
             };
 
-            if (fileExt === 'csv') {
-                reader.readAsText(file);
-            } else {
-                reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(file);
+        }
+
+        function getGradeAndLowestLevel(lowestLevelName) {
+            // Search in Connect Inputs for matching Organisation Level 4
+            const gradeRecord = gradesData.find(row => {
+                const level4 = (row['Organisation Level 4'] || '').toString().trim();
+                return level4 === lowestLevelName;
+            });
+
+            if (gradeRecord) {
+                const grade = (gradeRecord['PSOP Grade'] || gradeRecord['Grade'] || '').toString().trim();
+                return {
+                    grade: grade,
+                    lowestLevel: 4
+                };
             }
+
+            // If not found in Level 4, check other levels
+            for (let level = 5; level <= 8; level++) {
+                const levelKey = `Organisation Level ${level}`;
+                const gradeRecord = gradesData.find(row => {
+                    const levelValue = (row[levelKey] || '').toString().trim();
+                    return levelValue === lowestLevelName;
+                });
+
+                if (gradeRecord) {
+                    const grade = (gradeRecord['PSOP Grade'] || gradeRecord['Grade'] || '').toString().trim();
+                    return {
+                        grade: grade,
+                        lowestLevel: level
+                    };
+                }
+            }
+
+            return { grade: '', lowestLevel: 4 };
+        }
+
+        function getSecurityRoles(lowestLevelName, grade) {
+            // Search in Security Mapping for matching PSOP Organisation and PSOP Grade
+            const roles = securityRolesData
+                .filter(row => {
+                    const org = (row['PSOP Organisation'] || '').toString().trim();
+                    const psopGrade = (row['PSOP Grade'] || '').toString().trim();
+                    return org === lowestLevelName && psopGrade === grade;
+                })
+                .map(row => (row['Description'] || '').toString().trim())
+                .filter(desc => desc); // Remove empty values
+
+            return roles;
         }
 
         function processHierarchy() {
@@ -412,24 +415,36 @@
             uniqueRoots.clear();
             const processedRows = new Set();
 
-            excelData.forEach((row, idx) => {
-                // Validate row has required data
-                const level4 = (row['Level 4'] || '').toString().trim();
-                const rank = (row['Rank'] || '').toString().trim();
+            hierarchyData.forEach((row, idx) => {
+                // Get the lowest level tray name
+                let lowestLevelName = '';
+                for (let level = 4; level <= 8; level++) {
+                    const levelKey = `Organisation Level ${level}`;
+                    const value = (row[levelKey] || '').toString().trim();
+                    if (value) {
+                        lowestLevelName = value;
+                    }
+                }
 
-                if (!level4 || !rank) {
-                    console.warn(`Skipping row ${idx}: Missing Level 4 or Rank`);
+                if (!lowestLevelName) {
+                    console.warn(`Skipping row ${idx}: No lowest level tray name found`);
                     return;
                 }
 
-                const rowKey = `${level4}_${rank}`;
+                const rowKey = lowestLevelName;
                 if (processedRows.has(rowKey)) {
                     return; // Skip duplicates
                 }
                 processedRows.add(rowKey);
 
-                // Build chain from Level 4 upwards
-                const chain = buildChain(row);
+                // Get grade and lowest level
+                const gradeInfo = getGradeAndLowestLevel(lowestLevelName);
+                
+                // Get security roles
+                const securityRoles = getSecurityRoles(lowestLevelName, gradeInfo.grade);
+
+                // Build chain from lowest level upwards
+                const chain = buildChain(row, lowestLevelName, gradeInfo.grade, gradeInfo.lowestLevel, securityRoles);
                 if (chain.root) {
                     allChains.push(chain);
                     uniqueRoots.add(chain.root);
@@ -437,30 +452,21 @@
             });
         }
 
-        function buildChain(startRow) {
+        function buildChain(startRow, lowestLevelName, grade, lowestLevel, securityRoles) {
             const chain = [];
-            let currentLevel = 4;
-            let currentValue = (startRow['Level 4'] || '').toString().trim();
-            const ranks = (startRow['Rank'] || '').toString().trim();
-            let lowestLevel = 4;
-
-            // Validate initial value
-            if (!currentValue) {
-                return { root: null, chain: [] };
-            }
+            let currentValue = lowestLevelName;
 
             // Trace upwards through levels
-            while (currentLevel <= 10) {
-                const levelKey = `Level ${currentLevel}`;
+            for (let level = lowestLevel; level <= 8; level++) {
+                const levelKey = `Organisation Level ${level}`;
                 const parentValue = (startRow[levelKey] || '').toString().trim();
 
                 if (!parentValue) {
-                    currentLevel++;
                     continue;
                 }
 
                 chain.push({
-                    level: currentLevel,
+                    level: level,
                     tray: currentValue,
                     parent: parentValue
                 });
@@ -470,22 +476,22 @@
                     return {
                         root: currentValue,
                         chain: chain,
-                        ranks: ranks,
-                        lowestLevel: lowestLevel
+                        grade: grade,
+                        lowestLevel: lowestLevel,
+                        securityRoles: securityRoles
                     };
                 }
 
                 currentValue = parentValue;
-                lowestLevel = currentLevel;
-                currentLevel++;
             }
 
             // If we reach here, return what we have
             return {
                 root: currentValue || null,
                 chain: chain,
-                ranks: ranks,
-                lowestLevel: lowestLevel
+                grade: grade,
+                lowestLevel: lowestLevel,
+                securityRoles: securityRoles
             };
         }
 
@@ -529,10 +535,14 @@
 
             uniquePaths.forEach((chains, pathKey) => {
                 const firstChain = chains[0];
-                const allRanks = [...new Set(chains.map(c => c.ranks).flat())];
+                const allGrades = [...new Set(chains.map(c => c.grade).filter(g => g))];
+                const allSecurityRoles = [...new Set(chains.flatMap(c => c.securityRoles))];
                 
                 html += '<div class="chain">';
-                html += `<div class="chain-item"><strong>Ranks:</strong> ${allRanks.join(', ')}</div>`;
+                html += `<div class="chain-item"><strong>Grade/Rank:</strong> ${allGrades.length > 0 ? allGrades.join(', ') : 'N/A'}</div>`;
+                if (allSecurityRoles.length > 0) {
+                    html += `<div class="chain-item"><strong>Security Roles:</strong> ${allSecurityRoles.join(', ')}</div>`;
+                }
                 html += `<div class="chain-item"><strong>Lowest Level:</strong> ${firstChain.lowestLevel}</div>`;
                 html += '<div class="chain-item"><strong>Path:</strong></div>';
                 html += '<div class="chain-item">';
