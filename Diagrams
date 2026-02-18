@@ -205,12 +205,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔗 Tray Hierarchy Chain Viewer</h1>
+        <h1>Tray Hierarchy Chain Viewer</h1>
         
         <div class="info-box">
             <p><strong>File Requirements:</strong> Upload an Excel file starting with "Future Postings"</p>
-            <p><strong>Required Sheets:</strong> "5 Unit Relation", "1 Connect Inputs", "3 Security Mappings"</p>
-            <p><strong>How it works:</strong> The tool reads the hierarchy from "5 Unit Relation" tab, combines grades/ranks from "1 Connect Inputs" and security roles from "3 Security Mappings", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
+            <p><strong>Required Sheets:</strong> "1 Connect Inputs", "3 Security Mapping", "5 Unit Relation"</p>
+            <p><strong>How it works:</strong> The tool reads the hierarchy from "5 Unit Relation" tab, combines grades/ranks from "1 Connect Inputs" and security roles from "3 Security Mapping", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
         </div>
         
         <div class="upload-section">
@@ -281,7 +281,7 @@
                         const workbook = XLSX.read(uint8Array, { type: 'array' });
                         
                         // Check for required sheets
-                        const requiredSheets = ['5 Unit Relation', '1 Connect Inputs', '3 Security Mappings'];
+                        const requiredSheets = ['1 Connect Inputs', '3 Security Mapping', '5 Unit Relation'];
                         const missingSheets = requiredSheets.filter(sheet => !workbook.SheetNames.includes(sheet));
 
                         if (missingSheets.length > 0) {
@@ -314,12 +314,12 @@
                             return;
                         }
 
-                        // Read 3 Security Mappings sheet
-                        const securityMappingSheet = workbook.Sheets['3 Security Mappings'];
+                        // Read 3 Security Mapping sheet
+                        const securityMappingSheet = workbook.Sheets['3 Security Mapping'];
                         securityRolesData = XLSX.utils.sheet_to_json(securityMappingSheet);
                         
                         if (securityRolesData.length === 0) {
-                            showStatus('Warning: "3 Security Mappings" sheet contains no data', 'warning');
+                            showStatus('Warning: "3 Security Mapping" sheet contains no data', 'warning');
                         }
 
                         // Process hierarchy
@@ -397,7 +397,7 @@
         }
 
         function getSecurityRoles(lowestLevelName, grade) {
-            // Search in 3 Security Mappings for matching PSOP Organisation and PSOP Grade
+            // Search in 3 Security Mapping for matching PSOP Organisation and PSOP Grade
             const roles = securityRolesData
                 .filter(row => {
                     const org = (row['PSOP Organisation'] || '').toString().trim();
