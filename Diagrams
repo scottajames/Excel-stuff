@@ -86,11 +86,28 @@
             cursor: not-allowed;
         }
         
-        .parent-selector {
+        .filter-section {
             display: flex;
-            gap: 10px;
+            gap: 20px;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .filter-item {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .filter-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+            font-size: 13px;
         }
         
         select {
@@ -100,8 +117,7 @@
             font-size: 14px;
             cursor: pointer;
             background-color: white;
-            flex: 1;
-            min-width: 250px;
+            width: 100%;
         }
         
         .diagram-container {
@@ -110,7 +126,8 @@
             background: #fafafa;
             padding: 20px;
             min-height: 400px;
-            overflow: auto;
+            max-height: 600px;
+            overflow-y: auto;
             margin-bottom: 20px;
             font-family: 'Courier New', monospace;
             line-height: 1.8;
@@ -171,6 +188,7 @@
             margin: 10px 0;
             border-radius: 3px;
             font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         
         .chain-item {
@@ -201,6 +219,15 @@
             border-radius: 3px;
             font-size: 12px;
         }
+        
+        .stats-badge {
+            background: #217346;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -215,17 +242,31 @@
         
         <div class="upload-section">
             <div class="controls">
-                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" />
-                <button onclick="handleFileUpload()" id="uploadBtn">Upload & Generate</button>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" aria-label="Choose Excel file" />
+                <button onclick="handleFileUpload()" id="uploadBtn" aria-label="Upload and generate hierarchy diagram">Upload & Generate</button>
             </div>
             <div class="file-name" id="fileName"></div>
         </div>
         
         <div class="status" id="status"></div>
         
-        <div class="parent-selector hidden" id="parentSelectorDiv">
-            <label for="parentSelect"><strong>Select Chain Root (Ultimate Parent):</strong></label>
-            <select id="parentSelect" onchange="updateDiagram()"></select>
+        <div class="filter-section hidden" id="filterSection">
+            <div class="filter-item">
+                <label for="rootFilter">Filter by Root (Ultimate Parent):</label>
+                <select id="rootFilter" onchange="filterChains()" aria-label="Filter by root"></select>
+            </div>
+            <div class="filter-item">
+                <label for="gradeFilter">Filter by Grade/Rank:</label>
+                <select id="gradeFilter" onchange="filterChains()" aria-label="Filter by grade">
+                    <option value="ALL">All Grades</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label for="securityFilter">Filter by Security Role:</label>
+                <select id="securityFilter" onchange="filterChains()" aria-label="Filter by security role">
+                    <option value="ALL">All Security Roles</option>
+                </select>
+            </div>
         </div>
         
         <div class="diagram-container" id="diagramContainer">
@@ -239,11 +280,27 @@
         let securityRolesData = [];
         let allChains = [];
         let uniqueRoots = new Set();
+        let uniqueGrades = new Set();
+        let uniqueSecurityRoles = new Set();
+        let currentDisplayChains = [];
 
         function showStatus(message, type = 'info') {
             const statusEl = document.getElementById('status');
             statusEl.textContent = message;
             statusEl.className = `status ${type}`;
+        }
+
+        function validateSheetColumns(sheetData, requiredColumns, sheetName) {
+            if (sheetData.length === 0) return true;
+            
+            const firstRow = sheetData[0];
+            const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+            
+            if (missingColumns.length > 0) {
+                showStatus(`Warning: Sheet "${sheetName}" missing columns: ${missingColumns.join(', ')}`, 'warning');
+                return false;
+            }
+            return true;
         }
 
         function handleFileUpload() {
@@ -304,6 +361,10 @@
                             return;
                         }
 
+                        // Validate Unit Relation columns
+                        const unitRelationColumns = ['Organisation Level 4', 'Organisation Level 5', 'Organisation Level 6', 'Organisation Level 7', 'Organisation Level 8'];
+                        validateSheetColumns(hierarchyData, unitRelationColumns, '5 Unit Relation');
+
                         // Read 1 Connect Inputs sheet
                         const connectInputsSheet = workbook.Sheets['1 Connect Inputs'];
                         gradesData = XLSX.utils.sheet_to_json(connectInputsSheet);
@@ -314,12 +375,20 @@
                             return;
                         }
 
+                        // Validate Connect Inputs columns
+                        const connectInputsColumns = ['Organisation Level 4', 'Organisation Level 5', 'Organisation Level 6', 'Organisation Level 7', 'Organisation Level 8', 'PSOP Grade', 'Grade'];
+                        validateSheetColumns(gradesData, connectInputsColumns, '1 Connect Inputs');
+
                         // Read 3 Security Mapping sheet
                         const securityMappingSheet = workbook.Sheets['3 Security Mapping'];
                         securityRolesData = XLSX.utils.sheet_to_json(securityMappingSheet);
                         
                         if (securityRolesData.length === 0) {
                             showStatus('Warning: "3 Security Mapping" sheet contains no data', 'warning');
+                        } else {
+                            // Validate Security Mapping columns
+                            const securityColumns = ['PSOP Organisation', 'PSOP Grade', 'Description'];
+                            validateSheetColumns(securityRolesData, securityColumns, '3 Security Mapping');
                         }
 
                         // Process hierarchy
@@ -331,12 +400,12 @@
                             return;
                         }
 
-                        buildParentSelector();
-                        updateDiagram();
+                        buildFilters();
+                        filterChains();
                         
                         showStatus(`Success: Loaded ${hierarchyData.length} hierarchy records, ${gradesData.length} grade records, and ${securityRolesData.length} security role records. Generated ${allChains.length} chain(s)`, 'success');
                         document.getElementById('fileName').textContent = `File: ${file.name}`;
-                        document.getElementById('parentSelectorDiv').classList.remove('hidden');
+                        document.getElementById('filterSection').classList.remove('hidden');
                         document.getElementById('uploadBtn').disabled = false;
 
                     } catch (parseErr) {
@@ -397,6 +466,8 @@
         }
 
         function getSecurityRoles(lowestLevelName, grade) {
+            if (!securityRolesData.length) return [];
+            
             // Search in 3 Security Mapping for matching PSOP Organisation and PSOP Grade
             const roles = securityRolesData
                 .filter(row => {
@@ -413,16 +484,21 @@
         function processHierarchy() {
             allChains = [];
             uniqueRoots.clear();
+            uniqueGrades.clear();
+            uniqueSecurityRoles.clear();
             const processedRows = new Set();
 
             hierarchyData.forEach((row, idx) => {
                 // Get the lowest level tray name
                 let lowestLevelName = '';
+                let lowestLevelFound = 0;
+                
                 for (let level = 4; level <= 8; level++) {
                     const levelKey = `Organisation Level ${level}`;
                     const value = (row[levelKey] || '').toString().trim();
                     if (value) {
                         lowestLevelName = value;
+                        lowestLevelFound = level;
                     }
                 }
 
@@ -431,7 +507,7 @@
                     return;
                 }
 
-                const rowKey = lowestLevelName;
+                const rowKey = `${lowestLevelName}_${lowestLevelFound}`;
                 if (processedRows.has(rowKey)) {
                     return; // Skip duplicates
                 }
@@ -445,9 +521,11 @@
 
                 // Build chain from lowest level upwards
                 const chain = buildChain(row, lowestLevelName, gradeInfo.grade, gradeInfo.lowestLevel, securityRoles);
-                if (chain.root) {
+                if (chain && chain.root) {
                     allChains.push(chain);
                     uniqueRoots.add(chain.root);
+                    if (chain.grade) uniqueGrades.add(chain.grade);
+                    chain.securityRoles.forEach(role => uniqueSecurityRoles.add(role));
                 }
             });
         }
@@ -455,6 +533,7 @@
         function buildChain(startRow, lowestLevelName, grade, lowestLevel, securityRoles) {
             const chain = [];
             let currentValue = lowestLevelName;
+            let foundRoot = false;
 
             // Trace upwards through levels
             for (let level = lowestLevel; level <= 8; level++) {
@@ -462,19 +541,30 @@
                 const parentValue = (startRow[levelKey] || '').toString().trim();
 
                 if (!parentValue) {
-                    continue;
+                    // No parent found, current value is the root
+                    if (chain.length > 0) {
+                        return {
+                            root: currentValue,
+                            chain: chain,
+                            grade: grade,
+                            lowestLevel: lowestLevel,
+                            securityRoles: securityRoles
+                        };
+                    }
+                    break;
                 }
 
+                // Add the relationship to chain
                 chain.push({
                     level: level,
                     tray: currentValue,
                     parent: parentValue
                 });
 
-                // Check if we've reached the root (child === parent)
-                if (currentValue === parentValue) {
+                // Check if we've reached a cycle or root (parent equals current or we're at level 8)
+                if (currentValue === parentValue || level === 8) {
                     return {
-                        root: currentValue,
+                        root: parentValue,
                         chain: chain,
                         grade: grade,
                         lowestLevel: lowestLevel,
@@ -483,72 +573,138 @@
                 }
 
                 currentValue = parentValue;
+                foundRoot = true;
             }
 
-            // If we reach here, return what we have
-            return {
-                root: currentValue || null,
-                chain: chain,
-                grade: grade,
-                lowestLevel: lowestLevel,
-                securityRoles: securityRoles
-            };
+            // If we have a valid chain, return it
+            if (chain.length > 0) {
+                return {
+                    root: currentValue,
+                    chain: chain,
+                    grade: grade,
+                    lowestLevel: lowestLevel,
+                    securityRoles: securityRoles
+                };
+            }
+
+            return null; // No valid chain found
         }
 
-        function buildParentSelector() {
-            const select = document.getElementById('parentSelect');
-            select.innerHTML = '';
-
+        function buildFilters() {
+            // Build Root filter
+            const rootFilter = document.getElementById('rootFilter');
+            rootFilter.innerHTML = '<option value="ALL">All Roots</option>';
+            
             Array.from(uniqueRoots).sort().forEach(root => {
                 const option = document.createElement('option');
                 option.value = root;
-                option.textContent = `${root}`;
-                select.appendChild(option);
+                option.textContent = root;
+                rootFilter.appendChild(option);
+            });
+
+            // Build Grade filter
+            const gradeFilter = document.getElementById('gradeFilter');
+            gradeFilter.innerHTML = '<option value="ALL">All Grades</option>';
+            
+            Array.from(uniqueGrades).sort().forEach(grade => {
+                if (grade) { // Only add non-empty grades
+                    const option = document.createElement('option');
+                    option.value = grade;
+                    option.textContent = grade;
+                    gradeFilter.appendChild(option);
+                }
+            });
+
+            // Build Security Role filter
+            const securityFilter = document.getElementById('securityFilter');
+            securityFilter.innerHTML = '<option value="ALL">All Security Roles</option>';
+            
+            Array.from(uniqueSecurityRoles).sort().forEach(role => {
+                if (role) { // Only add non-empty roles
+                    const option = document.createElement('option');
+                    option.value = role;
+                    option.textContent = role.length > 50 ? role.substring(0, 50) + '...' : role;
+                    option.title = role; // Show full role on hover
+                    securityFilter.appendChild(option);
+                }
             });
         }
 
-        function updateDiagram() {
-            const select = document.getElementById('parentSelect');
-            const selectedRoot = select.value;
+        function filterChains() {
+            const selectedRoot = document.getElementById('rootFilter').value;
+            const selectedGrade = document.getElementById('gradeFilter').value;
+            const selectedSecurity = document.getElementById('securityFilter').value;
+
+            // Apply filters
+            currentDisplayChains = allChains.filter(chain => {
+                // Root filter
+                if (selectedRoot !== 'ALL' && chain.root !== selectedRoot) {
+                    return false;
+                }
+                
+                // Grade filter
+                if (selectedGrade !== 'ALL' && chain.grade !== selectedGrade) {
+                    return false;
+                }
+                
+                // Security role filter
+                if (selectedSecurity !== 'ALL' && !chain.securityRoles.includes(selectedSecurity)) {
+                    return false;
+                }
+                
+                return true;
+            });
+
+            displayChains(currentDisplayChains);
+            
+            // Update filter section with count
+            const filterSection = document.getElementById('filterSection');
+            const existingBadge = filterSection.querySelector('.stats-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            const badge = document.createElement('span');
+            badge.className = 'stats-badge';
+            badge.textContent = `${currentDisplayChains.length} chains`;
+            filterSection.appendChild(badge);
+        }
+
+        function displayChains(chains) {
             const container = document.getElementById('diagramContainer');
-            container.innerHTML = '';
-
-            // Filter chains for selected root
-            const filteredChains = allChains.filter(c => c.root === selectedRoot);
-
-            if (filteredChains.length === 0) {
-                container.innerHTML = '<p style="color: red;">No chains found for selected root.</p>';
+            
+            if (chains.length === 0) {
+                container.innerHTML = '<p style="color: red;">No chains match the selected filters.</p>';
                 return;
             }
 
-            // Group by unique chain path
-            const uniquePaths = new Map();
-            filteredChains.forEach(chain => {
-                const pathKey = chain.chain.map(c => c.tray).join('|');
-                if (!uniquePaths.has(pathKey)) {
-                    uniquePaths.set(pathKey, []);
+            // Group by unique chain path to avoid duplicates
+            const uniqueChains = [];
+            const seenPaths = new Set();
+            
+            chains.forEach(chain => {
+                const pathString = chain.chain.map(c => `${c.tray}→${c.parent}`).join('|');
+                if (!seenPaths.has(pathString)) {
+                    seenPaths.add(pathString);
+                    uniqueChains.push(chain);
                 }
-                uniquePaths.get(pathKey).push(chain);
             });
 
-            let html = `<div class="chain-title">Root: ${selectedRoot} (${uniquePaths.size} unique chain(s))</div>`;
+            let html = `<div class="chain-title">Showing ${uniqueChains.length} unique chain(s) out of ${chains.length} total</div>`;
 
-            uniquePaths.forEach((chains, pathKey) => {
-                const firstChain = chains[0];
-                const allGrades = [...new Set(chains.map(c => c.grade).filter(g => g))];
-                const allSecurityRoles = [...new Set(chains.flatMap(c => c.securityRoles))];
-                
+            uniqueChains.forEach(chain => {
                 html += '<div class="chain">';
-                html += `<div class="chain-item"><strong>Grade/Rank:</strong> ${allGrades.length > 0 ? allGrades.join(', ') : 'N/A'}</div>`;
-                if (allSecurityRoles.length > 0) {
-                    html += `<div class="chain-item"><strong>Security Roles:</strong> ${allSecurityRoles.join(', ')}</div>`;
+                html += `<div class="chain-item"><strong>Root:</strong> ${chain.root}</div>`;
+                html += `<div class="chain-item"><strong>Grade/Rank:</strong> ${chain.grade || 'N/A'}</div>`;
+                if (chain.securityRoles && chain.securityRoles.length > 0) {
+                    html += `<div class="chain-item"><strong>Security Roles:</strong> ${chain.securityRoles.join(', ')}</div>`;
                 }
-                html += `<div class="chain-item"><strong>Lowest Level:</strong> ${firstChain.lowestLevel}</div>`;
+                html += `<div class="chain-item"><strong>Lowest Level:</strong> Organisation Level ${chain.lowestLevel || 'N/A'}</div>`;
                 html += '<div class="chain-item"><strong>Path:</strong></div>';
                 html += '<div class="chain-item">';
                 
                 // Build the chain display
-                firstChain.chain.forEach((link, idx) => {
+                chain.chain.forEach((link, idx) => {
                     if (idx === 0) {
                         html += `<strong>${link.tray}</strong>`;
                     }
