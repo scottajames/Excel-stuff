@@ -208,9 +208,9 @@
         <h1>🔗 Tray Hierarchy Chain Viewer</h1>
         
         <div class="info-box">
-            <p><strong>📋 File Requirements:</strong> Upload an Excel file starting with "Future Postings"</p>
-            <p><strong>📑 Required Sheets:</strong> "5 Unit Relation", "1 Connect Inputs", "3 Security Mappings"</p>
-            <p><strong>ℹ️ How it works:</strong> The tool reads the hierarchy from "5 Unit Relation" tab, combines grades/ranks from "1 Connect Inputs" and security roles from "3 Security Mappings", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
+            <p><strong>File Requirements:</strong> Upload an Excel file starting with "Future Postings"</p>
+            <p><strong>Required Sheets:</strong> "5 Unit Relation", "1 Connect Inputs", "3 Security Mappings"</p>
+            <p><strong>How it works:</strong> The tool reads the hierarchy from "5 Unit Relation" tab, combines grades/ranks from "1 Connect Inputs" and security roles from "3 Security Mappings", then displays chains showing: Rank(s) | Lowest Level | Tray Name → Parent → Parent... until endpoint.</p>
         </div>
         
         <div class="upload-section">
@@ -224,7 +224,7 @@
         <div class="status" id="status"></div>
         
         <div class="parent-selector hidden" id="parentSelectorDiv">
-            <label for="parentSelect"><strong>🎯 Select Chain Root (Ultimate Parent):</strong></label>
+            <label for="parentSelect"><strong>Select Chain Root (Ultimate Parent):</strong></label>
             <select id="parentSelect" onchange="updateDiagram()"></select>
         </div>
         
@@ -251,25 +251,25 @@
             const file = fileInput.files[0];
 
             if (!file) {
-                showStatus('❌ Error: Please select a file', 'error');
+                showStatus('Error: Please select a file', 'error');
                 return;
             }
 
             // Validate filename
             if (!file.name.startsWith('Future Postings')) {
-                showStatus('❌ Error: File must start with "Future Postings"', 'error');
+                showStatus('Error: File must start with "Future Postings"', 'error');
                 return;
             }
 
             // Validate file type
             const fileExt = file.name.split('.').pop().toLowerCase();
             if (!['xlsx', 'xls', 'xlsm'].includes(fileExt)) {
-                showStatus('❌ Error: File must be .xlsx, .xls, or .xlsm format', 'error');
+                showStatus('Error: File must be .xlsx, .xls, or .xlsm format', 'error');
                 return;
             }
 
             const reader = new FileReader();
-            showStatus('⏳ Processing file...', 'loading');
+            showStatus('Processing file...', 'loading');
             document.getElementById('uploadBtn').disabled = true;
 
             reader.onload = function(e) {
@@ -285,7 +285,7 @@
                         const missingSheets = requiredSheets.filter(sheet => !workbook.SheetNames.includes(sheet));
 
                         if (missingSheets.length > 0) {
-                            showStatus(`❌ Error: Missing required sheets: ${missingSheets.join(', ')}`, 'error');
+                            showStatus(`Error: Missing required sheets: ${missingSheets.join(', ')}`, 'error');
                             const details = document.createElement('div');
                             details.className = 'error-details';
                             details.innerHTML = `<strong>Available sheets:</strong> ${workbook.SheetNames.join(', ')}`;
@@ -299,7 +299,7 @@
                         hierarchyData = XLSX.utils.sheet_to_json(unitRelationSheet);
                         
                         if (hierarchyData.length === 0) {
-                            showStatus('❌ Error: "5 Unit Relation" sheet contains no data', 'error');
+                            showStatus('Error: "5 Unit Relation" sheet contains no data', 'error');
                             document.getElementById('uploadBtn').disabled = false;
                             return;
                         }
@@ -309,7 +309,7 @@
                         gradesData = XLSX.utils.sheet_to_json(connectInputsSheet);
                         
                         if (gradesData.length === 0) {
-                            showStatus('❌ Error: "1 Connect Inputs" sheet contains no data', 'error');
+                            showStatus('Error: "1 Connect Inputs" sheet contains no data', 'error');
                             document.getElementById('uploadBtn').disabled = false;
                             return;
                         }
@@ -319,14 +319,14 @@
                         securityRolesData = XLSX.utils.sheet_to_json(securityMappingSheet);
                         
                         if (securityRolesData.length === 0) {
-                            showStatus('⚠️ Warning: "3 Security Mappings" sheet contains no data', 'warning');
+                            showStatus('Warning: "3 Security Mappings" sheet contains no data', 'warning');
                         }
 
                         // Process hierarchy
                         processHierarchy();
                         
                         if (allChains.length === 0) {
-                            showStatus('⚠️ Warning: No valid chains found in the data. Check your data structure.', 'warning');
+                            showStatus('Warning: No valid chains found in the data. Check your data structure.', 'warning');
                             document.getElementById('uploadBtn').disabled = false;
                             return;
                         }
@@ -334,27 +334,27 @@
                         buildParentSelector();
                         updateDiagram();
                         
-                        showStatus(`✅ Success: Loaded ${hierarchyData.length} hierarchy records, ${gradesData.length} grade records, and ${securityRolesData.length} security role records. Generated ${allChains.length} chain(s)`, 'success');
-                        document.getElementById('fileName').textContent = `📄 File: ${file.name}`;
+                        showStatus(`Success: Loaded ${hierarchyData.length} hierarchy records, ${gradesData.length} grade records, and ${securityRolesData.length} security role records. Generated ${allChains.length} chain(s)`, 'success');
+                        document.getElementById('fileName').textContent = `File: ${file.name}`;
                         document.getElementById('parentSelectorDiv').classList.remove('hidden');
                         document.getElementById('uploadBtn').disabled = false;
 
                     } catch (parseErr) {
-                        showStatus('❌ Error: Failed to parse Excel file. Ensure sheets are named correctly.', 'error');
+                        showStatus('Error: Failed to parse Excel file. Ensure sheets are named correctly.', 'error');
                         console.error('Parse error:', parseErr);
                         document.getElementById('uploadBtn').disabled = false;
                         return;
                     }
 
                 } catch (err) {
-                    showStatus(`❌ Error: ${err.message}`, 'error');
+                    showStatus(`Error: ${err.message}`, 'error');
                     console.error('Full error:', err);
                     document.getElementById('uploadBtn').disabled = false;
                 }
             };
 
             reader.onerror = function() {
-                showStatus('❌ Error: Failed to read file', 'error');
+                showStatus('Error: Failed to read file', 'error');
                 document.getElementById('uploadBtn').disabled = false;
             };
 
@@ -502,7 +502,7 @@
             Array.from(uniqueRoots).sort().forEach(root => {
                 const option = document.createElement('option');
                 option.value = root;
-                option.textContent = `🎯 ${root}`;
+                option.textContent = `${root}`;
                 select.appendChild(option);
             });
         }
@@ -531,7 +531,7 @@
                 uniquePaths.get(pathKey).push(chain);
             });
 
-            let html = `<div class="chain-title">📊 Root: ${selectedRoot} (${uniquePaths.size} unique chain(s))</div>`;
+            let html = `<div class="chain-title">Root: ${selectedRoot} (${uniquePaths.size} unique chain(s))</div>`;
 
             uniquePaths.forEach((chains, pathKey) => {
                 const firstChain = chains[0];
