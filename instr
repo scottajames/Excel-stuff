@@ -1,0 +1,6 @@
+Upload excel.xlsx/xls/xlsm into html page, javascript/react does the following using nomnoml
+Excel tab - 2 Tray Mappings - Column C 'Connect Worktray Mapping'
+Column A 'Key' before | remove all after
+Column A 'Key' after | remove all before
+Excel tab - 3 Security Mapping - Matching Column I and Column J Display column D
+Excel tab - 4 Unit Relation - Start all without 'SUPV', 'MGR', 'SNR MGR' 'SLT' create diagram from column C with 'PARENT' inside column D create diagram until reaching column C and column E are matching
