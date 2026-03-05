@@ -1,274 +1,47 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Excel Hierarchy Viewer</title>
-
-<!-- Excel reader -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-<!-- Diagram renderer -->
-<script src="https://cdn.jsdelivr.net/npm/nomnoml/dist/nomnoml.js"></script>
-
-<style>
-
-body{
-font-family:Arial;
-margin:40px;
-}
-
-canvas{
-border:1px solid #ccc;
-margin-top:20px;
-}
-
-select{
-padding:6px;
-margin-left:10px;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h2>Excel Hierarchy Diagram</h2>
-
-<!-- Upload Excel -->
-<input type="file" id="excelFile" accept=".xlsx,.xls,.xlsm">
-
-<br><br>
-
-<!-- Dropdown for selecting which parent tree to render -->
-<label>Select End Parent:</label>
-<select id="parentSelector">
-<option value="">-- Select Parent --</option>
-</select>
-
-<br><br>
-
-<canvas id="diagramCanvas"></canvas>
-
 <script>
 
-/*
-GLOBAL STRUCTURES
+function checkFile(event) {
 
-Designed for performance with large files
-*/
+    const file = event.target.files[0];
 
-let relations = {};       // parent -> children
-let reverseRelations = {}; // child -> parent
-let endParents = new Set(); // possible root nodes
+    if (!file) {
+        return;
+    }
 
+    const reader = new FileReader();
 
+    reader.onload = function(e) {
 
-/*---------------------------------------------
-FILE UPLOAD
----------------------------------------------*/
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
 
-document.getElementById("excelFile").addEventListener("change", loadExcel);
+        const firstSheet = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheet];
 
-function loadExcel(event){
+        const cell = worksheet["A1"];
 
-const file = event.target.files[0];
-const reader = new FileReader();
+        if (!cell) {
+            showError();
+            return;
+        }
 
-reader.onload = function(e){
+        const value = cell.v.toString().toLowerCase();
 
-const data = new Uint8Array(e.target.result);
+        if (value.startsWith("future postings")) {
+            document.getElementById("result").innerHTML =
+                "✅ Valid Future Postings file.";
+        } else {
+            showError();
+        }
 
-const workbook = XLSX.read(data,{type:"array"});
+    };
 
-const traySheet = XLSX.utils.sheet_to_json(
-workbook.Sheets["2 Tray Mappings"], {header:1}
-);
-
-const securitySheet = XLSX.utils.sheet_to_json(
-workbook.Sheets["3 Security Mapping"], {header:1}
-);
-
-const unitSheet = XLSX.utils.sheet_to_json(
-workbook.Sheets["4 Unit Relation"], {header:1}
-);
-
-
-processSheets(traySheet,securitySheet,unitSheet);
-
-};
-
-reader.readAsArrayBuffer(file);
-
+    reader.readAsArrayBuffer(file);
 }
 
-
-
-/*---------------------------------------------
-PROCESS EXCEL DATA
----------------------------------------------*/
-
-function processSheets(traySheet,securitySheet,unitSheet){
-
-relations = {};
-reverseRelations = {};
-endParents.clear();
-
-
-/*
-UNIT RELATION processing
-
-Column C -> node
-Column D -> relation type
-Column E -> parent
-*/
-
-const excluded = ["SUPV","MGR","SNR MGR","SLT"];
-
-for(let i=1;i<unitSheet.length;i++){
-
-const row = unitSheet[i];
-
-const C = row[2];
-const D = row[3];
-const E = row[4];
-
-if(!C || !E) continue;
-
-if(excluded.some(x => C.includes(x))) continue;
-
-if(D !== "PARENT") continue;
-
-
-/*
-Build forward relation
-parent -> children
-*/
-
-if(!relations[E]) relations[E] = [];
-relations[E].push(C);
-
-
-/*
-Build reverse relation
-child -> parent
-*/
-
-reverseRelations[C] = E;
-
+function showError() {
+    document.getElementById("result").innerHTML =
+        "❌ ERROR: This is not a Future Postings file.";
 }
-
-
-/*
-Detect end parents (top of hierarchy)
-
-Nodes that never appear as children
-*/
-
-Object.keys(relations).forEach(parent => {
-
-if(!reverseRelations[parent]){
-endParents.add(parent);
-}
-
-});
-
-
-populateDropdown();
-
-}
-
-
-
-/*---------------------------------------------
-POPULATE DROPDOWN
----------------------------------------------*/
-
-function populateDropdown(){
-
-const selector = document.getElementById("parentSelector");
-
-selector.innerHTML = "<option value=''>-- Select Parent --</option>";
-
-endParents.forEach(p=>{
-
-const option = document.createElement("option");
-
-option.value = p;
-option.textContent = p;
-
-selector.appendChild(option);
-
-});
-
-}
-
-
-
-/*---------------------------------------------
-HANDLE DROPDOWN CHANGE
----------------------------------------------*/
-
-document.getElementById("parentSelector").addEventListener("change", function(){
-
-const parent = this.value;
-
-if(!parent) return;
-
-renderDiagram(parent);
-
-});
-
-
-
-/*---------------------------------------------
-BUILD DIAGRAM USING BFS
-Efficient even for large hierarchies
----------------------------------------------*/
-
-function renderDiagram(root){
-
-let visited = new Set();
-
-let queue = [root];
-
-let lines = [];
-
-while(queue.length){
-
-let node = queue.shift();
-
-if(visited.has(node)) continue;
-
-visited.add(node);
-
-let children = relations[node] || [];
-
-for(let child of children){
-
-lines.push(`[${node}] -> [${child}]`);
-
-queue.push(child);
-
-}
-
-}
-
-
-/*
-Render diagram
-*/
-
-const code = lines.join("\n");
-
-const canvas = document.getElementById("diagramCanvas");
-
-nomnoml.draw(canvas,code);
-
-}
-
 
 </script>
-
-</body>
-</html>
