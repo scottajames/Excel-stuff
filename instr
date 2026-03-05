@@ -1,47 +1,26 @@
-<script>
+document.getElementById("upload").addEventListener("change", handleFile);
 
-function checkFile(event) {
-
-    const file = event.target.files[0];
-
-    if (!file) {
-        return;
-    }
-
+function handleFile(e) {
+    const file = e.target.files[0];
     const reader = new FileReader();
 
-    reader.onload = function(e) {
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, {type: "array"});
 
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        const firstSheet = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheet];
+        const rows = XLSX.utils.sheet_to_json(sheet);
 
-        const cell = worksheet["A1"];
+        const filtered = rows.filter(row => row.City === "London");
 
-        if (!cell) {
-            showError();
-            return;
-        }
+        const output = document.getElementById("output");
+        output.innerHTML = "";
 
-        const value = cell.v.toString().toLowerCase();
-
-        if (value.startsWith("future postings")) {
-            document.getElementById("result").innerHTML =
-                "✅ Valid Future Postings file.";
-        } else {
-            showError();
-        }
-
+        filtered.forEach(row => {
+            output.innerHTML += `<p>${row.Name} - Age: ${row.Age}</p>`;
+        });
     };
 
     reader.readAsArrayBuffer(file);
 }
-
-function showError() {
-    document.getElementById("result").innerHTML =
-        "❌ ERROR: This is not a Future Postings file.";
-}
-
-</script>
