@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Future Postings Hierarchy Diagram</title>
+
+<!-- Excel reader -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<!-- Diagram renderer -->
+<script src="https://cdn.jsdelivr.net/npm/nomnoml/dist/nomnoml.js"></script>
+
+</head>
+<body>
+<input type="file" id="upload" />
+<div id="output"></div>
+
+<script>
+document.getElementById("upload").addEventListener("change", handleFile);
+
+function handleFile(e) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, {type: "array"});
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        const filtered = rows.filter(row => row.City === "London");
+
+        const output = document.getElementById("output");
+        output.innerHTML = "";
+
+        filtered.forEach(row => {
+            output.innerHTML += `<p>${row.Name} - Age: ${row.Age}</p>`;
+        });
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+</script>
+	
+  
+</body>
+</html>
