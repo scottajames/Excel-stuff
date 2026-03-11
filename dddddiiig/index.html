@@ -3,16 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Index</title>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        h1 { color: blue; }
-    </style>
+    <title>Hierarchy Diagram Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/nomnoml@1.4.0/dist/nomnoml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
 </head>
 <body>
-    <h1>Hello, World!</h1>
+    <h1>Hierarchy Diagram Generator</h1>
+    
+    <div>
+        <label for="file-input">Upload Excel File (.xlsm):</label>
+        <input type="file" id="file-input" accept=".xlsx,.xlsm">
+        <div id="status"></div>
+    </div>
+
+    <div id="results-container" style="display:none;">
+        <div id="diagrams"></div>
+    </div>
+
+    <div id="error-container" style="display:none;">
+        <div id="error-message"></div>
+        <button id="retry-btn">Try Again</button>
+    </div>
+
     <script>
-        console.log('JavaScript is working!');
+        const state = {
+            isLoading: false,
+            hasError: false,
+        };
+
+        const fileInput = document.getElementById('file-input');
+        const statusDiv = document.getElementById('status');
+        const resultsContainer = document.getElementById('results-container');
+        const diagramsDiv = document.getElementById('diagrams');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const retryBtn = document.getElementById('retry-btn');
+
+        fileInput.addEventListener('change', handleFileUpload);
+        retryBtn.addEventListener('click', resetAndUpload);
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            
+            if (!file) return;
+            
+            if (!file.name.match(/\.(xlsx|xlsm)$/i)) {
+                showError('Please upload a valid Excel file (.xlsx or .xlsm)');
+                return;
+            }
+
+            state.isLoading = true;
+            state.hasError = false;
+            showLoading('📂 Reading file...');
+            hideError();
+            hideResults();
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                showLoading('📊 Parsing data from Sheet5...');
+
+                const sheet5Name = workbook.SheetNames.find(name => 
+                    name.toLowerCase().includes('sheet5') || name === 'Sheet5'
+                );
+
+                if (!sheet5Name) {
+                    throw new Error('Sheet5 not found in workbook');
+                }
+
+                const worksheet = workbook.Sheets[sheet5Name];
+                const data = XLSX.utils.sheet_to_json(worksheet, { header: 'A' });
+
+                showLoading('🔍 Building hierarchies...');
+
+                const hierarchies = parseHierarchies(data);
+
+                if (hierarchies.length === 0) {
+                    throw new Error('No valid hierarchies found in Sheet5');
+                }
+
+                showLoading('🎨 Generating diagrams...');
+
+                generateDiagrams(hierarchies);
+
+                state.isLoading = false;
+                showSuccess(`✅ Successfully generated ${hierarchies.length} diagram(s)`);
+                showResults();
+
+            } catch (error) {
+                state.isLoading = false;
+                state.hasError = true;
+                showError(`❌ Error: ${error.message}`);
+                console.error('Detailed error:', error);
+            }
+        }
+
+        function parseHierarchies(data) {
+            const hierarchies = [];
+            const terminators = ['SUPV', 'MGR', 'SNR MGR', 'SLT'];
+            const processedStarts = new Set();
+
+            const rows = data.map((row, index) => ({
+                unitRelation: row.C || '',
+                parent: row.D || '',
+                description: row.E || '',
+                index: index
+            })).filter(row => row.unitRelation || row.parent || row.description);
+
+            rows.forEach((row, idx) => {
+                const unitRelation = row.unitRelation.toString().trim();
+                
+                const isTerminator = terminators.some(term => unitRelation.includes(term));
+                
+                if (unitRelation && !isTerminator && !processedStarts.has(unitRelation)) {
+                    processedStarts.add(unitRelation);
+                    
+                    const chain = buildHierarchyChain(rows, unitRelation, terminators);
+                    
+                    if (chain.length > 0) {
+                        hierarchies.push({
+                            startPoint: unitRelation,
+                            chain: chain
+                        });
+                    }
+                }
+            });
+
+            return hierarchies;
+        }
+
+        function buildHierarchyChain(rows, startPoint, terminators) {
+            const chain = [];
+            let current = startPoint;
+            const visited = new Set();
+            let maxIterations = 100;
+
+            while (maxIterations-- > 0) {
+                if (visited.has(current)) {
+                    break;
+                }
+                visited.add(current);
+
+                const row = rows.find(r => r.unitRelation.toString().trim() === current.trim());
+                
+                if (!row) {
+                    const parentRow = rows.find(r => r.parent.toString().trim().toUpperCase() === 'PARENT' && 
+                                                    r.unitRelation.toString().trim() === current.trim());
+                    if (!parentRow) break;
+                }
+
+                chain.push({
+                    title: current,
+                    description: row ? row.description : ''
+                });
+
+                const isTerminator = terminators.some(term => current.includes(term));
+                if (isTerminator) {
+                    break;
+                }
+
+                const parentRow = rows.find(r => 
+                    r.parent.toString().trim().toUpperCase() === 'PARENT' &&
+                    r.unitRelation.toString().trim() !== current.trim()
+                );
+
+                if (!parentRow) {
+                    break;
+                }
+
+                current = parentRow.unitRelation.toString().trim();
+            }
+
+            return chain;
+        }
+
+        function generateDiagrams(hierarchies) {
+            diagramsDiv.innerHTML = '';
+
+            hierarchies.forEach((hierarchy, index) => {
+                const nomnomlDef = createNomnomlDef(hierarchy.chain);
+                
+                const card = document.createElement('div');
+
+                const title = document.createElement('h2');
+                title.textContent = `Hierarchy ${index + 1}: ${hierarchy.startPoint}`;
+
+                const container = document.createElement('div');
+
+                card.appendChild(title);
+                card.appendChild(container);
+                diagramsDiv.appendChild(card);
+
+                try {
+                    const svg = nomnoml.renderSvg(nomnomlDef);
+                    container.appendChild(svg);
+                } catch (error) {
+                    container.innerHTML = `<p>Error rendering diagram: ${error.message}</p>`;
+                    console.error('Nomnoml error:', error);
+                }
+            });
+        }
+
+        function createNomnomlDef(chain) {
+            if (chain.length === 0) return '#[empty]';
+
+            let def = '#title\n Organizational Hierarchy\n\n';
+
+            let diagram = '';
+            for (let i = 0; i < chain.length; i++) {
+                const item = chain[i];
+                const label = item.description ? `${item.title}\n(${item.description})` : item.title;
+                diagram += `[${label}]`;
+                
+                if (i < chain.length - 1) {
+                    diagram += ' -> ';
+                }
+            }
+
+            def += diagram;
+            return def;
+        }
+
+        function showLoading(message) {
+            statusDiv.textContent = message;
+        }
+
+        function showSuccess(message) {
+            statusDiv.textContent = message;
+        }
+
+        function showError(message) {
+            state.hasError = true;
+            errorMessage.textContent = message;
+            errorContainer.style.display = 'block';
+            statusDiv.textContent = '';
+        }
+
+        function hideError() {
+            errorContainer.style.display = 'none';
+        }
+
+        function showResults() {
+            resultsContainer.style.display = 'block';
+        }
+
+        function hideResults() {
+            resultsContainer.style.display = 'none';
+        }
+
+        function resetAndUpload() {
+            fileInput.value = '';
+            hideError();
+            hideResults();
+            statusDiv.textContent = '';
+            state.hasError = false;
+        }
     </script>
 </body>
 </html>
