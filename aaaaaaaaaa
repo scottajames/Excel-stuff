@@ -2,71 +2,178 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Future Postings Hierarchy Diagram</title>
+<title>Hierarchy Diagram with Tray Mapping</title>
 
-<!-- Excel reader -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-<!-- Diagram renderer -->
 <script src="https://cdn.jsdelivr.net/npm/nomnoml/dist/nomnoml.js"></script>
 
 </head>
 <body>
-<input type="file" id="upload" />
-<div id="output"></div>
+
+<h2>Upload Excel File</h2>
+<input type="file" id="upload">
+
+<h3>Select Leaf Node (Optional)</h3>
+<select id="leafSelect">
+  <option value="ALL">All</option>
+</select>
+
+<h3>Hierarchy Diagram</h3>
+<canvas id="diagramCanvas"></canvas>
 
 <script>
-document.getElementById("upload").addEventListener("change", function (e) {
+
+let allRelations = []; // Main hierarchy relations
+let extraLinesMap = {}; // Map for "2 Tray Mapping" extra info
+
+document.getElementById("upload").addEventListener("change", function(e) {
+
     const file = e.target.files[0];
     const reader = new FileReader();
 
-    reader.onload = function (event) {
+    reader.onload = function(event) {
+
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
 
-        const sheetName = "5 Unit Relation"; // Sheet name
-        const sheet = workbook.Sheets[sheetName];
+        // ---------------- Main Sheet: 5 Unit Relation ----------------
+        const mainSheet = workbook.Sheets["5 Unit Relation"];
+        const mainRows = XLSX.utils.sheet_to_json(mainSheet, { header:1 });
+        allRelations = parseRelations(mainRows);
 
-        // Convert sheet to array of rows
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }); 
+        // ---------------- Extra Sheet: 2 Tray Mapping ----------------
+        extraLinesMap = {}; // reset
+        const traySheet = workbook.Sheets["2 Tray Mapping"];
+        if(traySheet){
+            const trayRows = XLSX.utils.sheet_to_json(traySheet, { header:1 });
+            mergeTrayMapping(trayRows, allRelations);
+        }
 
-        // Get all values from a column until empty
-        const colEValues = getColumnUntilEmpty(rows, "C"); // column C
-	 const colDValues = getColumnUnitEmpty(rows, "D"); // column D
-	const colEValues = getColumnUnitEmpty(rows, "E"); // column E
+        // Render full diagram initially
+        renderDiagram(allRelations);
 
-        console.log("Column values:", colValues);
+        // Populate leaf node dropdown
+        populateLeafDropdown(allRelations);
     };
 
     reader.readAsArrayBuffer(file);
 });
 
-// Convert column letter → number (A=0, B=1, etc.)
-function colLetterToIndex(letter) {
-    return letter.toUpperCase().charCodeAt(0) - 65;
-}
+// ---------------- Dropdown Change ----------------
+document.getElementById("leafSelect").addEventListener("change", function() {
+    const selected = this.value;
+    if(selected === "ALL") {
+        renderDiagram(allRelations);
+    } else {
+        const filtered = getPathToLeaf(selected);
+        renderDiagram(filtered);
+    }
+});
 
-// Get column values until the first empty cell
-function getColumnUntilEmpty(rows, colLetter) {
-    const colIndex = colLetterToIndex(colLetter);
-    const values = [];
+// ---------------- Parsing Main Relations ----------------
+function colLetterToIndex(letter){ return letter.toUpperCase().charCodeAt(0)-65; }
 
-    for (let i = 0; i < rows.length; i++) {
-        const cellValue = rows[i][colIndex];
+function parseRelations(rows){
+    const colC = colLetterToIndex("C");
+    const colD = colLetterToIndex("D");
+    const colE = colLetterToIndex("E");
+    const banned = ["SUPV","MGR","SNR MGR","SLT"];
 
-        if (cellValue === undefined || cellValue === null || cellValue === "") {
-            break; // stop when empty
+    let relations = [];
+    let rootFound = false;
+
+    for(let i=0;i<rows.length;i++){
+        let c = rows[i][colC];
+        let d = rows[i][colD];
+        let e = rows[i][colE];
+        if(!c || !d || !e) continue;
+        if(String(d).trim().toUpperCase()!=="PARENT") continue;
+
+        if(!rootFound){
+            // only the first root cannot have banned suffix
+            const blocked = banned.some(s=>String(c).trim().toUpperCase().endsWith(s));
+            if(blocked) continue;
+            rootFound = true;
         }
 
-        values.push(cellValue);
+        if(c === e) break; // prevent loops
+        relations.push({parent: c, child: e});
     }
-
-    return values;
+    return relations;
 }
-``
-    
+
+// ---------------- Merge 2 Tray Mapping ----------------
+function mergeTrayMapping(trayRows, relations){
+    const valuesToMatch = new Set([...relations.map(r=>r.parent), ...relations.map(r=>r.child)]);
+    const colA = colLetterToIndex("A");
+    const colB = colLetterToIndex("B");
+
+    trayRows.forEach(row=>{
+        const valB = row[colB];
+        const valA = row[colA];
+        if(valB && valA && valuesToMatch.has(valB)){
+            if(!extraLinesMap[valB]) extraLinesMap[valB] = [];
+            extraLinesMap[valB].push(valA);
+        }
+    });
+}
+
+// ---------------- Render Nomnoml Diagram ----------------
+function renderDiagram(relations){
+    const canvas = document.getElementById("diagramCanvas");
+    let diagram = "#direction: up\n#spacing: 60\n#padding: 20\n";
+
+    relations.slice().reverse().forEach(r=>{
+        let parentLines = [r.parent];
+        let childLines = [r.child];
+
+        // Add extra tray info if available
+        if(extraLinesMap[r.parent]) parentLines.push(...extraLinesMap[r.parent]);
+        if(extraLinesMap[r.child]) childLines.push(...extraLinesMap[r.child]);
+
+        diagram += `[${parentLines.join("|")}]->[${childLines.join("|")}]\n`;
+    });
+
+    nomnoml.draw(canvas, diagram);
+}
+
+// ---------------- Leaf Node Dropdown ----------------
+function populateLeafDropdown(relations){
+    const select = document.getElementById("leafSelect");
+    select.innerHTML = '<option value="ALL">All</option>';
+
+    const parents = new Set(relations.map(r=>r.parent));
+    const children = new Set(relations.map(r=>r.child));
+    const leafNodes = [...children].filter(c=>!parents.has(c));
+
+    leafNodes.forEach(leaf=>{
+        const option = document.createElement("option");
+        option.value = leaf;
+        option.textContent = leaf;
+        select.appendChild(option);
+    });
+}
+
+// ---------------- Get Path to Leaf Node ----------------
+function getPathToLeaf(leaf){
+    let path = [];
+    let lookup = {};
+    allRelations.forEach(r=>{
+        lookup[r.parent] = r.child;
+    });
+
+    // start from root
+    let root = allRelations[0].parent;
+    let current = root;
+    while(current){
+        let next = lookup[current];
+        if(next) path.push({parent: current, child: next});
+        if(next === leaf) break;
+        current = next;
+    }
+    return path;
+}
+
 </script>
-	
-  
 </body>
 </html>
