@@ -1,41 +1,226 @@
-body>
-    <h2>Upload an XLSM File</h2>
-    <input type="file" id="fileInput" accept=".xlsm,.xlsx" />
-    <div id="output"></div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Unit Relation Audit Tool</title>
 
-    <script>
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/nomnoml/dist/nomnoml.js"></script>
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+<style>
 
-                // Use the first sheet
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
+body{
+font-family:Arial;
+margin:20px;
+background:#f4f4f4
+}
 
-                // Convert to JSON
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+h2{
+margin-bottom:10px
+}
 
-                // Build HTML table
-                let html = '<table>';
-                jsonData.forEach(row => {
-                    html += '<tr>';
-                    row.forEach(cell => {
-                        html += `<td>${cell !== undefined ? cell : ''}</td>`;
-                    });
-                    html += '</tr>';
-                });
-                html += '</table>';
+.controls{
+margin-bottom:20px
+}
 
-                document.getElementById('output').innerHTML = html;
-            };
+canvas{
+background:white;
+border:1px solid #ccc
+}
 
-            reader.readAsArrayBuffer(file);
-        });
-    </script>
+button{
+margin-left:10px;
+padding:6px 10px;
+cursor:pointer
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>Unit Relation Audit Tool</h2>
+
+<div class="controls">
+
+<input type="file" id="fileInput">
+
+<select id="parentFilter">
+<option value="">Select SLT</option>
+</select>
+
+<button onclick="exportPNG()">Export PNG</button>
+
+</div>
+
+<canvas id="diagram" width="1600" height="900"></canvas>
+
+<script>
+
+let relations={}
+let chains=[]
+
+function cleanName(text){
+
+if(!text) return ""
+
+return text.toString().split("FUTURE POSTING")[0].trim()
+
+}
+
+function isStartingNode(name){
+
+const bad=["SUPV","MGR","SNR MGR","SLT"]
+
+return !bad.some(b=>name.includes(b))
+
+}
+
+document.getElementById("fileInput").addEventListener("change",function(e){
+
+const file=e.target.files[0]
+
+const reader=new FileReader()
+
+reader.onload=function(evt){
+
+const data=new Uint8Array(evt.target.result)
+
+const workbook=XLSX.read(data,{type:'array'})
+
+const sheet=workbook.Sheets["5 Unit Relation"]
+
+const rows=XLSX.utils.sheet_to_json(sheet,{header:1})
+
+buildRelations(rows)
+buildChains(rows)
+populateDropdown()
+
+}
+
+reader.readAsArrayBuffer(file)
+
+})
+
+function buildRelations(rows){
+
+relations={}
+
+rows.forEach(r=>{
+
+const child=cleanName(r[2])
+const relation=r[3]
+const parent=cleanName(r[4])
+
+if(relation==="PARENT"){
+
+relations[child]=parent
+
+}
+
+})
+
+}
+
+function buildChains(rows){
+
+chains=[]
+
+rows.forEach(r=>{
+
+const start=cleanName(r[2])
+
+if(!start) return
+
+if(!isStartingNode(start)) return
+
+let chain=[start]
+let current=start
+
+while(relations[current] && relations[current]!==current){
+
+const parent=relations[current]
+
+chain.push(parent)
+
+current=parent
+
+if(chain.length>25) break
+
+}
+
+chains.push(chain)
+
+})
+
+}
+
+function populateDropdown(){
+
+const select=document.getElementById("parentFilter")
+
+const parents=[...new Set(chains.map(c=>c[c.length-1]))]
+
+select.innerHTML="<option value=''>Select SLT</option>"
+
+parents.forEach(p=>{
+
+const opt=document.createElement("option")
+
+opt.value=p
+opt.textContent=p
+
+select.appendChild(opt)
+
+})
+
+select.addEventListener("change",drawDiagram)
+
+drawDiagram()
+
+}
+
+function drawDiagram(){
+
+const filter=document.getElementById("parentFilter").value
+
+let diagram=""
+
+chains.forEach(chain=>{
+
+const end=chain[chain.length-1]
+
+if(filter && end!==filter) return
+
+for(let i=0;i<chain.length-1;i++){
+
+diagram+=`[${chain[i]}]->[${chain[i+1]}]\n`
+
+}
+
+})
+
+const canvas=document.getElementById("diagram")
+
+nomnoml.draw(canvas,diagram)
+
+}
+
+function exportPNG(){
+
+const canvas=document.getElementById("diagram")
+
+const link=document.createElement("a")
+
+link.download="hierarchy-diagram.png"
+
+link.href=canvas.toDataURL("image/png")
+
+link.click()
+
+}
+
+</script>
+
 </body>
 </html>
