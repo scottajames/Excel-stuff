@@ -16,32 +16,55 @@
 <div id="output"></div>
 
 <script>
-document.getElementById("upload").addEventListener("change", handleFile);
-
-function handleFile(e) {
+document.getElementById("upload").addEventListener("change", function (e) {
     const file = e.target.files[0];
     const reader = new FileReader();
 
-    reader.onload = function(event) {
+    reader.onload = function (event) {
         const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, {type: "array"});
+        const workbook = XLSX.read(data, { type: "array" });
 
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const sheetName = "5 Unit Relation"; // Sheet name
+        const sheet = workbook.Sheets[sheetName];
 
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        // Convert sheet to array of rows
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }); 
 
-        const filtered = rows.filter(row => row.City === "London");
+        // Get all values from a column until empty
+        const colEValues = getColumnUntilEmpty(rows, "C"); // column C
+	 const colDValues = getColumnUnitEmpty(rows, "D"); // column D
+	const colEValues = getColumnUnitEmpty(rows, "E"); // column E
 
-        const output = document.getElementById("output");
-        output.innerHTML = "";
-
-        filtered.forEach(row => {
-            output.innerHTML += `<p>${row.Name} - Age: ${row.Age}</p>`;
-        });
+        console.log("Column values:", colValues);
     };
 
     reader.readAsArrayBuffer(file);
+});
+
+// Convert column letter → number (A=0, B=1, etc.)
+function colLetterToIndex(letter) {
+    return letter.toUpperCase().charCodeAt(0) - 65;
 }
+
+// Get column values until the first empty cell
+function getColumnUntilEmpty(rows, colLetter) {
+    const colIndex = colLetterToIndex(colLetter);
+    const values = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        const cellValue = rows[i][colIndex];
+
+        if (cellValue === undefined || cellValue === null || cellValue === "") {
+            break; // stop when empty
+        }
+
+        values.push(cellValue);
+    }
+
+    return values;
+}
+``
+    
 </script>
 	
   
