@@ -2,35 +2,41 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Project Tray Diagram</title>
+<title>Unit Relation Audit Tool</title>
 
-<script src="https://unpkg.com/xlsx/dist/xlsx.full.minnpkg.com/graphre/dist/graphre.js</script>
-<script src="https://unpkg.com/nomnoml.js</script>
+<!-- Libraries -->
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/graphre/dist/graphre.js"></script>
+<script src="https://unpkg.com/nomnoml/dist/nomnoml.js"></script>
 
 <style>
-body {
+body{
     font-family: Arial;
-    margin: 20px;
-    background: #f4f4f4;
+    margin:20px;
+    background:#f4f4f4;
 }
 
-h2 {
-    margin-bottom: 10px;
+h2{
+    margin-bottom:10px;
 }
 
-.controls {
-    margin-bottom: 20px;
+.controls{
+    margin-bottom:20px;
 }
 
-canvas {
-    background: white;
-    border: 1px solid #ccc;
+canvas{
+    background:white;
+    border:1px solid #ccc;
 }
 
-button {
-    margin-left: 10px;
-    padding: 6px 10px;
-    cursor: pointer;
+button{
+    margin-left:10px;
+    padding:6px 10px;
+    cursor:pointer;
+}
+
+select,input{
+    padding:6px;
 }
 </style>
 </head>
@@ -41,75 +47,142 @@ button {
 
 <div class="controls">
     <input type="file" id="fileInput">
+    
     <select id="parentFilter">
         <option value="">Select SLT</option>
     </select>
+
     <button onclick="exportPNG()">Export PNG</button>
 </div>
 
-<canvas id="target-canvas"></canvas>
+<canvas id="target-canvas" width="900" height="600"></canvas>
 
 <script>
 
-// ----------------------
-// HANDLE EXCEL UPLOAD
-// ----------------------
+let relationData = [];
+
+// -------------------------
+// EXCEL FILE LOAD
+// -------------------------
 document.getElementById("fileInput").addEventListener("change", handleFile);
 
-function handleFile(e) {
+function handleFile(e){
+
     const file = e.target.files[0];
     const reader = new FileReader();
 
-    reader.onload = function(event) {
+    reader.onload = function(event){
+
         const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data,{type:"array"});
 
-        // sheet + column configuration
-        const sheet1 = ["5 Unit Relation"];
-        const column1 = ["C", "D", "E"];
+        const sheetName = "5 Unit Relation";
 
-        const sheet2 = ["3 Security Mapping"];
-        const column2 = ["D", "I", "J"];
+        if(!workbook.Sheets[sheetName]){
+            alert("Sheet '5 Unit Relation' not found");
+            return;
+        }
 
-        const sheet3 = ["2 Tray Mappings"];
-        const column3 = ["A", "C"];
+        const sheet = workbook.Sheets[sheetName];
 
-        // FIXED ARRAY COMBINATION
-        const constALL = [
-            ...sheet1, ...sheet2, ...sheet3,
-            ...column1, ...column2, ...column3
-        ];
+        const json = XLSX.utils.sheet_to_json(sheet);
 
-        console.log("Sheets & Columns Loaded:", constALL);
+        relationData = json;
 
-        // Demo placeholder diagram
-        const sampleDiagram = `
-            [Excel File Loaded] -> [Ready To Process]
-        `;
-        drawDiagram(sampleDiagram);
+        populateSLTFilter(json);
+
+        buildDiagram();
     };
 
     reader.readAsArrayBuffer(file);
 }
 
 
-// ----------------------
+// -------------------------
+// POPULATE SLT DROPDOWN
+// -------------------------
+function populateSLTFilter(data){
+
+    const filter = document.getElementById("parentFilter");
+
+    filter.innerHTML = '<option value="">Select SLT</option>';
+
+    const sltSet = new Set();
+
+    data.forEach(r=>{
+        if(r.SLT) sltSet.add(r.SLT);
+    });
+
+    sltSet.forEach(slt=>{
+        const option = document.createElement("option");
+        option.value = slt;
+        option.textContent = slt;
+        filter.appendChild(option);
+    });
+}
+
+
+// -------------------------
+// FILTER CHANGE
+// -------------------------
+document.getElementById("parentFilter").addEventListener("change", buildDiagram);
+
+
+// -------------------------
+// BUILD NOMNOML DIAGRAM
+// -------------------------
+function buildDiagram(){
+
+    const selectedSLT = document.getElementById("parentFilter").value;
+
+    let diagram = "";
+
+    relationData.forEach(r=>{
+
+        if(selectedSLT && r.SLT !== selectedSLT) return;
+
+        const tray = r.Tray || "Tray";
+        const slt = r.SLT || "SLT";
+        const unit = r.Unit || "Unit";
+        const security = r.Security || "Security";
+
+        diagram += `[${tray}] -> [${slt}]\n`;
+        diagram += `[${slt}] -> [${unit}]\n`;
+        diagram += `[${unit}] -> [${security}]\n`;
+    });
+
+    drawDiagram(diagram);
+}
+
+
+// -------------------------
 // DRAW DIAGRAM
-// ----------------------
-function drawDiagram(source) {
-    var canvas = document.getElementById('target-canvas');
+// -------------------------
+function drawDiagram(source){
+
+    const canvas = document.getElementById("target-canvas");
+
+    if(source.trim() === ""){
+        source = "[No Data]";
+    }
+
     nomnoml.draw(canvas, source);
 }
 
 
-// ----------------------
-// EXPORT TO PNG
-// ----------------------
+// -------------------------
+// EXPORT PNG
+// -------------------------
 function exportPNG(){
+
     const canvas = document.getElementById("target-canvas");
+
     const link = document.createElement("a");
+
     link.download = "hierarchy-diagram.png";
+
     link.href = canvas.toDataURL("image/png");
+
     link.click();
 }
 
