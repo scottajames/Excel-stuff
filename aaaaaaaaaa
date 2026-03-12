@@ -1,43 +1,119 @@
-document.getElementById("excelFile").addEventListener("change", handleFile);
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Project Tray Diagram</title>
+
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.minnpkg.com/graphre/dist/graphre.js</script>
+<script src="https://unpkg.com/nomnoml.js</script>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 20px;
+    background: #f4f4f4;
+}
+
+h2 {
+    margin-bottom: 10px;
+}
+
+.controls {
+    margin-bottom: 20px;
+}
+
+canvas {
+    background: white;
+    border: 1px solid #ccc;
+}
+
+button {
+    margin-left: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Unit Relation Audit Tool</h2>
+
+<div class="controls">
+    <input type="file" id="fileInput">
+    <select id="parentFilter">
+        <option value="">Select SLT</option>
+    </select>
+    <button onclick="exportPNG()">Export PNG</button>
+</div>
+
+<canvas id="target-canvas"></canvas>
+
+<script>
+
+// ----------------------
+// HANDLE EXCEL UPLOAD
+// ----------------------
+document.getElementById("fileInput").addEventListener("change", handleFile);
 
 function handleFile(e) {
-  const file = e.target.files[0];
-  const reader = new FileReader();
+    const file = e.target.files[0];
+    const reader = new FileReader();
 
-  reader.onload = function(event) {
-    const data = new Uint8Array(event.target.result);
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
 
-    const workbook = XLSX.read(data, { type: "array" });
+        // sheet + column configuration
+        const sheet1 = ["5 Unit Relation"];
+        const column1 = ["C", "D", "E"];
 
-    const sheets = ["sheet1", "sheet2", "sheet3"];
-    const columns = ["A", "B", "C"];
+        const sheet2 = ["3 Security Mapping"];
+        const column2 = ["D", "I", "J"];
 
-    const result = {};
+        const sheet3 = ["2 Tray Mappings"];
+        const column3 = ["A", "C"];
 
-    sheets.forEach(sheetName => {
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) return;
+        // FIXED ARRAY COMBINATION
+        const constALL = [
+            ...sheet1, ...sheet2, ...sheet3,
+            ...column1, ...column2, ...column3
+        ];
 
-      const range = XLSX.utils.decode_range(sheet["!ref"]);
-      const rows = [];
+        console.log("Sheets & Columns Loaded:", constALL);
 
-      for (let r = range.s.r; r <= range.e.r; r++) {
-        const rowData = {};
+        // Demo placeholder diagram
+        const sampleDiagram = `
+            [Excel File Loaded] -> [Ready To Process]
+        `;
+        drawDiagram(sampleDiagram);
+    };
 
-        columns.forEach(col => {
-          const cellAddress = col + (r + 1);
-          const cell = sheet[cellAddress];
-          rowData[col] = cell ? cell.v : null;
-        });
-
-        rows.push(rowData);
-      }
-
-      result[sheetName] = rows;
-    });
-
-    console.log(result);
-  };
-
-  reader.readAsArrayBuffer(file);
+    reader.readAsArrayBuffer(file);
 }
+
+
+// ----------------------
+// DRAW DIAGRAM
+// ----------------------
+function drawDiagram(source) {
+    var canvas = document.getElementById('target-canvas');
+    nomnoml.draw(canvas, source);
+}
+
+
+// ----------------------
+// EXPORT TO PNG
+// ----------------------
+function exportPNG(){
+    const canvas = document.getElementById("target-canvas");
+    const link = document.createElement("a");
+    link.download = "hierarchy-diagram.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
+</script>
+
+</body>
+</html>
